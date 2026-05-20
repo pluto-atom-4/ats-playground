@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "sonnet",
+  "fastMode": false,
+  "verbose": true,
+  "autoCompactEnabled": true,
+  "autoCompactWindow": 150000,
+  "fileCheckpointingEnabled": true,
+  "respectGitignore": true,
+  "permissions": {
+    "defaultMode": "ask",
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash(git *)",
+      "Bash(uv *)",
+      "Bash(pytest *)",
+      "Bash(black *)",
+      "Bash(ruff *)",
+      "Bash(python *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(cat *)",
+      "Bash(tail *)",
+      "Bash(head *)",
+      "Bash(pwd *)",
+      "Bash(echo *)",
+      "Bash(which *)",
+      "Bash(pip *)",
+      "Bash(poetry *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(drop *)",
+      "Bash(truncate *)",
+      "Read(.env*)",
+      "Write(.env*)"
+    ],
+    "ask": [
+      "Bash(rm *)",
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Write(.github/*)",
+      "Write(.env*)",
+      "Bash(npm *)",
+      "Bash(yarn *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; if [[ \"$f\" =~ \\.(py)$ ]]; then echo 'Formatting Python file...'; fi; } 2>/dev/null || true",
+            "statusMessage": "Formatting code..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; if [[ \"$f\" =~ ^src/ && \"$f\" =~ \\.(py)$ ]]; then echo 'Running relevant tests...'; uv run pytest tests/ -k \"$(basename $f .py)\" -v 2>/dev/null || true; fi; } 2>/dev/null || true",
+            "statusMessage": "Running tests...",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "alwaysThinkingEnabled": true,
+  "enabledPlugins": {
+    "example-skills@anthropic-agent-skills": true,
+    "pyright-lsp@claude-plugins-official": true
+  },
+  "sandbox": {
+    "enabled": false,
+    "network": {
+      "allowedDomains": [
+        "*.anthropic.com",
+        "api.anthropic.com",
+        "github.com",
+        "*.github.com",
+        "pypi.org",
+        "*.pypi.org"
+      ]
+    }
+  },
+  "attribution": {
+    "commit": "Co-Authored-By: Claude <claude@anthropic.com>"
+  },
+  "spinnerTipsEnabled": true,
+  "showTurnDuration": false,
+  "showMessageTimestamps": false,
+  "todo": false
+}
