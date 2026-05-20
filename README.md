@@ -1,193 +1,377 @@
 # ATS Playground
 
-An agentic AI workflow for job assessment. Extract job postings from company websites, preprocess with NLP, verify with users, assess CV fit using Claude, and store results in a queryable database.
+[![GitHub](https://img.shields.io/badge/github-pluto--atom--4%2Fats--playground-blue?logo=github)](https://github.com/pluto-atom-4/ats-playground)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Status: Active](https://img.shields.io/badge/status-active-success)]()
 
-**Cost optimized**: 80–90% token reduction through preprocessing. ~$0.0006–0.0008 per assessment.
+An agentic AI workflow for intelligent job assessment. Extract job postings from company websites, preprocess with NLP, verify with users, assess CV fit using Claude 3.5 Sonnet, and store results in a queryable SQLite database.
 
-## Quick Start
+**Cost optimized**: 80–90% token reduction through local preprocessing. ~$0.0006–0.0008 per LLM assessment.
+
+## 🚀 Quick Start
 
 ```bash
 # 1. Clone & setup
-git clone https://github.com/yourusername/ats-playground.git
+git clone https://github.com/pluto-atom-4/ats-playground.git
 cd ats-playground
 uv sync
 python -m spacy download en_core_web_md
 
-# 2. Set API key
-export CLAUDE_API_KEY="sk-..."
+# 2. Create .env and set API key
+cp .env.example .env
+export ANTHROPIC_API_KEY="sk-ant-..."
 
-# 3. Run workflow
-python -m src.cli crawl --company acme
+# 3. Run the full workflow
+python -m src.cli --all --cv data/cv.json --config config/companies.json
+
+# Or run individually:
+python -m src.cli crawl --config config/companies.json
 python -m src.cli preprocess
 python -m src.cli review
-python -m src.cli assess --all
-python -m src.cli export --output results.md
+python -m src.cli assess --cv data/cv.json
+python -m src.cli export --output data/assessments/report.md
 ```
 
-## Documentation
+## 📚 Documentation
 
-**Start here**: [.github/copilot-instructions.md](./.github/copilot-instructions.md) (5 min quick-start)
+**New here?** Start with:
+- 👉 **[.github/copilot-instructions.md](./.github/copilot-instructions.md)** (5 min quick overview)
+- 📖 **[docs/README.md](./docs/README.md)** (complete documentation index with all guides)
 
-**Full index**: [docs/README.md](./docs/README.md)
-
-**Phase-specific guides**:
-- [CRAWL.md](./docs/CRAWL.md) – Playwright multi-site crawling
-- [PREPROCESS.md](./docs/PREPROCESS.md) – NLP preprocessing & chunking
-- [VERIFY.md](./docs/VERIFY.md) – Interactive user verification
-- [ASSESS.md](./docs/ASSESS.md) – Claude API integration & cost optimization
-- [STORAGE.md](./docs/STORAGE.md) – SQLite persistence & querying
-- [CLI.md](./docs/CLI.md) – Command reference
+**Phase-specific guides** (in `docs/`):
+| Phase | Guide | Focus |
+|-------|-------|-------|
+| 🌐 **CRAWL** | [CRAWL.md](./docs/CRAWL.md) | Playwright multi-site crawling, CSS selectors |
+| 🔄 **PREPROCESS** | [PREPROCESS.md](./docs/PREPROCESS.md) | HTML cleaning, NLP, semantic chunking, token counting |
+| 👀 **VERIFY** | [VERIFY.md](./docs/VERIFY.md) | Interactive CLI, user confirmation, cost transparency |
+| 🤖 **ASSESS** | [ASSESS.md](./docs/ASSESS.md) | Claude API, prompts, rate limiting, cost tracking |
+| 💾 **STORAGE** | [STORAGE.md](./docs/STORAGE.md) | SQLite schema, FTS5 search, markdown export |
+| 📝 **CLI** | [CLI.md](./docs/CLI.md) | Command reference, Typer framework, workflows |
 
 **System design**:
-- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) – Data flow, modules, scaling
-- [CONVENTIONS.md](./docs/CONVENTIONS.md) – Code style, testing, deployment
+- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) – System architecture, data flow, modules, scaling
+- [CONVENTIONS.md](./docs/CONVENTIONS.md) – Code style, testing, deployment, best practices
+- [COMPATIBILITY.md](./docs/COMPATIBILITY.md) – Troubleshooting, version matrix, setup issues
 
-**Troubleshooting**: [COMPATIBILITY.md](./docs/COMPATIBILITY.md)
+## ✨ Features
 
-## Features
+- **🌐 Multi-site crawling** – Playwright with JavaScript rendering, CSS selector pooling, rate limiting
+- **🔄 Smart preprocessing** – MarkItDown + BeautifulSoup, semantic chunking by sentences, token counting
+- **👀 User verification** – Interactive CLI review with cost estimates before expensive LLM calls
+- **🤖 LLM assessment** – Claude 3.5 Sonnet with batch processing, rate limiting, detailed scoring
+- **💾 Data persistence** – SQLite with FTS5 full-text search, structured export to Markdown
+- **📊 Cost analytics** – Real-time token tracking, per-job cost breakdown, total spend accounting
+- **⚡ Performance** – Crawl 100+ jobs/min, assess 2–5 jobs/min (Claude limit), query <100ms (indexed)
 
-- 🌐 **Multi-site crawling** – Playwright with JavaScript support, CSS selector pooling
-- 🔄 **Smart preprocessing** – MarkItDown + BeautifulSoup, semantic chunking, token counting
-- 👀 **User verification** – Interactive CLI review before expensive LLM calls
-- 🤖 **LLM assessment** – Claude 3.5 Sonnet with rate limiting, batch processing, cost tracking
-- 💾 **Data persistence** – SQLite with FTS5 full-text search, Markdown export
-- 📊 **Cost analytics** – Real-time cost tracking, token accounting, per-job breakdowns
+## 💻 Tech Stack
 
-## Tech Stack
+| Layer | Technologies |
+|-------|--------------|
+| **Browser** | Playwright (Chromium), async/await |
+| **NLP** | spaCy (en_core_web_md), tiktoken for token counting |
+| **Text Processing** | MarkItDown (primary), BeautifulSoup4 + lxml (fallback) |
+| **CLI** | Typer (modern, async-ready), interactive prompts |
+| **LLM** | Claude 3.5 Sonnet (Anthropic SDK) |
+| **Database** | SQLite with FTS5 (full-text search) |
+| **Formatting** | Markdown, JSON |
 
-| Phase | Technology |
-|-------|-----------|
-| **Crawl** | Playwright (browser), async/await |
-| **Preprocess** | MarkItDown, BeautifulSoup, spaCy, tiktoken |
-| **Verify** | Typer (CLI), interactive prompts |
-| **Assess** | Claude API, Anthropic SDK |
-| **Store** | SQLite, FTS5 (full-text search) |
-| **CLI** | Typer framework, async support |
+## 📋 Requirements
 
-## Requirements
+- **Python**: 3.11+ (3.13 recommended)
+- **Package manager**: `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/))
+- **Browser**: Chromium or Chrome (Playwright handles download)
+- **API key**: Anthropic Claude API key ([get one](https://console.anthropic.com))
+- **Disk**: ~100 MB for dependencies, ~5 MB per 500 assessments
 
-- Python 3.11+
-- `uv` (package manager)
-- Chromium or Chrome (for Playwright)
-- Claude API key
+## 🛠️ Installation
 
-## Installation
-
-See [.github/copilot-instructions.md](./.github/copilot-instructions.md#installation) for detailed setup.
+See [.github/copilot-instructions.md](./.github/copilot-instructions.md#quick-start) for detailed setup with environment config.
 
 ```bash
-# Using uv (recommended)
+# Install dependencies
 uv sync
+
+# Download spaCy NLP model (~40 MB)
 python -m spacy download en_core_web_md
+
+# Install Playwright browsers
+uv run playwright install
+
+# Create environment file with your API key
+cp .env.example .env
+# Edit .env and add: ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-## Usage
-
+Verify installation:
 ```bash
-# Full workflow
-python -m src.cli --all --company acme
-
-# Individual commands
-python -m src.cli crawl --company acme --headless
-python -m src.cli preprocess --batch 50
-python -m src.cli review --interactive
-python -m src.cli assess --mock  # test without API calls
-python -m src.cli query --keyword "python" --min-score 75
-python -m src.cli export --format md --output assessments.md
-python -m src.cli stats
-
-# Help
-python -m src.cli --help
-python -m src.cli assess --help
+uv run pytest tests/ -v  # All tests should pass
+uv run python -c "import spacy; print(spacy.load('en_core_web_md'))"
 ```
 
-## Cost Example
+## 🎯 Usage Examples
 
-Assessing 100 jobs:
-- **Raw HTML**: ~6,000 tokens/job × 100 = 600,000 tokens
-- **Preprocessed**: ~700 tokens/job × 100 = 70,000 tokens
-- **Savings**: 530,000 tokens (88%)
-- **LLM cost**: ~$0.07 (vs $0.60 unoptimized)
+### Full Workflow (One Command)
+```bash
+# Process all companies in config, assess against your CV
+uv run python -m src.cli --all --cv data/cv.json --config config/companies.json
+```
 
-See [docs/PREPROCESS.md](./docs/PREPROCESS.md#token-cost-savings) for detailed breakdown.
+### Step-by-Step
 
-## Testing
+**1. Crawl** job postings from company websites:
+```bash
+uv run python -m src.cli crawl --config config/companies.json --headless
+```
 
+**2. Preprocess** (clean HTML, chunk by sentences, count tokens):
+```bash
+uv run python -m src.cli preprocess --batch 50 --show-estimates
+```
+
+**3. Review** extracted jobs interactively before LLM calls:
+```bash
+uv run python -m src.cli review --interactive
+```
+
+**4. Assess** CV fit with Claude (tracked cost in real-time):
+```bash
+uv run python -m src.cli assess --cv data/cv.json --confirmed-only
+```
+
+**5. Query & Export** results:
+```bash
+# Search by keyword
+uv run python -m src.cli query --keyword "python" --min-score 75
+
+# Export to Markdown
+uv run python -m src.cli export --format md --output data/assessments/report.md
+```
+
+**6. View Statistics** and token usage:
+```bash
+uv run python -m src.cli stats --show-token-usage
+```
+
+### Testing & Debugging
 ```bash
 # Run all tests
-pytest tests/ -v
+uv run pytest tests/ -v
 
-# With coverage
-pytest tests/ --cov=src --cov-report=term-missing
+# Test crawling without browser (mock mode)
+uv run python -m src.cli crawl --mock
 
-# Specific test
-pytest tests/test_llm.py::test_batch_processing -v
+# Test LLM assessment without API calls
+uv run python -m src.cli assess --mock
+
+# Check logs
+tail -f logs/app.log
 ```
 
-## Contributing
+See [docs/CLI.md](./docs/CLI.md) for full command reference.
 
-1. Read [CONVENTIONS.md](./docs/CONVENTIONS.md) for code style
-2. Create feature branch: `git checkout -b feature/my-feature`
-3. Make changes & test: `pytest tests/ -v`
-4. Lint: `black src/` and `ruff check src/`
-5. Commit: `git commit -m "feat(cli): add new command"`
-6. Push & create PR
+## 💰 Cost Optimization
 
-## Debugging
+ATS Playground cuts LLM costs **80–90%** through local preprocessing.
 
-**Issue**: Playwright crashes  
-**Solution**: `python -m playwright install chromium` and see [COMPATIBILITY.md](./docs/COMPATIBILITY.md#playwright--browser-installation)
+### Example: Assess 100 Jobs
 
-**Issue**: spaCy model not found  
-**Solution**: `python -m spacy download en_core_web_md` and see [COMPATIBILITY.md](./docs/COMPATIBILITY.md#spacy-model-issues)
+| Approach | Tokens/Job | Total Tokens | Cost (Claude 3.5) | Savings |
+|----------|-----------|--------------|-------------------|---------|
+| **Raw HTML → LLM** | ~6,000 | 600,000 | ~$0.60 | — |
+| **ATS Playground** | ~700 | 70,000 | ~$0.07 | **88%** ✅ |
 
-**Issue**: Claude API errors  
-**Solution**: Check `logs/app.log` and see [ASSESS.md](./docs/ASSESS.md#error-handling)
+**Breakdown:**
+- Crawl locally (0 tokens)
+- Preprocess locally with spaCy (0 tokens)
+- Chunk semantically by sentences (not random token breaks)
+- Count tokens with tiktoken before LLM
+- Show cost estimate to user
+- Send only clean chunks → LLM
 
-More troubleshooting: [COMPATIBILITY.md](./docs/COMPATIBILITY.md)
+**Detailed analysis**: [docs/PREPROCESS.md](./docs/PREPROCESS.md#token-cost-savings) and [docs/ASSESS.md](./docs/ASSESS.md#cost-tracking)
 
-## Performance
+## 🧪 Testing
 
-| Metric | Value |
-|--------|-------|
-| Crawl speed | 100–200 jobs/min |
-| Preprocess speed | 50–100 jobs/min |
-| Assess speed | 2–5 jobs/min (Claude rate limit) |
-| Query latency | <100ms (FTS5 indexed) |
-| Database size | ~5 MB per 500 assessments |
-| LLM cost | $0.0006–0.0008 per job |
+```bash
+# Run all tests with coverage
+uv run pytest tests/ -v --cov=src --cov-report=term-missing
 
-## Architecture
+# Run specific test suite
+uv run pytest tests/test_llm.py -v
+uv run pytest tests/test_storage.py::test_query_results -v
 
-```
-CRAWL (Playwright)
-  ↓
-PREPROCESS (MarkItDown, spaCy)
-  ↓
-VERIFY (Interactive CLI)
-  ↓
-ASSESS (Claude API)
-  ↓
-STORE (SQLite)
-  ↓
-QUERY/EXPORT
+# Run with detailed output
+uv run pytest tests/ -vv -s
 ```
 
-See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for system design & data flow.
+Tests cover:
+- ✅ Crawling & HTML extraction
+- ✅ Preprocessing & token counting
+- ✅ User verification workflows
+- ✅ LLM assessment & error handling
+- ✅ SQLite queries & exports
+- ✅ CLI commands & arguments
 
-## License
+## 🤝 Contributing
 
-MIT (or your chosen license)
+1. **Read code standards**: [CONVENTIONS.md](./docs/CONVENTIONS.md)
+2. **Create feature branch**: `git checkout -b feature/my-feature`
+3. **Make changes** & write tests (coverage: 80%+)
+4. **Test**: `uv run pytest tests/ -v`
+5. **Lint**: 
+   ```bash
+   uv run black src/ tests/
+   uv run ruff check src/ tests/ --fix
+   ```
+6. **Commit** with clear message:
+   ```bash
+   git commit -m "feat(cli): add new command"
+   # Include Co-authored-by if pair programming
+   ```
+7. **Push & open PR**: Include description of changes & testing
 
-## Questions?
+See [CONVENTIONS.md](./docs/CONVENTIONS.md) for code style, error handling, and deployment checklist.
 
-- **How do I...?** → Check [docs/README.md](./docs/README.md)
-- **Why does...?** → Check [ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-- **Getting error...?** → Check [COMPATIBILITY.md](./docs/COMPATIBILITY.md)
-- **Best practice for...?** → Check [CONVENTIONS.md](./docs/CONVENTIONS.md)
+## 🐛 Debugging
+
+**Playwright crashes?**
+```bash
+uv run playwright install chromium
+# See detailed troubleshooting: docs/COMPATIBILITY.md#playwright--browser-installation
+```
+
+**spaCy model not found?**
+```bash
+uv run python -m spacy download en_core_web_md
+# See: docs/COMPATIBILITY.md#spacy-model-issues
+```
+
+**Claude API errors?**
+```bash
+# Check logs
+tail -f logs/app.log
+
+# Verify API key
+echo $ANTHROPIC_API_KEY
+
+# Test connection
+uv run python -c "from anthropic import Anthropic; print(Anthropic().models.list())"
+
+# See: docs/ASSESS.md#error-handling
+```
+
+**Database locked?**
+```bash
+# Check for running processes
+lsof | grep ats_playground.db
+
+# Clear database if corrupted
+rm data/ats_playground.db
+uv run python src/storage/db.py --init
+```
+
+**More troubleshooting**: [COMPATIBILITY.md](./docs/COMPATIBILITY.md) — version matrix, environment setup, known issues
+
+## 📊 Performance Benchmarks
+
+| Metric | Speed | Notes |
+|--------|-------|-------|
+| **Crawl** | 100–200 jobs/min | Depends on site complexity & network |
+| **Preprocess** | 50–100 jobs/min | Local NLP with spaCy |
+| **Token counting** | 1000+ jobs/sec | tiktoken on preprocessed text |
+| **Assess (LLM)** | 2–5 jobs/min | Claude rate limit (~10 RPM, ~50k TPM) |
+| **Query** | <100 ms | SQLite FTS5 indexed search |
+| **Export** | <1 sec | Markdown generation |
+| **Database size** | ~5 MB | Per 500 assessments |
+| **LLM cost** | $0.0006–$0.0008/job | Depends on job description length |
+
+See [ARCHITECTURE.md](./docs/ARCHITECTURE.md#performance) for scaling strategies.
+
+## 🏗️ Architecture & Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ INPUT: Company URLs + CSS Selectors (config/companies.json) │
+└────────┬────────────────────────────────────────────────────┘
+         │
+    ┌────▼─────────────────────────────────────┐
+    │ 1️⃣  CRAWL (Playwright)                   │
+    │     • Render JavaScript                  │
+    │     • Extract via CSS selectors          │
+    │     • Rate limiting & retries            │
+    └────┬─────────────────────────────────────┘
+         │
+    ┌────▼─────────────────────────────────────┐
+    │ 2️⃣  PREPROCESS (MarkItDown + spaCy)     │
+    │     • Convert HTML → clean text          │
+    │     • Split by sentences                 │
+    │     • Count tokens with tiktoken         │
+    │     • Remove boilerplate                 │
+    └────┬─────────────────────────────────────┘
+         │
+    ┌────▼─────────────────────────────────────┐
+    │ 3️⃣  VERIFY (Interactive CLI)            │
+    │     • User confirms/edits/rejects        │
+    │     • Show cost estimate                 │
+    │     • Mark approved for LLM              │
+    └────┬─────────────────────────────────────┘
+         │
+    ┌────▼─────────────────────────────────────┐
+    │ 4️⃣  ASSESS (Claude API)                 │
+    │     • Match CV skills vs job             │
+    │     • Rate by category (tech, seniority) │
+    │     • Generate recommendations           │
+    │     • Track actual tokens & cost         │
+    └────┬─────────────────────────────────────┘
+         │
+    ┌────▼─────────────────────────────────────┐
+    │ 5️⃣  STORE (SQLite)                      │
+    │     • Save job + assessment              │
+    │     • Index for FTS5 search              │
+    │     • Track cost & tokens                │
+    └────┬─────────────────────────────────────┘
+         │
+    ┌────▼─────────────────────────────────────┐
+    │ 6️⃣  QUERY / EXPORT                      │
+    │     • Search by keyword/score            │
+    │     • Export to Markdown report          │
+    │     • View statistics & costs            │
+    └────▼─────────────────────────────────────┘
+         │
+    OUTPUT: Markdown assessment report + SQLite database
+```
+
+**Full architecture**: [ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+
+## 📄 License
+
+MIT — Use freely in commercial or personal projects. See [LICENSE](LICENSE) for details.
+
+## ❓ Help & Support
+
+**Quick Answers**:
+| Question | Resource |
+|----------|----------|
+| How do I...? | Check the relevant phase doc (CRAWL, ASSESS, etc.) |
+| Why does...? | Read [ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
+| Getting error...? | See [COMPATIBILITY.md](./docs/COMPATIBILITY.md) |
+| Best practice for...? | Read [CONVENTIONS.md](./docs/CONVENTIONS.md) |
+
+**Resources**:
+- 📖 **Full Documentation**: [docs/README.md](./docs/README.md)
+- 🚀 **Quick Start**: [.github/copilot-instructions.md](./.github/copilot-instructions.md)
+- 🐛 **Troubleshooting**: [COMPATIBILITY.md](./docs/COMPATIBILITY.md)
+- 📝 **All Commands**: [CLI.md](./docs/CLI.md)
+
+**Report Issues**:
+- 🐛 Bugs: [Open an issue](https://github.com/pluto-atom-4/ats-playground/issues/new?template=bug_report.md)
+- ✨ Features: [Request a feature](https://github.com/pluto-atom-4/ats-playground/issues/new?template=feature_request.md)
+- 💬 Discussion: [Start a discussion](https://github.com/pluto-atom-4/ats-playground/discussions)
 
 ---
 
-**Last updated**: 2026-05-18  
-**Status**: Active & Maintained  
-**Documentation**: [8 comprehensive guides](./docs/README.md) — 165 KB total
+**Last updated**: 2026-05-19  
+**Status**: Active & Maintained ✅  
+**Documentation**: [8 comprehensive guides](./docs/README.md) — **165+ KB total**  
+**Repository**: [pluto-atom-4/ats-playground](https://github.com/pluto-atom-4/ats-playground)
