@@ -68,7 +68,7 @@ def validate_spacy() -> Dict[str, Any]:
         # Test model loading
         try:
             nlp = spacy.load("en_core_web_md")
-            doc = nlp("Test sentence for NER validation.")
+            _ = nlp("Test sentence for NER validation.")  # Validate model is functional
             return {
                 "status": "✅",
                 "version": version,
@@ -120,7 +120,7 @@ def validate_beautifulsoup() -> Dict[str, Any]:
 def validate_lxml() -> Dict[str, Any]:
     """Validate lxml installation (optional but recommended for speed)."""
     try:
-        import lxml
+        import lxml  # noqa: F401
 
         return {"status": "✅", "detail": "lxml available (fast C-based parser)"}
     except ImportError:
