@@ -39,6 +39,23 @@ python -m src.cli export --output data/assessments/report.md
 
 **Setup Troubleshooting?** See [docs/SETUP.md](./docs/SETUP.md) for detailed Python 3.12 configuration, system dependencies, and troubleshooting.
 
+## 🔍 Code Quality Assurance (Issue #6)
+
+Optional: Automatically catch code quality issues before committing:
+
+```bash
+# Install pre-commit hooks (1 minute)
+python -m src.setup.setup_precommit
+
+# Hooks run automatically on git commit:
+# • trailing-whitespace & end-of-file-fixer (auto-fix)
+# • black & ruff (auto-fix formatting)
+# • mypy (type checking)
+# • pytest (unit tests)
+```
+
+**Details**: See [docs/QUALITY-ASSURANCE.md](./docs/QUALITY-ASSURANCE.md) for hook explanations, troubleshooting, and performance tips.
+
 ## 🧠 NLP Setup Validation (Issue #7)
 
 After setup, validate the NLP environment:

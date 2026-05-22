@@ -127,6 +127,33 @@ uv run bandit -r src/
 
 ## Code Quality Standards
 
+### Pre-commit Hooks (Recommended)
+
+Automatically enforce code quality on every commit:
+
+```bash
+# Install pre-commit hooks (1 minute)
+python -m src.setup.setup_precommit
+
+# Hooks will run automatically on git commit:
+# ✅ trailing-whitespace - Removes trailing spaces
+# ✅ end-of-file-fixer - Ensures single final newline
+# ✅ black - Auto-formats code (line-length: 100)
+# ✅ ruff - Auto-fixes imports & safe linting issues
+# ❌ mypy - Type checking (requires manual fixes)
+# ❌ pytest - Unit tests (requires manual fixes)
+```
+
+**Performance**: Full pre-commit run completes in <60 seconds
+
+**Skip hooks when needed**:
+```bash
+SKIP=mypy,pytest git commit -m "WIP: feature in progress"
+git commit --no-verify -m "Emergency hotfix" # (use sparingly)
+```
+
+**Details**: See [docs/QUALITY-ASSURANCE.md](./docs/QUALITY-ASSURANCE.md) for complete hook reference, troubleshooting, and performance tips.
+
 ### Type Hints (Required)
 
 All functions and methods must have complete type hints:

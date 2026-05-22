@@ -85,7 +85,7 @@ src = ["py.typed"]
 
 [tool.black]
 line-length = 100
-target-version = ["py311", "py312", "py313"]
+target-version = ["py311", "py312"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -114,7 +114,6 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by black)
-    "W503",  # line break before binary operator
 ]
 
 [tool.ruff.per-file-ignores]
