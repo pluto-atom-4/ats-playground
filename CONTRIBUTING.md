@@ -5,6 +5,7 @@ We appreciate your interest in contributing to the ATS Playground project! This 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [GitHub Copilot CLI Setup](#github-copilot-cli-setup)
 - [Development Workflow](#development-workflow)
 - [Code Quality Standards](#code-quality-standards)
 - [Security Guidelines](#security-guidelines)
@@ -64,6 +65,170 @@ black --version
 ruff --version
 mypy --version
 ```
+
+## GitHub Copilot CLI Setup
+
+### What is the Plugin?
+
+ATS Playground provides a GitHub Copilot CLI plugin with 3 reusable skills for automating job assessment workflows. These skills extend GitHub Copilot CLI sessions with ATS-specific capabilities.
+
+**Available Skills:**
+- `/ats-nlp-setup` — Configure NLP models and spaCy environment
+- `/ats-preprocessing` — Preprocess job postings locally with cost estimation (80–90% savings)
+- `/ats-assessment` — Assess job-to-CV matches using Claude 3.5 Sonnet
+
+### Prerequisites
+
+- GitHub Copilot CLI (v1.0.51+) — Download from [GitHub Copilot CLI releases](https://github.com/github/copilot-cli/releases)
+- Python 3.11+ with ATS Playground installed (see [Getting Started](#setup-development-environment))
+- GitHub authentication: `gh auth status`
+
+### Install the Plugin
+
+```bash
+# Install the ATS Playground plugin
+gh copilot -- plugin install pluto-atom-4/copilot-plugin-ats-playground
+
+# Verify installation
+gh copilot -- plugin list
+# Output: ats-playground (v1.0.0)
+```
+
+### Using the Plugin
+
+Start an interactive Copilot CLI session and invoke the skills:
+
+```bash
+# Start a session
+gh copilot
+
+# In the interactive prompt, use skills:
+> /ats-nlp-setup --validate
+# Output: ✅ spaCy model 'en_core_web_md' is installed and valid
+
+> /ats-preprocessing --show-estimates
+# Output: Processing jobs... 650 tokens → $0.002 (89% savings)
+
+> /ats-assessment --cv cv.json --jobs jobs.json --min-score 75
+# Output: Assessing 10 jobs... [results with scores and recommendations]
+```
+
+### Skill Details
+
+#### `/ats-nlp-setup` — NLP Configuration
+
+Configure and validate spaCy models used for preprocessing.
+
+**Options:**
+- `--validate` — Validate installed model
+- `--model MODEL` — Specify model (default: en_core_web_md)
+- `--list-models` — Show available models
+
+**Example:**
+```bash
+> /ats-nlp-setup --validate
+✅ spaCy model 'en_core_web_md' is installed
+  Path: /usr/local/lib/python3.11/site-packages/en_core_web_md
+  Components: tokenizer, tagger, parser, lemmatizer
+```
+
+---
+
+#### `/ats-preprocessing` — Local Job Preprocessing
+
+Clean and chunk job postings locally before assessment. Estimates cost and saves 80–90% vs raw HTML.
+
+**Options:**
+- `--source FILE` — Input jobs JSON file (default: jobs.json)
+- `--show-estimates` — Display token counts and cost estimates
+- `--interactive` — Prompt for review before processing
+- `--save-clean` — Save cleaned text to files
+
+**Example:**
+```bash
+> /ats-preprocessing --show-estimates
+Processing 10 jobs...
+
+Job 1: Senior Software Engineer
+  Raw HTML: 6,000 tokens
+  Clean text: 650 tokens
+  Estimated cost: $0.002
+
+Summary:
+  Total tokens: 6,500
+  Estimated cost: $0.02
+  💾 Savings: 89% ($0.18 saved per 100 jobs)
+```
+
+---
+
+#### `/ats-assessment` — Job-to-CV Assessment
+
+Evaluate job matches using Claude 3.5 Sonnet with local preprocessing. Scores jobs by technical skills, seniority, location, and recommendations.
+
+**Options:**
+- `--cv FILE` — CV file (JSON or markdown)
+- `--jobs FILE` — Jobs JSON file
+- `--min-score NUM` — Filter by minimum score (0-100)
+- `--show-reasoning` — Show detailed scoring reasoning
+- `--output-dir DIR` — Output directory for reports
+
+**Example:**
+```bash
+> /ats-assessment --cv my-cv.json --jobs jobs.json --min-score 75
+Assessing 10 jobs...
+
+Job 1: Senior Software Engineer @ Google
+  Overall match: 85/100 ✅ GOOD FIT
+  Technical skills: 90/100 (Python, Go, AWS match)
+  Seniority: 80/100 (8 years vs 10+ required)
+  Location: 75/100 (Relocation available)
+  
+  Recommendation: ✅ APPLY NOW - Good fit
+  Cost: $0.002 (estimated: $0.002) ✅
+
+Report saved: assessments/assessment-20260526.md
+```
+
+### Troubleshooting
+
+**Plugin not found after installation?**
+```bash
+# Verify installation
+gh copilot -- plugin list
+
+# Try uninstalling and reinstalling
+gh copilot -- plugin uninstall ats-playground
+gh copilot -- plugin install pluto-atom-4/copilot-plugin-ats-playground
+```
+
+**Skill commands not working in session?**
+```bash
+# Ensure you're in an interactive Copilot CLI session
+gh copilot
+
+# Try asking Copilot for help
+> /ats-preprocessing --help
+```
+
+**Model not found error?**
+```bash
+# Install the NLP model
+> /ats-nlp-setup --validate
+# This will auto-install if missing
+
+# Or install manually
+python -m spacy download en_core_web_md
+```
+
+### Related Resources
+
+- **Plugin Repository**: https://github.com/pluto-atom-4/copilot-plugin-ats-playground
+- **CLAUDE.md**: Detailed developer guide with skill examples
+- **docs/PREPROCESS.md**: Technical preprocessing details
+- **docs/ASSESS.md**: Assessment algorithm documentation
+
+---
 
 ## Development Workflow
 
