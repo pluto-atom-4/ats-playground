@@ -233,13 +233,29 @@ def preprocess_jobs(
 
 @review_app.command()
 def review_jobs(
-    interactive: bool = typer.Option(True, help="Interactive review mode"),
-    auto_approve: bool = typer.Option(False, help="Auto-approve all (dangerous!)"),
+    extracted: str = typer.Option(
+        "data/extracted_jobs/carbonrobotics_jobs.json",
+        help="Path to extracted jobs JSON"
+    ),
+    preprocessed: str = typer.Option(
+        "data/extracted_jobs/preprocessed_jobs.json",
+        help="Path to preprocessed jobs JSON"
+    ),
 ) -> None:
     """Interactively review extracted jobs before LLM assessment."""
-    # TODO: Implement review logic
+    from src.verification import JobReviewer
+
     logger.info("Starting job review")
-    typer.echo("👀 Review mode started...")
+
+    try:
+        reviewer = JobReviewer()
+        stats = reviewer.review_batch(extracted, preprocessed)
+        logger.info(f"Review complete: {stats.confirmed} confirmed, {stats.rejected} rejected")
+
+    except Exception as e:
+        logger.error(f"Review failed: {e}", exc_info=True)
+        typer.echo(f"\n❌ Review failed: {e}", err=True)
+        raise typer.Exit(1) from None
 
 
 # ============================================================================
