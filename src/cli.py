@@ -133,9 +133,97 @@ def preprocess_jobs(
     show_estimates: bool = typer.Option(False, help="Show token/cost estimates"),
 ) -> None:
     """Preprocess job postings (clean HTML, chunk, count tokens)."""
-    # TODO: Implement preprocessing logic
-    logger.info("Preprocessing jobs")
-    typer.echo("🔄 Preprocessing in progress...")
+    import json
+    from pathlib import Path
+
+    from src.models.job import JobPosting, PreprocessedJob
+    from src.tokenization.chunker import SemanticChunker
+    from src.tokenization.counter import TokenCounter
+
+    logger.info("Starting preprocessing")
+    typer.echo("🔄 Preprocessing jobs...\n")
+
+    extracted_dir = Path("data/extracted_jobs")
+    if not extracted_dir.exists():
+        typer.echo(f"❌ Directory not found: {extracted_dir}", err=True)
+        raise typer.Exit(1) from None
+
+    job_files = [f for f in extracted_dir.glob("*_jobs.json") if "preprocessed" not in f.name]
+    if not job_files:
+        typer.echo("❌ No extracted jobs found", err=True)
+        raise typer.Exit(1) from None
+
+    chunker = SemanticChunker(target_chunk_size=400)
+    counter = TokenCounter()
+
+    all_preprocessed = []
+    total_tokens = 0
+    total_cost = 0.0
+    failed_count = 0
+
+    for job_file in job_files:
+        typer.echo(f"📂 Processing {job_file.name}...")
+
+        try:
+            with open(job_file) as f:
+                jobs_data = json.load(f)
+
+            for i, job_dict in enumerate(jobs_data, 1):
+                try:
+                    job = JobPosting(**job_dict)
+
+                    clean_text = job.title
+                    if job.location:
+                        clean_text = f"{job.title}\n{job.location}"
+
+                    chunks = chunker.chunk(clean_text)
+                    token_count = sum(counter.count_tokens(c) for c in chunks)
+                    estimated_cost = counter.estimate_cost(token_count)
+
+                    preprocessed = PreprocessedJob(
+                        job_id=f"{job_file.stem}_{i}",
+                        clean_text=clean_text,
+                        sentences=clean_text.split("\n"),
+                        chunks=chunks,
+                        token_count=token_count,
+                        estimated_cost=estimated_cost,
+                    )
+
+                    all_preprocessed.append(preprocessed)
+                    total_tokens += token_count
+                    total_cost += estimated_cost
+
+                    if show_estimates and i <= 3:
+                        typer.echo(f"   Job {i}: {job.title[:40]}...")
+                        typer.echo(f"      Tokens: {token_count} | Cost: ${estimated_cost:.4f}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to preprocess job {i}: {e}")
+                    failed_count += 1
+
+        except Exception as e:
+            logger.error(f"Failed to process {job_file}: {e}")
+
+    typer.echo("\n✅ Preprocessing complete!\n")
+    typer.echo("📊 Summary:")
+    typer.echo(f"   Total jobs: {len(all_preprocessed) + failed_count}")
+    typer.echo(f"   Processed: {len(all_preprocessed)}")
+    typer.echo(f"   Failed: {failed_count}")
+    typer.echo(f"   Total tokens: {total_tokens}")
+    typer.echo(f"   Total cost: ${total_cost:.4f}")
+
+    if all_preprocessed:
+        avg_tokens = total_tokens // len(all_preprocessed)
+        typer.echo(f"   Avg tokens/job: {avg_tokens}")
+        typer.echo("\n💾 Saving preprocessed jobs...")
+
+        output_file = Path("data/extracted_jobs/preprocessed_jobs.json")
+        jobs_output = [j.model_dump(mode="json") for j in all_preprocessed]
+
+        with open(output_file, "w") as f:
+            json.dump(jobs_output, f, indent=2, default=str)
+
+        typer.echo(f"   ✓ Saved to: {output_file}")
 
 
 # ============================================================================
