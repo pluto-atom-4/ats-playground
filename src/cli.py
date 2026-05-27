@@ -265,15 +265,155 @@ def review_jobs(
 
 @assess_app.command()
 def assess_jobs(
-    cv: str = typer.Option(..., help="CV file path"),
-    confirmed_only: bool = typer.Option(False, help="Only assess confirmed jobs"),
-    mock: bool = typer.Option(False, help="Mock assessment without API calls"),
-    batch: int = typer.Option(5, help="Batch size for rate limiting"),
+    cv: str = typer.Option(..., help="CV file path (json or txt)"),
+    confirmed_only: bool = typer.Option(True, help="Only assess confirmed jobs"),
 ) -> None:
-    """Assess CV fit using Claude API."""
-    # TODO: Implement assessment logic
-    logger.info(f"Assessing jobs with CV: {cv}")
-    typer.echo("🤖 Assessment in progress...")
+    """Assess CV fit for confirmed jobs using Claude 3.5 Sonnet."""
+    import json
+    from pathlib import Path
+
+    from src.llm.provider import LLMProvider
+    from src.storage.assessment_store import AssessmentStore
+    from src.verification import JobReviewer
+
+    logger.info(f"Starting job assessment with CV: {cv}")
+
+    try:
+        # Load CV
+        cv_path = Path(cv)
+        if not cv_path.exists():
+            typer.echo(f"❌ CV file not found: {cv}", err=True)
+            raise typer.Exit(1)
+
+        with open(cv_path) as f:
+            if cv_path.suffix == ".json":
+                cv_data = json.load(f)
+                cv_text = cv_data.get("text") or cv_data.get("content") or json.dumps(cv_data)
+            else:
+                cv_text = f.read()
+
+        typer.echo(f"📄 Loaded CV from: {cv}\n")
+
+        # Initialize LLM provider
+        try:
+            llm_provider = LLMProvider()
+        except ValueError as e:
+            typer.echo(f"❌ LLM setup failed: {e}", err=True)
+            typer.echo("   Set ANTHROPIC_API_KEY environment variable", err=True)
+            raise typer.Exit(1)
+
+        # Get confirmed jobs from database
+        reviewer = JobReviewer()
+        confirmed_jobs = reviewer.get_confirmed_jobs()
+
+        if not confirmed_jobs:
+            typer.echo("❌ No confirmed jobs found. Run 'review-jobs' first.", err=True)
+            raise typer.Exit(1)
+
+        typer.echo(f"🤖 Starting CV assessment for {len(confirmed_jobs)} confirmed jobs\n")
+
+        # Initialize assessment store
+        assessment_store = AssessmentStore()
+
+        # Load preprocessed jobs for context
+        preprocessed_path = Path("data/extracted_jobs/preprocessed_jobs.json")
+        preprocessed_map = {}
+
+        if preprocessed_path.exists():
+            with open(preprocessed_path) as f:
+                preprocessed_jobs = json.load(f)
+                preprocessed_map = {j["job_id"]: j for j in preprocessed_jobs}
+
+        # Assess each job
+        successful = 0
+        failed = 0
+        total_cost = 0.0
+        total_tokens = 0
+
+        for idx, confirmed_job in enumerate(confirmed_jobs, 1):
+            job_id = confirmed_job["job_id"]
+            title = confirmed_job["title"]
+            location = confirmed_job.get("location", "Unknown")
+
+            try:
+                # Get preprocessed chunks
+                preprocessed = preprocessed_map.get(job_id, {})
+                job_chunks = preprocessed.get("chunks", [title, location])
+
+                # Assess job
+                assessment = llm_provider.assess_job(job_id, job_chunks, cv_text)
+
+                # Save assessment
+                assessment_store.save_assessment(
+                    job_id=job_id,
+                    title=title,
+                    company=confirmed_job.get("company", "Unknown"),
+                    location=location,
+                    overall_score=assessment.overall_score,
+                    tech_score=assessment.tech_score,
+                    seniority_score=assessment.seniority_score,
+                    location_score=assessment.location_score,
+                    recommendations=assessment.recommendations,
+                    summary=assessment.summary,
+                    tokens_used=assessment.tokens_used,
+                    actual_cost=assessment.actual_cost,
+                )
+
+                # Display progress
+                typer.echo(
+                    f"✅ Job {idx}/{len(confirmed_jobs)}: {title}\n"
+                    f"   Tech: {assessment.tech_score:.0f}/100 | "
+                    f"Seniority: {assessment.seniority_score:.0f}/100 | "
+                    f"Location: {assessment.location_score:.0f}/100 | "
+                    f"Overall: {assessment.overall_score:.0f}/100\n"
+                    f"   Cost: ${assessment.actual_cost:.6f} | "
+                    f"Tokens: {assessment.tokens_used}\n"
+                )
+
+                successful += 1
+                total_cost += assessment.actual_cost
+                total_tokens += assessment.tokens_used
+
+            except Exception as e:
+                typer.echo(
+                    f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n"
+                    f"   Error: {e}\n"
+                )
+                failed += 1
+                logger.error(f"Assessment failed for job {job_id}: {e}", exc_info=True)
+
+        # Display summary
+        stats = assessment_store.get_stats()
+        typer.echo("\n" + "=" * 80)
+        typer.echo("📊 Assessment Summary:")
+        typer.echo(f"   Total assessed: {successful}/{len(confirmed_jobs)}")
+        if failed > 0:
+            typer.echo(f"   Failed: {failed}")
+
+        typer.echo(f"   Avg overall score: {stats.get('avg_score', 0):.1f}/100")
+        typer.echo(f"   Total cost: ${total_cost:.6f}")
+        typer.echo(f"   Total tokens: {total_tokens}")
+
+        # Show top matches
+        top_matches = assessment_store.get_top_matches(limit=3)
+        if top_matches:
+            typer.echo("\n🏆 Top Matches:")
+            for i, match in enumerate(top_matches, 1):
+                typer.echo(
+                    f"   {i}. {match['title']} - Overall: {match['overall_score']:.0f}/100"
+                )
+
+        typer.echo("\n✅ Assessment complete!\n")
+
+        logger.info(
+            f"Assessment complete: {successful} successful, "
+            f"{failed} failed, ${total_cost:.6f} total cost"
+        )
+
+    except Exception as e:
+        logger.error(f"Assessment failed: {e}", exc_info=True)
+        typer.echo(f"\n❌ Assessment failed: {e}", err=True)
+        raise typer.Exit(1) from None
 
 
 # ============================================================================
