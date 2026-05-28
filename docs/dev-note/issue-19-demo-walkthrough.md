@@ -1,9 +1,9 @@
 # ATS Playground Demo Walkthrough Guide
 
-**Date**: 2026-05-28  
-**Audience**: Presenters, internal demos, stakeholder presentations  
-**Demo Duration**: 20-25 minutes  
-**Pre-recorded Demo**: Estimated 5-10 minutes  
+**Date**: 2026-05-28
+**Audience**: Presenters, internal demos, stakeholder presentations
+**Demo Duration**: 20-25 minutes
+**Pre-recorded Demo**: Estimated 5-10 minutes
 
 ---
 
@@ -111,7 +111,7 @@ uv run python -m src.cli preprocess --show-estimates
 #   Raw HTML:     6,000 tokens/job
 #   Preprocessed: 700 tokens/job
 #   Reduction:    88% ✅
-# 
+#
 # Cost Estimate:
 #   Without prep:     $0.018/job → $0.47 for 26 jobs
 #   With prep:        $0.0008/job → $0.02 for 26 jobs
@@ -147,7 +147,7 @@ uv run python -m src.cli review --interactive
 #   Company: Carbon Robotics
 #   Location: San Francisco, CA
 #   Status: Pending
-# 
+#
 # Confirm? (y/n/skip):
 ```
 
@@ -179,7 +179,7 @@ uv run python -m src.cli assess --cv data/cv.json
 # Expected output (sample):
 # 🤖 Assessing with Claude...
 # Rate limiting: 10 requests/minute
-# 
+#
 # [1/26] Software Engineer - San Francisco
 #   Overall CV Match: 78/100 ✅
 #   Tech Skills: 85/100 (Python + ML)
@@ -188,7 +188,7 @@ uv run python -m src.cli assess --cv data/cv.json
 #   Recommendation: Good match - apply!
 #   Cost: $0.0006 per job
 #   Tokens: 673 (estimated: 650)
-# 
+#
 # [2/26] ML Engineer - Austin
 #   Overall CV Match: 82/100 ✅
 #   Tech Skills: 88/100
@@ -233,7 +233,7 @@ uv run python -m src.cli export --output data/assessments/report.md
 # Expected output:
 # ✅ Exported 26 assessments
 # File: data/assessments/report.md (15 KB)
-# 
+#
 # Report contains:
 #   • Header with metadata
 #   • Top 10 matching jobs
@@ -251,15 +251,15 @@ uv run python -m src.cli query --keyword "python" --min-score 75
 # Expected output:
 # 🔍 Searching for 'python' (min score: 75)
 # Found 8 matches:
-# 
+#
 # 1. Software Engineer - San Francisco (78/100)
 #    "Python expertise highly relevant..."
-# 
+#
 # 2. ML Engineer - Austin (82/100)
 #    "Python + PyTorch stack..."
-# 
+#
 # ...
-# 
+#
 # Query time: 8ms (FTS5 indexed search)
 ```
 
@@ -377,25 +377,25 @@ Total: ~15-20 minutes
 
 ## Audience Questions & Answers
 
-**Q: Why local preprocessing? Why not just send raw HTML?**  
+**Q: Why local preprocessing? Why not just send raw HTML?**
 A: Raw HTML is 8-10x larger. Cleaning locally is free and reduces API tokens 88%, cutting costs dramatically while improving quality.
 
-**Q: How accurate are the assessments?**  
+**Q: How accurate are the assessments?**
 A: Depends on CV quality. Uses Claude 3.5's multi-category scoring. Test with your own CV to validate. Accuracy improves with clearer CVs.
 
-**Q: Can we use this for other companies?**  
+**Q: Can we use this for other companies?**
 A: Yes! Add any company URL to `config/companies.json` with CSS selectors. Works with most job boards.
 
-**Q: What happens with the data?**  
+**Q: What happens with the data?**
 A: All stored locally in SQLite. No data sent to external systems except Claude API (per API key holder's settings).
 
-**Q: How's the quality of extracted jobs?**  
+**Q: How's the quality of extracted jobs?**
 A: ~95%+ extraction quality from modern sites. Some older sites need manual CSS selector tuning.
 
-**Q: Can we scale to 10,000+ jobs?**  
+**Q: Can we scale to 10,000+ jobs?**
 A: Yes! Linear scaling. Cost: $70 for 10,000 jobs (vs $600 traditional). Processing: 20-30 minutes assessment time.
 
-**Q: What's the setup time for production?**  
+**Q: What's the setup time for production?**
 A: ~30 minutes: clone repo, install deps, add your companies to config, deploy.
 
 ---
@@ -569,6 +569,6 @@ Found 8 matches (query time: 8ms)
 
 ---
 
-**Demo Guide Version**: 1.0  
-**Status**: Complete  
+**Demo Guide Version**: 1.0
+**Status**: Complete
 **Last Updated**: 2026-05-28

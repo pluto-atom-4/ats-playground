@@ -57,20 +57,20 @@ async def inspect():
         browser = await p.chromium.launch()
         page = await browser.new_page()
         await page.goto("https://carbonrobotics.com/job-openings", wait_until="networkidle")
-        
+
         # Save rendered content
         content = await page.content()
         with open("/tmp/carbon_rendered.html", "w") as f:
             f.write(content)
-        
+
         # Find potential job containers
         items = await page.query_selector_all('[class*="item"], [class*="job"], [class*="position"]')
         print(f"Found {len(items)} potential job containers")
-        
+
         # Try to find links to job details
         links = await page.query_selector_all('a[href*="job"], a[href*="position"], a[href*="careers"]')
         print(f"Found {len(links)} potential job links")
-        
+
         await browser.close()
 
 asyncio.run(inspect())
@@ -132,25 +132,25 @@ async def test_selectors():
         browser = await p.chromium.launch()
         page = await browser.new_page()
         await page.goto("https://carbonrobotics.com/job-openings", wait_until="networkidle")
-        
+
         # Test container selector
         containers = await page.query_selector_all(".collection-item")  # REPLACE WITH ACTUAL
         print(f"Found {len(containers)} containers with .collection-item")
-        
+
         # Test each container for required fields
         for i, container in enumerate(containers[:3]):  # Test first 3
             title = await container.query_selector("h2")
             desc = await container.query_selector("p")
             link = await container.query_selector("a")
-            
+
             if title:
                 title_text = await title.inner_text()
                 print(f"Job {i+1} Title: {title_text[:50]}...")
-            
+
             if link:
                 url = await link.get_attribute("href")
                 print(f"Job {i+1} URL: {url}")
-        
+
         await browser.close()
 
 asyncio.run(test_selectors())
@@ -171,7 +171,7 @@ EOF
   "url": "https://carbonrobotics.com/job-openings",
   "enabled": true,
   "description": "Laser weeding robotics company based in Seattle, WA. Squarespace-based careers page with JavaScript rendering.",
-  
+
   "crawler": {
     "type": "single_page",
     "headless": true,
@@ -179,7 +179,7 @@ EOF
     "delay_between_pages_ms": 2000,
     "max_pages": 1
   },
-  
+
   "job_selectors": {
     "container": "SELECTOR_FROM_TASK_1.2",
     "title": "SELECTOR_FROM_TASK_1.2",
@@ -187,7 +187,7 @@ EOF
     "url": "SELECTOR_FROM_TASK_1.2",
     "location": "SELECTOR_FROM_TASK_1.2 (optional)"
   },
-  
+
   "selectors_fallback": [
     {
       "container": "FALLBACK_CONTAINER_SELECTOR",
@@ -195,12 +195,12 @@ EOF
       "description": "FALLBACK_DESCRIPTION_SELECTOR"
     }
   ],
-  
+
   "wait_for": {
     "selector": "FIRST_JOB_CONTAINER_SELECTOR",
     "timeout_ms": 30000
   },
-  
+
   "cleanup_patterns": [
     "Apply Now",
     "Share this job",
@@ -472,4 +472,3 @@ Compare to raw HTML approach: ~$0.06–0.10 for same 3–5 jobs
 - **Status**: Phase 1 Planning
 - **Issue**: #19
 - **Target**: Carbon Robotics POC
-

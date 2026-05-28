@@ -1,9 +1,9 @@
 # Issue #19: POC Crawl Workflow - Implementation Tracking
 
-**GitHub Issue**: [#19 - Test Crawl Workflow on Real Career Page](https://github.com/pluto-atom-4/ats-playground/issues/19)  
-**Target Company**: Carbon Robotics (Greenhouse Job Board)  
-**Project**: End-to-end ATS Playground POC validation  
-**Status**: Phase 2 In Progress  
+**GitHub Issue**: [#19 - Test Crawl Workflow on Real Career Page](https://github.com/pluto-atom-4/ats-playground/issues/19)
+**Target Company**: Carbon Robotics (Greenhouse Job Board)
+**Project**: End-to-end ATS Playground POC validation
+**Status**: Phase 2 In Progress
 
 ---
 
@@ -31,8 +31,8 @@ CRAWL → PREPROCESS → VERIFY → ASSESS → STORE → EXPORT
 
 ## Phase 1: Configuration & Crawl Setup ✅ COMPLETE
 
-**Planning Doc**: `issue-19-poc-crawl-automation.md`  
-**Commits**: 
+**Planning Doc**: `issue-19-poc-crawl-automation.md`
+**Commits**:
 - `d747ed7` - docs: Add POC implementation plan for Carbon Robotics crawl workflow
 - `6546559` - feat(#19): Implement Playwright crawler with Carbon Robotics extraction
 
@@ -64,8 +64,8 @@ Successfully implemented browser-based crawler using Playwright and CSS selector
 
 ## Phase 2: Preprocessing & Cost Analysis 📋 PLANNING
 
-**Planning Doc**: `issue-19-phase-2-preprocessing.md`  
-**Target Completion**: ~30–45 minutes  
+**Planning Doc**: `issue-19-phase-2-preprocessing.md`
+**Target Completion**: ~30–45 minutes
 
 ### Objective
 Transform extracted job data into clean, semantic chunks with token counts and cost estimates. Validate 80–90% token reduction vs raw HTML.
@@ -101,7 +101,7 @@ Transform extracted job data into clean, semantic chunks with token counts and c
 #### Task 2.5: Validation & Testing ⏳ PENDING
 - **Unit Tests**: `test_tokenization.py`, `test_preprocessor.py`
 - **Integration Test**: Run on all 26 Carbon Robotics jobs
-- **Success Criteria**: 
+- **Success Criteria**:
   - All 26 jobs processed successfully
   - Token reduction 80–90% verified
   - Processing time <5 seconds
@@ -140,8 +140,8 @@ Transform extracted job data into clean, semantic chunks with token counts and c
 
 ## Phase 3: User Verification ⏳ QUEUED
 
-**Planning**: To be created  
-**Target**: After Phase 2 complete  
+**Planning**: To be created
+**Target**: After Phase 2 complete
 
 ### Objective
 Interactive user review of extracted/preprocessed jobs before expensive LLM calls. Confirm or reject each job.
@@ -162,8 +162,8 @@ Interactive user review of extracted/preprocessed jobs before expensive LLM call
 
 ## Phase 4: CV-Based Assessment ⏳ QUEUED
 
-**Planning**: To be created  
-**Target**: After Phase 3 complete  
+**Planning**: To be created
+**Target**: After Phase 3 complete
 
 ### Objective
 Score each confirmed job against user's CV using Claude 3.5 Sonnet. Generate match scores and recommendations.
@@ -186,8 +186,8 @@ Score each confirmed job against user's CV using Claude 3.5 Sonnet. Generate mat
 
 ## Phase 5: Results Storage & Export ⏳ QUEUED
 
-**Planning**: To be created  
-**Target**: After Phase 4 complete  
+**Planning**: To be created
+**Target**: After Phase 4 complete
 
 ### Objective
 Persist all data (crawled, preprocessed, reviewed, assessed) to database and export as Markdown reports.
@@ -235,7 +235,7 @@ Persist all data (crawled, preprocessed, reviewed, assessed) to database and exp
 
 ## Branch Strategy
 
-**Current Branch**: `feat/issue-19-1`  
+**Current Branch**: `feat/issue-19-1`
 **Status**: Phase 1 Complete + Phase 2 Planning
 
 **Next Steps**:
@@ -291,7 +291,7 @@ config/
 ## Contact & References
 
 - **GitHub Issue**: https://github.com/pluto-atom-4/ats-playground/issues/19
-- **Related Docs**: 
+- **Related Docs**:
   - `docs/PREPROCESS.md` - Deep dive on preprocessing
   - `docs/ARCHITECTURE.md` - System design
   - `docs/CLI.md` - Command reference
@@ -306,6 +306,6 @@ config/
 - Cost savings projection: 87% token reduction achievable via preprocessing
 - Performance target: All phases should complete in <2 minutes for 26 jobs
 
-**Last Updated**: 2026-05-27  
-**Updated By**: Copilot  
+**Last Updated**: 2026-05-27
+**Updated By**: Copilot
 **Status**: Ready for Phase 2 Implementation

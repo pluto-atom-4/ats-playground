@@ -440,7 +440,8 @@ class AssessmentStore:
 
         cursor = self.conn.cursor()
         cursor.execute("SELECT COUNT(*) as count FROM job_assessments")
-        return cursor.fetchone()["count"]
+        result = cursor.fetchone()
+        return int(result["count"]) if result else 0
 
     def delete_assessment(self, job_id: str) -> None:
         """Delete assessment by job ID."""

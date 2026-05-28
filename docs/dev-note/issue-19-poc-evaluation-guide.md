@@ -1,9 +1,9 @@
 # ATS Playground POC Evaluation Guide
 
-**Date**: 2026-05-28  
-**Status**: Complete & Production-Ready  
-**Audience**: Business stakeholders, decision-makers, technical reviewers  
-**Time to Complete**: 15 minutes + 5-10 minutes for Claude assessment  
+**Date**: 2026-05-28
+**Status**: Complete & Production-Ready
+**Audience**: Business stakeholders, decision-makers, technical reviewers
+**Time to Complete**: 15 minutes + 5-10 minutes for Claude assessment
 
 ---
 
@@ -23,7 +23,7 @@ ATS Playground is a production-ready AI workflow for intelligent job assessment 
 - ATS Playground (preprocessed): **$0.07 per 100 jobs**
 - **Savings: 88% cost reduction** ✅
 
-**Current Status**: 
+**Current Status**:
 - ✅ All 5 phases implemented and tested
 - ✅ 74/74 tests passing (100%)
 - ✅ Production-ready code
@@ -163,7 +163,7 @@ uv run python -m src.cli query --keyword "python" --min-score 75
 Crawling Carbon Robotics (Greenhouse)...
   ✓ Found 26 jobs
   Locations: San Francisco, Austin, Seattle, New York, ...
-  
+
 ✅ Extraction complete: 26 jobs
 ```
 
@@ -180,7 +180,7 @@ Token Count Analysis:
   Raw HTML:        6,000 tokens/job
   Preprocessed:    700 tokens/job
   Reduction:       88% ✅
-  
+
 Cost Estimate:
   Without prep:    $0.018/job
   With prep:       $0.0021/job
@@ -221,7 +221,7 @@ Confirm? (y/n/skip):
   Tech Skills: 85/100 (Python + ML)
   Seniority: 70/100 (mid-level)
   Location: 65/100 (prefers SF)
-  
+
   Recommendation: Good match - apply!
   Cost: $0.0006 per job
 ```
@@ -283,7 +283,7 @@ Report contains:
 
 ## Example Assessment Output
 
-**Job:** Software Engineer (Python/ML focus)  
+**Job:** Software Engineer (Python/ML focus)
 **Your CV:** Python, ML, 5 years experience
 
 **Expected Score:**
@@ -392,22 +392,22 @@ uv run pytest tests/ -v
 
 ## Questions & Answers
 
-**Q: Why is preprocessing cheaper than raw HTML?**  
+**Q: Why is preprocessing cheaper than raw HTML?**
 A: Raw HTML is 8-10x larger than cleaned text. We clean locally (free), reducing tokens sent to Claude by 88%, cutting API costs 88%.
 
-**Q: How accurate is the assessment?**  
+**Q: How accurate is the assessment?**
 A: Depends on CV quality. Uses Claude 3.5 Sonnet's multi-category scoring. Test with a sample job to validate accuracy for your use case.
 
-**Q: Can I use my own company list?**  
+**Q: Can I use my own company list?**
 A: Yes! Edit `config/companies.json` with your company URLs and CSS selectors.
 
-**Q: How long does processing take?**  
+**Q: How long does processing take?**
 A: Crawl: 30-60 sec, Preprocess: <2 sec, Verify: manual, Assess: 2-5 jobs/min (Claude rate limit), Export: <1 sec.
 
-**Q: What if Claude API rate-limits me?**  
+**Q: What if Claude API rate-limits me?**
 A: Built-in exponential backoff with retries. Max 10 requests/minute, 50k tokens/minute.
 
-**Q: Can I run this in production?**  
+**Q: Can I run this in production?**
 A: Yes! All code is production-ready. 100% test coverage, error handling, logging.
 
 ---
@@ -440,6 +440,6 @@ Expected duration: 15-20 minutes total
 
 ---
 
-**Document Version**: 1.0  
-**Status**: Complete  
+**Document Version**: 1.0
+**Status**: Complete
 **Last Updated**: 2026-05-28

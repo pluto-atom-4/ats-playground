@@ -474,18 +474,14 @@ def export_results(
         output_path.write_text(report, encoding="utf-8")
 
         # Display summary
-        filtered_in_range = len(
-            store.get_assessments_by_score(min_score, max_score)
-        )
+        filtered_in_range = len(store.get_assessments_by_score(min_score, max_score))
         file_size_kb = output_path.stat().st_size / 1024
 
         typer.echo(f"✅ Exported {filtered_in_range}/{total} jobs to {output}")
         typer.echo(f"   File size: {file_size_kb:.1f} KB")
         typer.echo(f"   Template: {template}")
 
-        logger.info(
-            f"Export complete: {filtered_in_range} jobs, {file_size_kb:.1f} KB"
-        )
+        logger.info(f"Export complete: {filtered_in_range} jobs, {file_size_kb:.1f} KB")
 
     except ValueError as e:
         typer.echo(f"❌ Invalid option: {e}", err=True)

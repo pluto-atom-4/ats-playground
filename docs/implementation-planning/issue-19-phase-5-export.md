@@ -59,23 +59,23 @@ Phase 5 completes the POC by enabling users to export, search, and analyze asses
   Generated: 2025-01-15 10:30 AM
   Total Jobs: 42 | Assessed: 40 | Filtered: 35 (score ≥ 75)
   Cost: $0.12 (input) + $0.01 (output) = $0.13 total
-  
+
   ## Top 5 Matches by Score
   1. Senior Engineer @ Acme (Score: 92)
   2. ...
-  
+
   ## Job Details
   ### [1] Senior Engineer @ Acme
   - Score: 92 | Tech: 95 | Seniority: 88 | Location: 80
   - URL: https://...
   - Description: [first 200 chars]
   - Recommendations: Learn Kubernetes, ...
-  
+
   ## Analytics
   - Average Score: 76
   - Score Distribution: [histogram]
   - Cost Breakdown: Input 92%, Output 8%
-  
+
   ## Search Tips
   Use `query --keyword "python" --min-score 75` to refine results.
   ```
@@ -373,7 +373,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS job_assessments_fts USING fts5(
 );
 
 -- Analytics query
-SELECT 
+SELECT
   overall_score,
   COUNT(*) as count,
   AVG(actual_cost) as avg_cost,
@@ -384,7 +384,7 @@ GROUP BY overall_score
 ORDER BY overall_score DESC;
 
 -- Search query
-SELECT 
+SELECT
   ja.id,
   ja.job_title,
   ja.company,
@@ -392,7 +392,7 @@ SELECT
   ja.recommendations
 FROM job_assessments ja
 WHERE ja.id IN (
-  SELECT content_rowid FROM job_assessments_fts 
+  SELECT content_rowid FROM job_assessments_fts
   WHERE job_assessments_fts MATCH :keyword
 )
 AND ja.overall_score BETWEEN :min_score AND :max_score
@@ -543,10 +543,10 @@ LIMIT :limit;
 
 ## Sign-Off
 
-**Planning Date:** 2026-01-15  
-**Author:** GitHub Copilot  
-**Status:** 🔄 Ready for Implementation  
-**Estimated Effort:** 40-50 minutes implementation + testing  
+**Planning Date:** 2026-01-15
+**Author:** GitHub Copilot
+**Status:** 🔄 Ready for Implementation
+**Estimated Effort:** 40-50 minutes implementation + testing
 **Phase 5 Unblocked By:** Phase 4 completion (✅ done)
 
 Next: Proceed with Task 5.1 implementation.

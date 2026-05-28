@@ -33,7 +33,7 @@ class SemanticChunker:
             logger.warning(f"Failed to load spaCy: {e}")
             return None
 
-    def chunk(self, text: str, sentences: List[str] = None) -> List[str]:
+    def chunk(self, text: str, sentences: List[str] | None = None) -> List[str]:
         """
         Chunk text by sentences, respecting target size.
 
@@ -58,7 +58,7 @@ class SemanticChunker:
             return [text] if text.strip() else []
 
         chunks = []
-        current_chunk = []
+        current_chunk: list[str] = []
         current_word_count = 0
 
         for sentence in sentences:

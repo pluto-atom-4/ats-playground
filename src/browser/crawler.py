@@ -70,6 +70,8 @@ class Crawler:
 
         try:
             logger.info(f"Crawling {company_name} at {url}")
+            if not self.context:
+                raise RuntimeError("Browser context not initialized")
             page = await self.context.new_page()
             page.set_default_timeout(self.timeout_ms)
 
@@ -154,7 +156,7 @@ class Crawler:
         try:
             sub_element = await element.query_selector(selector)
             if sub_element:
-                href = await sub_element.get_attribute("href")
+                href: str | None = await sub_element.get_attribute("href")
                 return href
         except Exception as e:
             logger.debug(f"Error extracting link with selector {selector}: {e}")

@@ -1,9 +1,9 @@
 # Issue #19 Phase 3: User Verification & Review 👀
 
-**Parent Issue**: #19 - POC: Test Crawl Workflow on Real Career Page  
-**Phase**: 3 of 5  
-**Status**: Planning  
-**Time Estimate**: 25–35 minutes  
+**Parent Issue**: #19 - POC: Test Crawl Workflow on Real Career Page
+**Phase**: 3 of 5
+**Status**: Planning
+**Time Estimate**: 25–35 minutes
 
 ---
 
@@ -92,7 +92,7 @@ CREATE TABLE job_reviews (
    ```python
    reviewer = JobReviewer("data/ats_playground.db")
    pending_jobs = reviewer.get_pending_jobs()  # Returns [PreprocessedJob, ...]
-   
+
    # Load already-reviewed jobs from database
    confirmed_jobs = reviewer.get_confirmed_jobs()  # Skip on re-review
    ```
@@ -116,7 +116,7 @@ CREATE TABLE job_reviews (
    Location: Seattle, WA
    Tokens: 7
    Est. Cost: $0.000015
-   
+
    Action (c=confirm, r=reject, e=edit, s=skip, q=quit): _
 ```
 
@@ -126,7 +126,7 @@ CREATE TABLE job_reviews (
    ```python
    from src.tokenization.counter import TokenCounter
    from pathlib import Path
-   
+
    counter = TokenCounter()
    preprocessed_file = Path("data/extracted_jobs/preprocessed_jobs.json")
    jobs = json.load(open(preprocessed_file))
@@ -146,7 +146,7 @@ CREATE TABLE job_reviews (
    e = Edit job (modify details)
    s = Skip for now (review later)
    q = Quit
-   
+
    Current: Pending (1/26)  Confirmed (0/26)  Rejected (0/26)
    ```
 
@@ -161,7 +161,7 @@ CREATE TABLE job_reviews (
    ```bash
    # First run: review all pending
    uv run python -m src.cli review review-jobs
-   
+
    # Later: resume where you left off
    uv run python -m src.cli review review-jobs --resume
    ```
@@ -175,15 +175,15 @@ CREATE TABLE job_reviews (
    Location: Seattle, WA
    Tokens: 7 | Cost: $0.000015
    Status: pending_review
-   
+
    Action (c/r/e/s/q): c
    ✓ Confirmed
-   
+
 🔍 Job 2 of 26: Performance Quality Technician
    Location: Remote - Europe
    Tokens: 7 | Cost: $0.000015
    Status: pending_review
-   
+
    Action (c/r/e/s/q): r
    Reason (optional): Wrong location preference
    ✓ Rejected
@@ -195,7 +195,7 @@ CREATE TABLE job_reviews (
    Confirmed: 20
    Rejected: 6
    Skipped: 0
-   
+
    Next step: Run assessment on 20 confirmed jobs
    Estimated LLM cost: $0.0003
 ```
@@ -221,15 +221,15 @@ CREATE TABLE job_reviews (
    def save_review(job_id, status, reason=None, cost=None):
        """Save user review decision to database."""
        # INSERT OR UPDATE job_reviews
-   
+
    def load_review(job_id):
        """Load existing review for job."""
        # SELECT from job_reviews
-   
+
    def get_confirmed_jobs():
        """Get all confirmed jobs for Phase 4."""
        # SELECT WHERE status = 'confirmed'
-   
+
    def get_rejection_stats():
        """Get stats on rejections."""
        # SELECT reason, COUNT(*) GROUP BY reason
@@ -279,16 +279,16 @@ CREATE TABLE job_reviews (
 2. **Display at end of review session**
    ```
    📊 Review Session Summary:
-   
+
    Jobs Reviewed:     26/26 ✓
    Confirmed:         20 (77%)
    Rejected:          6 (23%)
-   
+
    Rejection Reasons:
      • Wrong location: 3
      • Wrong seniority: 2
      • Duplicate: 1
-   
+
    LLM Assessment Ready:
      • Jobs: 20
      • Estimated tokens: 140
@@ -529,6 +529,6 @@ After user verification succeeds, Phase 4 will:
 
 ---
 
-**Last Updated**: 2026-05-27  
-**Status**: Ready for Implementation  
+**Last Updated**: 2026-05-27
+**Status**: Ready for Implementation
 **Estimated Duration**: 25–35 minutes

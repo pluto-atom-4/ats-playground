@@ -1,9 +1,9 @@
 # Issue #19 Phase 2: Preprocessing & Cost Analysis 🔄
 
-**Parent Issue**: #19 - POC: Test Crawl Workflow on Real Career Page  
-**Phase**: 2 of 5  
-**Status**: Planning  
-**Time Estimate**: 30–45 minutes  
+**Parent Issue**: #19 - POC: Test Crawl Workflow on Real Career Page
+**Phase**: 2 of 5
+**Status**: Planning
+**Time Estimate**: 30–45 minutes
 
 ---
 
@@ -70,12 +70,12 @@ Transform raw extracted job postings into clean, semantic chunks with token coun
 3. **Test on sample job HTML**
    ```python
    from src.parsers.html import clean_html
-   
+
    # Load sample raw HTML from extracted job
    with open('data/extracted_jobs/carbonrobotics_jobs.json') as f:
        jobs = json.load(f)
        raw_job = jobs[0]
-   
+
    # For now, description field is empty in extracted jobs
    # Will need to fetch full job detail page if needed
    ```
@@ -84,9 +84,9 @@ Transform raw extracted job postings into clean, semantic chunks with token coun
    ```
    Input (raw HTML): <div class="job-post"><h2>Deep Learning...</h2><p>We are seeking...</p>...
    Output (clean text): Deep Learning Engineer
-   
+
    We are seeking an experienced Deep Learning Engineer...
-   
+
    Requirements:
    - Python, PyTorch, TensorFlow
    - 3+ years ML experience
@@ -141,7 +141,7 @@ Chunk 2: "Must know Wonderware software and related platforms."
        chunks = []
        current_chunk = []
        current_tokens = 0
-       
+
        for sent in doc.sents:
            sent_tokens = len(sent.text.split())
            if current_tokens + sent_tokens > target_size and current_chunk:
@@ -152,28 +152,28 @@ Chunk 2: "Must know Wonderware software and related platforms."
            else:
                current_chunk.append(sent.text)
                current_tokens += sent_tokens
-       
+
        if current_chunk:
            chunks.append(" ".join(current_chunk))
-       
+
        return chunks
    ```
 
 3. **Expected Output**
    ```
    Input text: "Deep Learning Engineer. We are seeking..."
-   
+
    Chunk 1 (~380 tokens):
-   "Deep Learning Engineer. We are seeking an experienced Deep Learning engineer 
-   to join our AI team. You will develop cutting-edge ML models for robotics 
+   "Deep Learning Engineer. We are seeking an experienced Deep Learning engineer
+   to join our AI team. You will develop cutting-edge ML models for robotics
    applications."
-   
+
    Chunk 2 (~420 tokens):
-   "Requirements: 5+ years ML experience. Strong Python skills required. 
+   "Requirements: 5+ years ML experience. Strong Python skills required.
    Experience with PyTorch or TensorFlow. Understanding of computer vision."
-   
+
    Chunk 3 (~350 tokens):
-   "Nice to have: CUDA/GPU optimization. Robotics domain experience. 
+   "Nice to have: CUDA/GPU optimization. Robotics domain experience.
    Published papers or open-source projects."
    ```
 
@@ -181,10 +181,10 @@ Chunk 2: "Must know Wonderware software and related platforms."
    ```bash
    uv run python << 'EOF'
    from src.tokenization.chunking import chunk_by_sentences
-   
+
    sample_text = "Deep Learning Engineer. Join our team..."
    chunks = chunk_by_sentences(sample_text)
-   
+
    for i, chunk in enumerate(chunks, 1):
        print(f"Chunk {i} ({len(chunk.split())} words):\n{chunk}\n")
    EOF
@@ -217,10 +217,10 @@ Chunk 2: "Must know Wonderware software and related platforms."
        # Claude 3.5 Sonnet pricing (as of May 2026)
        input_price = 0.003  # $3 per 1M input tokens
        output_price = 0.015  # $15 per 1M output tokens (estimate)
-       
+
        input_cost = (token_count / 1_000_000) * input_price
        output_cost = (token_count / 1_000_000) * output_price * 0.5  # Assume 50% output
-       
+
        return input_cost + output_cost
    ```
 
@@ -228,7 +228,7 @@ Chunk 2: "Must know Wonderware software and related platforms."
    ```python
    from src.models.job import PreprocessedJob
    from src.tokenization.counter import count_tokens, estimate_cost
-   
+
    preprocessed = PreprocessedJob(
        job_id="job_12345",
        clean_text=clean_text,
@@ -241,11 +241,11 @@ Chunk 2: "Must know Wonderware software and related platforms."
 4. **Expected Output**
    ```
    Job: Deep Learning Engineer
-   
+
    Raw text length: 1,200 words
    Token count: 1,456 tokens
    Estimated cost: $0.0044 (vs $0.018 if raw HTML sent)
-   
+
    Savings: 75% fewer tokens
    ```
 
@@ -287,16 +287,16 @@ def preprocess_jobs(
 3. **Report results**
    ```
    ✅ Preprocessing complete!
-   
+
    Total jobs: 26
    Successfully processed: 26
    Failed: 0
-   
+
    📊 Token Statistics:
    - Average tokens per job: 412 tokens
    - Min: 120 tokens
    - Max: 980 tokens
-   
+
    💰 Cost Estimates:
    - Total input cost: $0.08 (for all 26 jobs)
    - Savings vs raw HTML: 87%

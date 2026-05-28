@@ -1,10 +1,10 @@
 # Issue #19 Phase 4: CV-Based Job Assessment
 
-**Phase**: 4 of 5  
-**Status**: Planning  
-**Objective**: Implement Claude 3.5 Sonnet API integration to assess user CV fit for confirmed jobs  
-**Estimated Time**: 40-50 minutes  
-**Dependencies**: Phase 1 ✅, Phase 2 ✅, Phase 3 ✅  
+**Phase**: 4 of 5
+**Status**: Planning
+**Objective**: Implement Claude 3.5 Sonnet API integration to assess user CV fit for confirmed jobs
+**Estimated Time**: 40-50 minutes
+**Dependencies**: Phase 1 ✅, Phase 2 ✅, Phase 3 ✅
 
 ---
 
@@ -14,7 +14,7 @@ Phase 4 transforms preprocessed, user-confirmed job postings into AI-powered CV 
 
 **Key Value**: Automates the manual job screening process—users get ranked recommendations instead of reading 20+ job descriptions.
 
-**Cost Model**: 
+**Cost Model**:
 - Estimated: ~$0.002 per job (Phase 2 estimate)
 - Actual: ~20 jobs × $0.002 = $0.040 after Phase 3 filtering
 - Savings vs. unfiltered: 23% ($0.012 saved)
@@ -110,9 +110,9 @@ Database (job_assessments table)
    - Calculate: `actual_cost = (input × 0.000003) + (output × 0.000015)`
    - Compare to Phase 2 estimate: log variance for metrics
 
-**Implementation Location**: `src/llm/provider.py`  
-**Lines of Code**: ~120 lines  
-**Dependencies**: `anthropic`, `src/models/assessment.py`  
+**Implementation Location**: `src/llm/provider.py`
+**Lines of Code**: ~120 lines
+**Dependencies**: `anthropic`, `src/models/assessment.py`
 
 **Testing**:
 - Unit test: Mock Anthropic API, verify assess_job() returns AssessmentResult
@@ -171,9 +171,9 @@ Database (job_assessments table)
    - If still fails: Return AssessmentResult with default scores + error note
    - Log all failures for debugging
 
-**Implementation Location**: `src/llm/prompts.py` (new file)  
-**Lines of Code**: ~80 lines (template + helpers)  
-**Format**: Python f-strings or Jinja2 templates  
+**Implementation Location**: `src/llm/prompts.py` (new file)
+**Lines of Code**: ~80 lines (template + helpers)
+**Format**: Python f-strings or Jinja2 templates
 
 **Example Prompt** (simplified):
 ```
@@ -254,22 +254,22 @@ Respond with valid JSON only:
    ```
    🤖 Starting CV assessment...
    📄 Loaded CV: John Doe (Python, DevOps, 7 years exp)
-   
+
    Processing 20 confirmed jobs:
-   
+
    ✅ Job 1/20: Senior Engineer
       Tech: 85/100 | Seniority: 78/100 | Location: 60/100 | Overall: 75/100
       Cost: $0.002 | Tokens: 650
-   
+
    ✅ Job 2/20: Backend Developer
       Tech: 92/100 | Seniority: 85/100 | Location: 100/100 | Overall: 92/100
       Cost: $0.002 | Tokens: 680
-   
+
    ❌ Job 3/20: DevOps Engineer
       Error: Rate limited, skipped. Will retry next session.
-   
+
    ... (continue)
-   
+
    📊 Assessment Summary:
       Total assessed: 19/20 (1 failed)
       Avg overall score: 76.5
@@ -303,9 +303,9 @@ Respond with valid JSON only:
    - If file missing: Error message + exit(1)
    - If CV empty: Warning + continue (may affect scores)
 
-**Implementation Location**: `src/cli.py` (assess_app.command())  
-**Lines of Code**: ~100 lines  
-**Dependencies**: `src/llm/provider.py`, `src/verification/reviewer.py`, `src/storage/db.py`  
+**Implementation Location**: `src/cli.py` (assess_app.command())
+**Lines of Code**: ~100 lines
+**Dependencies**: `src/llm/provider.py`, `src/verification/reviewer.py`, `src/storage/db.py`
 
 **Testing**:
 - Unit test: Mock LLMProvider, verify CLI loads CV correctly
@@ -378,9 +378,9 @@ Respond with valid JSON only:
      - total_assessments, total_cost, avg_cost
      - distribution by score range (0-50, 50-70, 70-85, 85-100)
 
-**Implementation Location**: `src/storage/assessment_store.py` (new file)  
-**Lines of Code**: ~150 lines  
-**Dependencies**: `sqlite3`, `src/models/assessment.py`  
+**Implementation Location**: `src/storage/assessment_store.py` (new file)
+**Lines of Code**: ~150 lines
+**Dependencies**: `sqlite3`, `src/models/assessment.py`
 
 **Testing**:
 - Unit test: Save assessment, retrieve by job_id
@@ -426,8 +426,8 @@ Respond with valid JSON only:
    - Verify response format, scores are reasonable
    - Verify token counts + costs match Claude response
 
-**Implementation Location**: `tests/test_llm.py` (update), `tests/test_assessment_store.py` (new)  
-**Lines of Code**: ~200 lines of tests  
+**Implementation Location**: `tests/test_llm.py` (update), `tests/test_assessment_store.py` (new)
+**Lines of Code**: ~200 lines of tests
 
 **Success Criteria**:
 - [ ] All 26+ tests passing
@@ -472,8 +472,8 @@ Respond with valid JSON only:
    └─ ~200 lines of tests
 ```
 
-**Total Implementation Time**: 40-50 minutes  
-**Total Lines of Code**: ~650 lines (source) + 200 lines (tests)  
+**Total Implementation Time**: 40-50 minutes
+**Total Lines of Code**: ~650 lines (source) + 200 lines (tests)
 
 ---
 
@@ -499,10 +499,10 @@ CREATE TABLE IF NOT EXISTS job_assessments (
     FOREIGN KEY (job_id) REFERENCES job_reviews(job_id)
 );
 
-CREATE INDEX idx_job_assessments_score 
+CREATE INDEX idx_job_assessments_score
   ON job_assessments(overall_score DESC);
 
-CREATE INDEX idx_job_assessments_job_id 
+CREATE INDEX idx_job_assessments_job_id
   ON job_assessments(job_id);
 
 CREATE VIRTUAL TABLE job_assessments_fts USING fts5(
@@ -617,8 +617,8 @@ CREATE VIRTUAL TABLE job_assessments_fts USING fts5(
 
 ---
 
-**Document Version**: 1.0  
-**Created**: 2026-05-27  
-**Last Updated**: 2026-05-27  
-**Author**: Copilot CLI  
+**Document Version**: 1.0
+**Created**: 2026-05-27
+**Last Updated**: 2026-05-27
+**Author**: Copilot CLI
 **Status**: ✅ Ready for Implementation

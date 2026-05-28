@@ -1,8 +1,8 @@
 # ATS Playground - Success Criteria & Metrics
 
-**Date**: 2026-05-28  
-**Purpose**: Define what "successful evaluation" looks like  
-**Audience**: Decision-makers, project stakeholders, technical reviewers  
+**Date**: 2026-05-28
+**Purpose**: Define what "successful evaluation" looks like
+**Audience**: Decision-makers, project stakeholders, technical reviewers
 
 ---
 
@@ -239,7 +239,7 @@ Savings:      87% reduction per job
 ```bash
 # Check score distribution
 sqlite3 data/ats_playground.db \
-  "SELECT 
+  "SELECT
      COUNT(CASE WHEN score >= 90 THEN 1 END) as excellent,
      COUNT(CASE WHEN score BETWEEN 75 AND 89 THEN 1 END) as good,
      COUNT(CASE WHEN score BETWEEN 60 AND 74 THEN 1 END) as moderate,
@@ -430,6 +430,6 @@ Next Steps:
 
 ---
 
-**Document Version**: 1.0  
-**Status**: Complete  
+**Document Version**: 1.0
+**Status**: Complete
 **Last Updated**: 2026-05-28
