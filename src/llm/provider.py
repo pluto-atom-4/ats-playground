@@ -148,8 +148,12 @@ class LLMProvider:
                     output_tokens / 1_000_000
                 ) * self.OUTPUT_PRICE_PER_1M
 
-                # Parse response
-                response_text = response.content[0].text.strip()
+                # Parse response - ensure we get a TextBlock
+                response_text = ""
+                for block in response.content:
+                    if hasattr(block, "text"):
+                        response_text = block.text.strip()
+                        break
 
                 # Clean up JSON if wrapped in markdown code blocks
                 if response_text.startswith("```json"):

@@ -124,11 +124,16 @@ class Crawler:
                 return None
 
             return JobPosting(
+                id=None,
                 title=title,
                 company=company_name,
                 location=location or "Not specified",
-                url=link,
+                url=link,  # type: ignore[arg-type]
                 description="",
+                requirements=None,
+                salary_min=None,
+                salary_max=None,
+                posted_date=None,
                 status="pending_review",
                 crawled_date=datetime.utcnow(),
             )

@@ -1,7 +1,12 @@
 """Token counting and cost estimation using tiktoken."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+try:
+    import tiktoken
+except ImportError:
+    tiktoken = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +28,7 @@ class TokenCounter:
             model: Claude model identifier
         """
         self.model = model
-        self.encoding = None
+        self.encoding: Optional["tiktoken.Encoding"] = None
         self._load_encoding()
 
     def _load_encoding(self) -> None:
