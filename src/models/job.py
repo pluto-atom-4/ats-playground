@@ -31,7 +31,9 @@ class JobPosting(BaseModel):
     salary_min: Optional[float] = Field(None, description="Minimum salary")
     salary_max: Optional[float] = Field(None, description="Maximum salary")
     posted_date: Optional[datetime] = Field(None, description="When posted")
-    crawled_date: datetime = Field(default_factory=lambda: datetime.now(UTC), description="When crawled")
+    crawled_date: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), description="When crawled"
+    )
     status: str = Field(
         default="pending_review", description="Status: pending_review, confirmed, rejected"
     )
