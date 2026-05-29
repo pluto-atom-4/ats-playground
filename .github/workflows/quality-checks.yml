@@ -12,9 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
-    env:
-      UV_PYTHON: ${{ matrix.python-version }}
+        python-version: ["3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +29,7 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
+      - name: Install dependencies with uv
         run: uv sync --all-extras
 
       - name: Validate pre-commit config
