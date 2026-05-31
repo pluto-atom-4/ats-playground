@@ -54,12 +54,12 @@ def all(
         python -m src.cli all --cv data/cv.json --config config/companies.json
     """
     import time
-    
+
     logger.info("Running full workflow")
     typer.echo("✨ Full workflow started...\n")
-    
+
     start_time = time.time()
-    
+
     try:
         # ====================================================================
         # PHASE 1: CRAWL
@@ -67,9 +67,9 @@ def all(
         typer.echo("=" * 80)
         typer.echo("PHASE 1: CRAWL - Extract job postings from career pages")
         typer.echo("=" * 80)
-        
+
         phase_start = time.time()
-        
+
         config_path = Path(config)
         if not config_path.exists():
             typer.echo(f"❌ Config file not found: {config}", err=True)
@@ -102,7 +102,9 @@ def all(
                     typer.echo(f"   • {company_name}: {len(jobs)} jobs")
 
                     if jobs:
-                        output_file = Path("data/extracted_jobs") / f"{company_name.lower()}_jobs.json"
+                        output_file = (
+                            Path("data/extracted_jobs") / f"{company_name.lower()}_jobs.json"
+                        )
                         output_file.parent.mkdir(parents=True, exist_ok=True)
 
                         jobs_data = [job.model_dump(mode="json") for job in jobs]
@@ -129,7 +131,7 @@ def all(
         typer.echo("=" * 80)
         typer.echo("PHASE 2: PREPROCESS - Clean HTML, chunk, count tokens")
         typer.echo("=" * 80)
-        
+
         phase_start = time.time()
 
         from src.tokenization.chunker import SemanticChunker
@@ -221,7 +223,7 @@ def all(
         with open(output_file, "w") as f:
             json.dump(all_preprocessed, f, indent=2)
         typer.echo(f"   ✓ Saved to: {output_file}")
-        
+
         phase_time = time.time() - phase_start
         typer.echo(f"⏱️  Phase 2 took {phase_time:.2f}s\n")
 
@@ -231,32 +233,32 @@ def all(
         typer.echo("=" * 80)
         typer.echo("PHASE 3: REVIEW - Auto-confirm jobs (non-interactive mode)")
         typer.echo("=" * 80)
-        
+
         phase_start = time.time()
 
         # For the `all` command, auto-confirm all jobs without interactive review
         typer.echo("⏭️  Skipping interactive review - auto-confirming all preprocessed jobs\n")
-        
+
         # Load and auto-confirm preprocessed jobs
         preprocessed_path = Path("data/extracted_jobs/preprocessed_jobs.json")
         if preprocessed_path.exists():
             with open(preprocessed_path) as f:
                 preprocessed_jobs = json.load(f)
-            
+
             # Mark all as confirmed
             for job in preprocessed_jobs:
                 job["status"] = "confirmed"
-            
+
             # Save back
             with open(preprocessed_path, "w") as f:
                 json.dump(preprocessed_jobs, f, indent=2)
-            
+
             confirmed_count = len(preprocessed_jobs)
             typer.echo(f"✅ Auto-confirmed: {confirmed_count} jobs\n")
         else:
             confirmed_count = 0
             typer.echo("⚠️  No preprocessed jobs found\n")
-        
+
         phase_time = time.time() - phase_start
         typer.echo(f"⏱️  Phase 3 took {phase_time:.2f}s\n")
 
@@ -266,7 +268,7 @@ def all(
         typer.echo("=" * 80)
         typer.echo("PHASE 4: ASSESS - AI assessment with Claude")
         typer.echo("=" * 80)
-        
+
         phase_start = time.time()
 
         from src.llm.provider import LLMProvider
@@ -312,7 +314,7 @@ def all(
         assessment_store = AssessmentStore()
 
         # Build map of preprocessed jobs for context
-        preprocessed_map = {j["job_id"]: j for j in jobs_data} if 'jobs_data' in locals() else {}
+        preprocessed_map = {j["job_id"]: j for j in jobs_data} if "jobs_data" in locals() else {}
 
         # Assess each confirmed job
         successful = 0
@@ -352,10 +354,7 @@ def all(
                 logger.error(f"Assessment failed for job {idx}: {e}", exc_info=True)
                 failed += 1
                 title = job.get("title", "Unknown")
-                typer.echo(
-                    f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n"
-                    f"   Error: {e}\n"
-                )
+                typer.echo(f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n" f"   Error: {e}\n")
 
         typer.echo("\n" + "=" * 80)
         typer.echo("📊 Assessment Summary:")
@@ -368,11 +367,7 @@ def all(
         typer.echo(f"   Total tokens: {total_tokens}")
 
         if successful > 0:
-            top_matches = sorted(
-                assessment_list,
-                key=lambda a: a.overall_score,
-                reverse=True
-            )[:5]
+            top_matches = sorted(assessment_list, key=lambda a: a.overall_score, reverse=True)[:5]
 
             if top_matches:
                 typer.echo("\n🏆 Top Matches:")
@@ -383,7 +378,7 @@ def all(
                     typer.echo(f"   {i}. {title} - Overall: {match.overall_score:.0f}/100")
 
         typer.echo("\n✅ Assessment complete!\n")
-        
+
         phase_time = time.time() - phase_start
         typer.echo(f"⏱️  Phase 4 took {phase_time:.2f}s\n")
 
@@ -393,7 +388,7 @@ def all(
         typer.echo("=" * 80)
         typer.echo("PHASE 5: EXPORT - Generate markdown report")
         typer.echo("=" * 80)
-        
+
         phase_start = time.time()
 
         try:
@@ -438,7 +433,7 @@ def all(
             logger.error(f"Export failed: {e}", exc_info=True)
             typer.echo(f"❌ Export failed: {e}", err=True)
             raise typer.Exit(1) from None
-        
+
         phase_time = time.time() - phase_start
         typer.echo(f"⏱️  Phase 5 took {phase_time:.2f}s\n")
 
