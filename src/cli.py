@@ -44,7 +44,7 @@ class ResultItem(TypedDict):
 
 def load_companies_config(
     config: Optional[str] = None, config_dir: Optional[str] = None
-) -> dict:
+) -> dict[str, Any]:
     """Load companies from config file or directory."""
     if config:
         return load_companies_from_file(Path(config))
@@ -53,7 +53,7 @@ def load_companies_config(
     return {}
 
 
-def load_companies_from_file(config_path: Path) -> dict:
+def load_companies_from_file(config_path: Path) -> dict[str, Any]:
     """Load companies from a single config file."""
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -77,7 +77,7 @@ def load_companies_from_file(config_path: Path) -> dict:
     return companies
 
 
-def load_companies_from_directory(config_dir: Path) -> dict:
+def load_companies_from_directory(config_dir: Path) -> dict[str, Any]:
     """Load companies from all JSON files in a directory, filtering by enabled flag."""
     if not config_dir.exists():
         raise FileNotFoundError(f"Config directory not found: {config_dir}")
@@ -99,7 +99,7 @@ def load_companies_from_directory(config_dir: Path) -> dict:
     return all_companies
 
 
-def filter_enabled_companies(companies: dict) -> tuple[dict, list[str]]:
+def filter_enabled_companies(companies: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     """
     Filter companies by 'enabled' flag.
 
@@ -279,7 +279,7 @@ def all(
 
         crawler = Crawler(headless=headless, timeout_ms=30000)
 
-        async def run_crawl():
+        async def run_crawl() -> dict[str, list[Any]]:
             try:
                 results = await crawler.crawl_multiple(enabled_companies)
 
@@ -762,7 +762,7 @@ def crawl(
 
     crawler = Crawler(headless=headless, timeout_ms=timeout)
 
-    async def run_crawl():
+    async def run_crawl() -> dict[str, list[Any]]:
         try:
             results = await crawler.crawl_multiple(enabled_companies)
 

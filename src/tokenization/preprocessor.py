@@ -115,7 +115,7 @@ class Preprocessor:
             return [], [], []
 
     @staticmethod
-    def _get_tech_keywords() -> set:
+    def _get_tech_keywords() -> set[str]:
         """Get common technology keywords."""
         return {
             "python",

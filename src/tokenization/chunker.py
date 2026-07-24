@@ -1,7 +1,7 @@
 """Semantic chunking of text for optimal token efficiency."""
 
 import logging
-from typing import List
+from typing import Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SemanticChunker:
         self.overlap = overlap
         self.nlp = self._load_spacy()
 
-    def _load_spacy(self):
+    def _load_spacy(self) -> Any | None:
         """Load spaCy NLP model for sentence segmentation."""
         try:
             import spacy

@@ -168,7 +168,7 @@ class Crawler:
                 title=title,
                 company=company_name,
                 location=location or "Not specified",
-                url=link,  # type: ignore[arg-type]
+                url=link,
                 description=description,
                 requirements=requirements,
                 salary_min=None,
