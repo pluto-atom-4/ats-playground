@@ -32,7 +32,7 @@ class ExportConfig:
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration."""
         if not 0 <= self.min_score <= 100:
             raise ValueError("min_score must be 0-100")
