@@ -1,5 +1,6 @@
 """Panel for export phase display."""
 
+
 from src.tui.models.state import StateManager
 from src.tui.panels.base import BasePanelWidget
 from src.tui.utils.formatters import format_progress_bar
@@ -8,7 +9,7 @@ from src.tui.utils.formatters import format_progress_bar
 class ExportPanel(BasePanelWidget):
     """Displays export phase progress."""
 
-    def __init__(self, state: StateManager, **kwargs):
+    def __init__(self, state: StateManager, **kwargs: Any) -> None:
         super().__init__(state, phase="export", **kwargs)
 
     def render(self) -> str:

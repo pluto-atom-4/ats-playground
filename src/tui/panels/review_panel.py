@@ -1,5 +1,6 @@
 """Review phase panel for TUI - shows job validation progress."""
 
+
 from textual.widgets import Static
 
 from src.tui.models.state import StateManager
@@ -26,7 +27,7 @@ class ReviewPanel(Static):
     }
     """
 
-    def __init__(self, state: StateManager, *args, **kwargs):
+    def __init__(self, state: StateManager, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 

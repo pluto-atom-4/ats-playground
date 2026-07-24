@@ -124,7 +124,7 @@ PROMPTS = {
 }
 
 
-def get_prompt(prompt_type: str, **kwargs) -> str:
+def get_prompt(prompt_type: str, **kwargs: Any) -> str:
     """
     Get a prompt template by type.
 

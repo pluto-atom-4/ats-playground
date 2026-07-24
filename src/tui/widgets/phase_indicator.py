@@ -1,5 +1,6 @@
 """Phase indicator widget showing status of all workflow phases."""
 
+
 from textual.widgets import Static
 
 from src.tui.models.state import PhaseStatus, StateManager
@@ -8,7 +9,7 @@ from src.tui.models.state import PhaseStatus, StateManager
 class PhaseIndicator(Static):
     """Displays status of all 5 workflow phases."""
 
-    def __init__(self, state: StateManager, *args, **kwargs):
+    def __init__(self, state: StateManager, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 

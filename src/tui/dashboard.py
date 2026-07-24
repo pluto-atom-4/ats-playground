@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class HeaderPanel(Static):
     """Header showing overall workflow status and cost."""
 
-    def __init__(self, state: StateManager, *args, **kwargs):
+    def __init__(self, state: StateManager, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 
