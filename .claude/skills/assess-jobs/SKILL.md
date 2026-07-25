@@ -3,12 +3,20 @@
 ---
 name: assess-jobs
 description: Verify extracted jobs and run Claude assessment for CV fit scoring
+dependencies:
+  - "anthropic >= 0.20"
+  - "tiktoken >= 0.5.0"
+  - "pydantic >= 2.5"
+phases:
+  - verify
+  - assess
+cost_estimate: "$0.50-5.00 per 100 jobs (Claude API)"
 triggers:
   - "review jobs"
   - "assess candidates"
   - "score jobs"
   - "evaluate cv fit"
-execution: atomic
+execution: streaming
 ---
 
 ## Workflow: Verify → Assess → Export Results

@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+@AGENTS.md
+
 ATS Playground: CV-to-jobs assessment system. Crawls career pages, preprocesses HTML, sends to Claude for scoring.
 
 ---

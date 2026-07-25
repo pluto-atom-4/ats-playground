@@ -1,3 +1,14 @@
+---
+applyTo:
+  - "src/**/*"
+  - ".claude/rules/**/*"
+  - ".claude/skills/**/*"
+excludeFrom:
+  - "node_modules/**/*"
+  - "vendor/**/*"
+priority: high
+---
+
 # Copilot Instructions for ATS Playground
 
 Auto-loaded guidance for GitHub Copilot. See [CLAUDE.md](../CLAUDE.md) for core rules.
@@ -77,6 +88,26 @@ See [CLAUDE.md § Verification Commands](../CLAUDE.md#verification-commands) for
 
 ---
 
+## Tool Constraints Matrix
+
+| Tool | Constraint | Reason |
+|------|-----------|--------|
+| `rm -rf` | **DENY** | Destructive; use `git clean` or `rm` (single file) |
+| `git push --force` | **ASK** | Risk of overwriting upstream; blocked except explicit approval |
+| `git reset --hard` | **ASK** | Destroys uncommitted work; use `git restore` or `git stash` |
+| `git rebase -i` | **ALLOW** | OK on feature branches; interactive rebase is safe locally |
+| `pytest` | **ALLOW** | Always encouraged; verify before commits |
+| `black` / `ruff` | **ALLOW** | Auto-run via PostToolUse hook on file edits |
+| `uv sync` | **ALLOW** | Safe; updates lock file only if needed |
+| `.env` edits | **DENY** | Secrets; manual process only |
+
+**Policy:**
+- **ALLOW:** Safe, reversible, encouraged (tests, linters, format)
+- **ASK:** Risky, prompt user for confirmation (git force, destructive ops)
+- **DENY:** Never auto-execute; manual intervention only (secrets, destructive bulk ops)
+
+---
+
 ## Roles & Governance
 
 **Architect:** Design, write tasks.md, read-only codebase
@@ -87,5 +118,5 @@ See [AGENTS.md](../AGENTS.md) for details.
 
 ---
 
-**Last Updated:** 2026-07-19
-**Status:** Condensed for token compliance
+**Last Updated:** 2026-07-25
+**Status:** Enhanced with path-scoped rules & tool matrix

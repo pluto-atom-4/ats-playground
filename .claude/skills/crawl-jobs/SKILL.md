@@ -3,6 +3,14 @@
 ---
 name: crawl-jobs
 description: Fetch job listings via Playwright and prepare for assessment (crawl + preprocess)
+dependencies:
+  - "playwright >= 1.40"
+  - "spacy >= 3.0"
+  - "markitdown >= 0.0.1"
+phases:
+  - crawl
+  - preprocess
+cost_estimate: "$0.00 (local processing only)"
 triggers:
   - "crawl jobs"
   - "browse careers pages"

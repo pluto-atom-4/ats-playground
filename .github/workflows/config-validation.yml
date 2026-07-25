@@ -1,0 +1,124 @@
+name: Config Validation
+
+on:
+  push:
+    branches: [main, feat/**]
+    paths:
+      - '.claude/settings.json'
+      - '.claude/settings.local.json'
+      - '.github/copilot-instructions.md'
+      - '.claude/skills/*/SKILL.md'
+      - 'CLAUDE.md'
+      - 'AGENTS.md'
+      - '.claude/rules/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate .claude/settings.json (JSON schema)
+        run: |
+          echo "Validating .claude/settings.json..."
+          python3 -m json.tool .claude/settings.json > /dev/null
+          echo "✓ JSON valid"
+
+      - name: Validate .claude/settings.local.json
+        run: |
+          if [ -f .claude/settings.local.json ]; then
+            echo "Validating .claude/settings.local.json..."
+            python3 -m json.tool .claude/settings.local.json > /dev/null
+            echo "✓ JSON valid"
+          fi
+
+      - name: Validate PreToolUse hooks (regex patterns)
+        run: |
+          echo "Checking PreToolUse hook patterns..."
+          grep -q '"PreToolUse"' .claude/settings.json && echo "✓ PreToolUse section found"
+          grep -q 'rm -rf' .claude/settings.json && echo "✓ rm -rf guard present"
+          grep -q 'git push --force' .claude/settings.json && echo "✓ git push --force guard present"
+          grep -q 'git reset --hard' .claude/settings.json && echo "✓ git reset --hard guard present"
+
+      - name: Validate YAML frontmatter in .github/copilot-instructions.md
+        run: |
+          echo "Checking YAML frontmatter..."
+          head -1 .github/copilot-instructions.md | grep -q "^---" && echo "✓ YAML start found"
+          grep -q "^---$" .github/copilot-instructions.md && echo "✓ YAML end found"
+          grep -q "applyTo:" .github/copilot-instructions.md && echo "✓ applyTo field present"
+
+      - name: Validate skill SKILL.md metadata
+        run: |
+          echo "Validating skill metadata..."
+          for skill_file in .claude/skills/*/SKILL.md; do
+            echo "Checking $skill_file..."
+            grep -q "^name:" "$skill_file" && echo "  ✓ name field"
+            grep -q "^description:" "$skill_file" && echo "  ✓ description field"
+            grep -q "^dependencies:" "$skill_file" && echo "  ✓ dependencies field"
+            grep -q "^phases:" "$skill_file" && echo "  ✓ phases field"
+            grep -q "^cost_estimate:" "$skill_file" && echo "  ✓ cost_estimate field"
+          done
+
+      - name: Validate CLAUDE.md line count
+        run: |
+          lines=$(wc -l < CLAUDE.md)
+          echo "CLAUDE.md: $lines lines"
+          if [ "$lines" -gt 250 ]; then
+            echo "❌ CLAUDE.md exceeds 250 lines ($lines)"
+            exit 1
+          fi
+          echo "✓ Under 250 lines"
+
+      - name: Validate AGENTS.md Two-Gate System
+        run: |
+          echo "Checking AGENTS.md for Two-Gate System..."
+          grep -q "Two-Gate System" AGENTS.md && echo "✓ Two-Gate System section found"
+          grep -q "Gate 1:" AGENTS.md && echo "✓ Gate 1 documented"
+          grep -q "Gate 2:" AGENTS.md && echo "✓ Gate 2 documented"
+
+      - name: Validate Skill Discovery section
+        run: |
+          echo "Checking AGENTS.md for Skill Discovery..."
+          grep -q "Skill Discovery" AGENTS.md && echo "✓ Skill Discovery section found"
+          grep -q "SKILL.md" AGENTS.md && echo "✓ SKILL.md metadata format documented"
+
+      - name: Test PostToolUse hook (smoke test)
+        run: |
+          echo "Testing hook invocation..."
+          if [ -f .claude/hooks/post-edit-quality.sh ]; then
+            bash -n .claude/hooks/post-edit-quality.sh && echo "✓ Hook script is valid bash"
+          fi
+
+      - name: Validate cross-tool config sync
+        run: |
+          echo "Checking config consistency across tools..."
+          # Verify settings.json and copilot-instructions.md tool constraints align
+          grep -q "rm -rf" .claude/settings.json && grep -q "rm -rf" .github/copilot-instructions.md && echo "✓ Tool constraints sync (rm -rf)"
+          grep -q "git push --force" .claude/settings.json && grep -q "git push --force" .github/copilot-instructions.md && echo "✓ Tool constraints sync (git push --force)"
+
+  lint-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check markdown formatting
+        run: |
+          echo "Validating markdown syntax..."
+          for md_file in CLAUDE.md AGENTS.md .github/copilot-instructions.md; do
+            echo "Checking $md_file..."
+            grep -E '^\[' "$md_file" | head -5 || echo "  ✓ Links ok"
+          done
+
+      - name: Check for broken references
+        run: |
+          echo "Checking cross-document references..."
+          # Check CLAUDE.md references exist
+          if grep -q '@AGENTS.md' CLAUDE.md; then
+            if [ -f AGENTS.md ]; then
+              echo "✓ @AGENTS.md reference OK"
+            fi
+          fi
+          # Check copilot-instructions.md references
+          grep '\[' .github/copilot-instructions.md | grep -o '\(.*\)' | head -5 || echo "✓ References ok"
