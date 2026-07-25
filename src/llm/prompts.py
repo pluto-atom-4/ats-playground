@@ -1,6 +1,6 @@
 """Assessment prompts for Claude API."""
 
-from typing import Optional
+from typing import Any, Optional
 
 
 def get_assessment_prompt(cv_summary: Optional[str] = None) -> str:
@@ -124,7 +124,7 @@ PROMPTS = {
 }
 
 
-def get_prompt(prompt_type: str, **kwargs) -> str:
+def get_prompt(prompt_type: str, **kwargs: Any) -> str:
     """
     Get a prompt template by type.
 

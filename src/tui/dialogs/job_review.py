@@ -16,7 +16,7 @@ except ImportError:
     PREPROCESSOR_AVAILABLE = False
 
 
-class JobReviewDialog(ModalScreen):
+class JobReviewDialog(ModalScreen[Optional[str]]):
     """Modal dialog for user to approve/reject/skip extracted job.
 
     Shows:

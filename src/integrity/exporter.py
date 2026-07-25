@@ -167,7 +167,7 @@ class DataExporter:
         if not report.issues_found:
             return []
         lines = ["## Detailed Issues\n"]
-        by_severity: dict[str, list] = {
+        by_severity: dict[str, list[Any]] = {
             "error": [],
             "warning": [],
             "info": [],

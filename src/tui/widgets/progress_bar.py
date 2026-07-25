@@ -1,5 +1,7 @@
 """Custom progress bar widget with ETA."""
 
+from typing import Any
+
 from textual.widgets import Static
 
 from src.tui.models.state import StateManager
@@ -13,7 +15,7 @@ from src.tui.utils.formatters import (
 class TUIProgressBar(Static):
     """Custom progress bar with ETA and throughput display."""
 
-    def __init__(self, state: StateManager, phase: str, *args, **kwargs):
+    def __init__(self, state: StateManager, phase: str, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
         self.phase = phase

@@ -1,5 +1,7 @@
 """Cost tracking widget displaying tokens and USD."""
 
+from typing import Any
+
 from textual.widgets import Static
 
 from src.tui.models.state import StateManager
@@ -9,7 +11,7 @@ from src.tui.utils.formatters import format_cost, format_tokens
 class CostTracker(Static):
     """Real-time cost display for tokens and USD."""
 
-    def __init__(self, state: StateManager, phase: str, *args, **kwargs):
+    def __init__(self, state: StateManager, phase: str, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
         self.phase = phase

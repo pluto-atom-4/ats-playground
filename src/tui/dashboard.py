@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class HeaderPanel(Static):
     """Header showing overall workflow status and cost."""
 
-    def __init__(self, state: StateManager, *args, **kwargs):
+    def __init__(self, state: StateManager, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 
@@ -60,7 +60,7 @@ class HelpPanel(Static):
         return "p=Pause  r=Resume  q=Quit"
 
 
-class ATPDashboard(Screen):
+class ATPDashboard(Screen[None]):
     """
     Main TUI Dashboard for ATS Showcase workflow.
 
@@ -606,7 +606,7 @@ class ATPDashboard(Screen):
             raise
 
 
-class ATPDashboardApp(App):
+class ATPDashboardApp(App[None]):
     """Textual App wrapper for ATPDashboard screen."""
 
     CSS = """

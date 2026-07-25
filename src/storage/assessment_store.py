@@ -390,7 +390,7 @@ class AssessmentStore:
             logger.warning(f"Keyword search failed: {e}")
             return []
 
-    def get_top_keywords(self, limit: int = 20, company: Optional[str] = None) -> List[tuple]:
+    def get_top_keywords(self, limit: int = 20, company: Optional[str] = None) -> List[tuple[str, int]]:
         """
         Extract top keywords from job titles and summaries.
 
@@ -876,7 +876,7 @@ class AssessmentStore:
 
     def _fetch_jobs_for_filter_stats(
         self, cursor: sqlite3.Cursor
-    ) -> list:
+    ) -> list[Any]:
         """Fetch jobs for filter stats, trying multiple query variants."""
         queries = [
             # Try job_reviews.crawled_at first (test fixture schema)

@@ -54,7 +54,7 @@ def validate_spacy() -> Dict[str, Any]:
     try:
         import spacy
 
-        version = spacy.__version__
+        version = spacy.__version__  # type: ignore[attr-defined]
         version_parts = version.split(".")[:2]
         major, minor = int(version_parts[0]), int(version_parts[1])
 

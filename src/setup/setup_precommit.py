@@ -63,7 +63,7 @@ class PreCommitSetup:
         self.config_file = self.project_root / ".pre-commit-config.yaml"
 
     def _run_command(
-        self, cmd: list, check: bool = True, capture_output: bool = False
+        self, cmd: list[str], check: bool = True, capture_output: bool = False
     ) -> tuple[int, str]:
         """Run a shell command safely.
 

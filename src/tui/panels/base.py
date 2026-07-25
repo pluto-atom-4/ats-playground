@@ -1,5 +1,7 @@
 """Base panel widget for TUI phases."""
 
+from typing import Any
+
 from textual.containers import Container
 
 from src.tui.models.state import PhaseStatus, StateManager
@@ -25,10 +27,10 @@ class BasePanelWidget(Container):
     def __init__(
         self,
         state: StateManager,
-        *args,
+        *args: Any,
         phase: str = "unknown",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
         self.phase = phase

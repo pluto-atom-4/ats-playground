@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ReviewStats:
     """Track review statistics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize stats."""
         self.total = 0
         self.confirmed = 0

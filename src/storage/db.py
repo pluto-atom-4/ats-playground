@@ -3,7 +3,7 @@
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class Database:
         assert self.conn is not None, "Database connection failed"
         return self.conn.cursor()
 
-    def execute(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
+    def execute(self, query: str, params: tuple[Any, ...] = ()) -> sqlite3.Cursor:
         """
         Execute query with parameters.
 

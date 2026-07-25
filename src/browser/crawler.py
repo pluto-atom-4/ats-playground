@@ -121,7 +121,7 @@ class Crawler:
             return []
 
     async def _extract_job_from_container(
-        self, page: Page, container, company_name: str, selectors: Dict[str, str],
+        self, page: Page, container: Any, company_name: str, selectors: Dict[str, str],
         base_url: str = "", crawler_config: Optional[Dict[str, Any]] = None
     ) -> Optional[JobPosting]:
         """Extract job details from a single job container element."""
@@ -168,7 +168,7 @@ class Crawler:
                 title=title,
                 company=company_name,
                 location=location or "Not specified",
-                url=link,  # type: ignore[arg-type]
+                url=link,
                 description=description,
                 requirements=requirements,
                 salary_min=None,
@@ -211,7 +211,7 @@ class Crawler:
 
         return result
 
-    async def _extract_text(self, element, selector: Optional[str]) -> Optional[str]:
+    async def _extract_text(self, element: Any, selector: Optional[str]) -> Optional[str]:
         """Extract text from element using selector."""
         if not selector:
             return None
@@ -224,7 +224,7 @@ class Crawler:
             logger.debug(f"Error extracting text with selector {selector}: {e}")
         return None
 
-    async def _extract_link(self, element, selector: Optional[str]) -> Optional[str]:
+    async def _extract_link(self, element: Any, selector: Optional[str]) -> Optional[str]:
         """Extract href from element using selector."""
         if not selector:
             return None

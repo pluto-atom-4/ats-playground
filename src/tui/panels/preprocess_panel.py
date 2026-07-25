@@ -1,5 +1,7 @@
 """Panel for preprocess phase display."""
 
+from typing import Any
+
 from src.tui.models.state import StateManager
 from src.tui.panels.base import BasePanelWidget
 from src.tui.utils.formatters import format_progress_bar
@@ -8,7 +10,7 @@ from src.tui.utils.formatters import format_progress_bar
 class PreprocessPanel(BasePanelWidget):
     """Displays preprocess phase progress."""
 
-    def __init__(self, state: StateManager, **kwargs):
+    def __init__(self, state: StateManager, **kwargs: Any) -> None:
         super().__init__(state, phase="preprocess", **kwargs)
 
     def render(self) -> str:
