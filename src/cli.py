@@ -279,7 +279,7 @@ def all(
 
         crawler = Crawler(headless=headless, timeout_ms=30000)
 
-        async def run_crawl() -> dict[str, list[Any]]:
+        async def run_crawl() -> Any:
             try:
                 results = await crawler.crawl_multiple(enabled_companies)
 
@@ -762,7 +762,7 @@ def crawl(
 
     crawler = Crawler(headless=headless, timeout_ms=timeout)
 
-    async def run_crawl() -> dict[str, list[Any]]:
+    async def run_crawl() -> Any:
         try:
             results = await crawler.crawl_multiple(enabled_companies)
 
@@ -780,6 +780,8 @@ def crawl(
                     with open(output_file, "w") as f:
                         json.dump(jobs_data, f, indent=2, default=str)
                     typer.echo(f"      Saved to: {output_file}")
+
+            return results
 
         except Exception as e:
             logger.error(f"Crawl failed: {e}", exc_info=True)
@@ -2131,7 +2133,7 @@ def repair(
         raise typer.Exit(1) from None
 
 
-def _generate_integrity_markdown(report) -> str:
+def _generate_integrity_markdown(report: Any) -> str:
     """Generate markdown report from IntegrityReport."""
     lines = [
         "# Database Integrity Report",

@@ -1,5 +1,6 @@
 """Review phase panel for TUI - shows job validation progress."""
 
+from typing import Any
 
 from textual.widgets import Static
 

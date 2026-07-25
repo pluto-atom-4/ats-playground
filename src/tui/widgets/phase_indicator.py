@@ -1,5 +1,6 @@
 """Phase indicator widget showing status of all workflow phases."""
 
+from typing import Any
 
 from textual.widgets import Static
 

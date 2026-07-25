@@ -1,5 +1,6 @@
 """Panel for export phase display."""
 
+from typing import Any
 
 from src.tui.models.state import StateManager
 from src.tui.panels.base import BasePanelWidget

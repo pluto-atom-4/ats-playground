@@ -1,5 +1,6 @@
 """Custom progress bar widget with ETA."""
 
+from typing import Any
 
 from textual.widgets import Static
 

@@ -1,5 +1,6 @@
 """Base panel widget for TUI phases."""
 
+from typing import Any
 
 from textual.containers import Container
 

@@ -1,7 +1,7 @@
 """NLP preprocessing for job postings using spaCy."""
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 import spacy
 from spacy.language import Language
@@ -165,7 +165,9 @@ class Preprocessor:
         }
 
     @staticmethod
-    def _extract_from_ner(doc, tech_keywords, technologies, requirements):
+    def _extract_from_ner(
+        doc: Any, tech_keywords: Set[str], technologies: Set[str], requirements: Set[str]
+    ) -> None:
         """Extract entities from named entity recognition."""
         for ent in doc.ents:
             entity_text = ent.text.strip()
@@ -180,7 +182,9 @@ class Preprocessor:
                 requirements.add(entity_text)
 
     @staticmethod
-    def _extract_from_tokens(doc, tech_keywords, skills, technologies):
+    def _extract_from_tokens(
+        doc: Any, tech_keywords: Set[str], skills: Set[str], technologies: Set[str]
+    ) -> None:
         """Extract skills and tech from tokens."""
         exclude_skills = {"senior", "junior", "required", "optional", "available"}
 

@@ -1,6 +1,6 @@
 """Assessment prompts for Claude API."""
 
-from typing import Optional
+from typing import Any, Optional
 
 
 def get_assessment_prompt(cv_summary: Optional[str] = None) -> str:

@@ -1,5 +1,6 @@
 """Cost tracking widget displaying tokens and USD."""
 
+from typing import Any
 
 from textual.widgets import Static
 

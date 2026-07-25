@@ -1,5 +1,6 @@
 """Panel for crawl phase display."""
 
+from typing import Any
 
 from src.tui.models.state import PhaseStatus, StateManager
 from src.tui.panels.base import BasePanelWidget
