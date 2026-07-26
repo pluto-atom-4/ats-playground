@@ -87,76 +87,14 @@ HUMAN (merge decision)
 
 ---
 
-## Error Escalation (Three-Strike Rule)
-
-If any phase fails 3+ times on same task:
-1. Halt current phase
-2. Escalate to human with context
-3. Wait for direction before retry
-
-**Examples:**
-- Test failures 3× → Escalate (design issue?)
-- API errors 3× → Escalate (rate limiting or config?)
-- Lint failures 3× → Escalate (style violation?)
-
----
-
-## Single-Writer Guarantee
-
-- Only one agent modifies code per task (prevent conflicts)
-- Architect writes tasks.md; Coder reads-only
-- Coder writes src/; Reviewer reads-only
-- Reviewer approves; Human merges
-
-**SQLite Parallel:** Assessment processes use single-writer pattern (no concurrent writes to same DB).
-
----
-
 ## Skill Discovery
 
-Custom skills in `.claude/skills/<skill-name>/` use standardized **YAML metadata** for lazy-loading by both Claude Code and Copilot CLI agents.
+Custom skills in `.claude/skills/<skill-name>/` use standardized **YAML metadata** for lazy-loading.
 
-### Skill Template: SKILL.md Metadata
+**Metadata fields (SKILL.md frontmatter):**
+- `name`, `description`, `dependencies`, `phases`, `cost_estimate`, `execution`, `triggers`
 
-```yaml
----
-name: skill-name
-description: One-liner describing what the skill does
-dependencies:
-  - "spacy >= 3.0"
-  - "playwright >= 1.40"
-phases:
-  - crawl
-  - preprocess
-  - assess
-cost_estimate: "$0.50-2.00 per 1000 jobs"
-execution: "atomic|streaming|queued"
-triggers:
-  - "crawl jobs"
-  - "browse careers"
-  - "fetch listings"
----
-
-# Skill Description
-
-Workflow steps, prerequisites, verification commands...
-```
-
-### Skill Discovery Rules
-
-1. **Metadata required** in every skill's SKILL.md frontmatter
-2. **Phases:** Must list which pipeline phases it applies to (crawl, preprocess, verify, assess, export)
-3. **Triggers:** Searchable keywords for agent discoverability
-4. **Dependencies:** Declare external tools (Playwright, spaCy, etc.)
-5. **Execution mode:** atomic (single run), streaming (per-job), queued (batched)
-
-### Current Skills
-
-| Skill | Phases | Execution | Status |
-|-------|--------|-----------|--------|
-| crawl-jobs | crawl, preprocess | atomic | ✅ |
-| assess-jobs | verify, assess | streaming | ✅ |
-| pre-commit-enforce | meta | atomic | ✅ |
+See `.claude/skills/<skill>/SKILL.md` for examples (crawl-jobs, assess-jobs, pre-commit-enforce).
 
 ---
 

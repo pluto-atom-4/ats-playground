@@ -68,7 +68,7 @@ Threshold: **80K tokens** used across CLAUDE.md + AGENTS.md + settings.json meta
 
 ### CLAUDE.md
 - **Trigger:** New CLI commands, changed setup steps, git workflow updates
-- **Process:** 
+- **Process:**
   1. Edit locally
   2. Verify line count < 250
   3. Test `uv run python -m src.cli --help`

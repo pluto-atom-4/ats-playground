@@ -1,3 +1,19 @@
+---
+name: pre-commit-enforce
+description: Enforce feature branch workflow by blocking commits to protected branches
+dependencies:
+  - "git >= 2.0"
+  - "bash >= 4.0"
+phases:
+  - meta
+cost_estimate: "$0.00 (local hook only)"
+execution: atomic
+triggers:
+  - "enforce branch protection"
+  - "git workflow"
+  - "feature branch"
+---
+
 # Pre-Commit Enforcement Skill
 
 Enforce feature branch workflow by blocking commits to protected branches (default: main).
