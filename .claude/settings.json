@@ -48,6 +48,53 @@
   },
   "model": "claude-haiku-4-5-20251001",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(rm -rf *)",
+        "hooks": [
+          {
+            "type": "confirm",
+            "message": "Destructive operation blocked: rm -rf. Use 'rm' (single file) or 'git clean' with caution."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git push --force*)",
+        "hooks": [
+          {
+            "type": "confirm",
+            "message": "Force push blocked. Use regular 'git push' for feature branches."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git reset --hard*)",
+        "hooks": [
+          {
+            "type": "confirm",
+            "message": "Hard reset blocked. Use 'git reset --soft' or 'git restore' instead."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(drop *)",
+        "hooks": [
+          {
+            "type": "confirm",
+            "message": "SQL drop blocked. Use backup-restore workflow or manual DBA approval."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(truncate *)",
+        "hooks": [
+          {
+            "type": "confirm",
+            "message": "Truncate blocked. Use DELETE with WHERE clause for safety."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
