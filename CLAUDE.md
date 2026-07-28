@@ -32,6 +32,27 @@ Setup: `bash .claude/skills/pre-commit-enforce/setup.sh`. See [docs](https://git
 
 ---
 
+## Local CI (Pre-Commit Workflow)
+
+Run code quality checks before committing:
+
+```bash
+# Full check suite (pre-commit hooks on staged files)
+bash .claude/scripts/run-local-ci.sh
+
+# Include tests
+bash .claude/scripts/run-local-ci.sh --tests
+
+# Strict type checking (mypy --strict)
+bash .claude/scripts/run-local-ci.sh --strict
+```
+
+**Checks:** Trailing whitespace, end-of-file, secrets, security (bandit), ruff (lint+format), mypy
+
+See [Local CI Guide](.claude/ci/local-ci.md) for troubleshooting.
+
+---
+
 ## Setup
 
 ```bash
@@ -64,9 +85,9 @@ See [CLI reference](.github/instructions/cli-usage.instructions.md) for all comm
 ## Verification Commands
 
 ```bash
+bash .claude/scripts/run-local-ci.sh              # Pre-commit checks + mypy
 uv run pytest tests/ -v                          # All tests
 uv run pytest tests/ -v --cov=src               # With coverage
-uv run black src/ tests/ && uv run ruff check src/ tests/ --fix  # Format + lint
 uv run python -m src.cli query --keyword "python" --min-score 75  # Query DB
 uv run python -m src.cli stats --show-token-usage              # Cost breakdown
 tail -f logs/app.log                             # Watch logs
