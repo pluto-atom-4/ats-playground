@@ -272,8 +272,14 @@ class Preprocessor:
         # Job requirement section headers (in priority order)
         # Match headers that are followed by colon or newline (to avoid matching mid-sentence)
         job_section_headers = [
-            r"(?i)(qualifications|requirements|what we're looking for|what we need|what you'll need|must-have|essential|desired qualifications)(?:\s*[:|\n])",
-            r"(?i)(responsibilities|what you'll do|your role|what you will|primary responsibilities)(?:\s*[:|\n])",
+            (
+                r"(?i)(qualifications|requirements|what we're looking for|what we need|"
+                r"what you'll need|must-have|essential|desired qualifications)(?:\s*[:|\n])"
+            ),
+            (
+                r"(?i)(responsibilities|what you'll do|your role|what you will|"
+                r"primary responsibilities)(?:\s*[:|\n])"
+            ),
             r"(?i)(skills|technical skills|core skills|desired skills)(?:\s*[:|\n])",
         ]
 

@@ -144,13 +144,12 @@ TECH_KEYWORDS = {
         "lean",
         "xp",
     },
-    # Robotics & Emerging (6)
+    # Robotics & Emerging (5)
     "robotics": {
         "ros",
         "ros2",
         "gazebo",
         "moveit",
-        "gazebo",
         "webots",
     },
     # Other Critical Tools (8)
