@@ -6,6 +6,8 @@ from typing import Any, List, Optional, Set, Tuple
 import spacy
 from spacy.language import Language
 
+from src.tokenization.keywords import get_all_keywords
+
 logger = logging.getLogger(__name__)
 
 
@@ -132,53 +134,12 @@ class Preprocessor:
 
     @staticmethod
     def _get_tech_keywords() -> set[str]:
-        """Get common technology keywords."""
-        return {
-            "python",
-            "javascript",
-            "typescript",
-            "java",
-            "c#",
-            "csharp",
-            "go",
-            "rust",
-            "php",
-            "ruby",
-            "react",
-            "vue",
-            "angular",
-            "node",
-            "express",
-            "django",
-            "flask",
-            "fastapi",
-            "spring",
-            "postgresql",
-            "mysql",
-            "mongodb",
-            "redis",
-            "elasticsearch",
-            "kafka",
-            "aws",
-            "gcp",
-            "azure",
-            "docker",
-            "kubernetes",
-            "git",
-            "sql",
-            "html",
-            "css",
-            "json",
-            "xml",
-            "rest",
-            "graphql",
-            "api",
-            "ml",
-            "ai",
-            "tensorflow",
-            "pytorch",
-            "sklearn",
-        }
+        """Get technology keywords from centralized keywords module.
+
+        Returns:
+            Set of 86+ technology keywords across all categories
+        """
+        return get_all_keywords()
 
     @staticmethod
     def _extract_from_ner(
