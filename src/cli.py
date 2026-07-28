@@ -803,13 +803,14 @@ def preprocess(
     batch_size: int = typer.Option(10, help="Jobs per batch"),
     show_estimates: bool = typer.Option(False, help="Show token/cost estimates"),
 ) -> None:
-    """Preprocess job postings (clean HTML, chunk, count tokens)."""
+    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities)."""
     import json
     from pathlib import Path
 
     from src.models.job import JobPosting, PreprocessedJob
     from src.tokenization.chunker import SemanticChunker
     from src.tokenization.counter import TokenCounter
+    from src.tokenization.preprocessor import Preprocessor
 
     logger.info("Starting preprocessing")
     typer.echo("🔄 Preprocessing jobs...\n")
@@ -826,6 +827,7 @@ def preprocess(
 
     chunker = SemanticChunker(target_chunk_size=400)
     counter = TokenCounter()
+    preprocessor = Preprocessor()
 
     from datetime import date as date_class
 
@@ -858,6 +860,9 @@ def preprocess(
                     token_count = sum(counter.count_tokens(c) for c in chunks)
                     estimated_cost = counter.estimate_cost(token_count)
 
+                    # Extract entities from job description
+                    skills, technologies, requirements = preprocessor.extract_entities(clean_text)
+
                     # Use job.id if available, otherwise generate from job details
                     job_id = job.id or generate_job_id(
                         company=job.company,
@@ -872,6 +877,9 @@ def preprocess(
                         clean_text=clean_text,
                         sentences=clean_text.split("\n"),
                         chunks=chunks,
+                        skills=skills,
+                        technologies=technologies,
+                        requirements=requirements,
                         token_count=token_count,
                         estimated_cost=estimated_cost,
                         model_name=counter.model,

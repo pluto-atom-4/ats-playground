@@ -6,6 +6,8 @@ from typing import Any, List, Optional, Set, Tuple
 import spacy
 from spacy.language import Language
 
+from src.tokenization.keywords import get_all_keywords
+
 logger = logging.getLogger(__name__)
 
 
@@ -69,6 +71,7 @@ class Preprocessor:
     def extract_entities(self, text: str) -> Tuple[List[str], List[str], List[str]]:
         """Extract named entities (skills, technologies, requirements).
 
+        Phase 1: Smart filtering (section extraction → boilerplate removal → entity filtering)
         Uses spaCy NER for named entities and POS/DEP tagging for skills/tech.
 
         Args:
@@ -89,7 +92,17 @@ class Preprocessor:
         requirements: set[str] = set()
 
         try:
-            doc = self.nlp(text)
+            # Phase 1: Smart filtering pipeline
+            # 1. Extract job section (ignore boilerplate sections)
+            # Fallback to original text if no job section found
+            job_section = self._extract_job_section(text)
+            text_to_clean = job_section if job_section.strip() else text
+
+            # 2. Remove boilerplate (salary, legal, location metadata)
+            cleaned_text = self._remove_boilerplate(text_to_clean)
+
+            # 3. Extract entities from cleaned text
+            doc = self.nlp(cleaned_text)
             tech_keywords = self._get_tech_keywords()
 
             # Extract from NER (named entities)
@@ -98,10 +111,15 @@ class Preprocessor:
             # Extract from POS tags and noun compounds
             self._extract_from_tokens(doc, tech_keywords, skills, technologies)
 
+            # 4. Filter entities (remove noise, duplicates, short fragments)
+            skills = set(self._filter_entities(list(skills)))
+            technologies = set(self._filter_entities(list(technologies)))
+            requirements = set(self._filter_entities(list(requirements)))
+
             logger.debug(
                 f"Extracted {len(skills)} skills, "
                 f"{len(technologies)} technologies, "
-                f"{len(requirements)} requirements"
+                f"{len(requirements)} requirements (Phase 1 filtering applied)"
             )
 
             return (
@@ -116,53 +134,12 @@ class Preprocessor:
 
     @staticmethod
     def _get_tech_keywords() -> set[str]:
-        """Get common technology keywords."""
-        return {
-            "python",
-            "javascript",
-            "typescript",
-            "java",
-            "c#",
-            "csharp",
-            "go",
-            "rust",
-            "php",
-            "ruby",
-            "react",
-            "vue",
-            "angular",
-            "node",
-            "express",
-            "django",
-            "flask",
-            "fastapi",
-            "spring",
-            "postgresql",
-            "mysql",
-            "mongodb",
-            "redis",
-            "elasticsearch",
-            "kafka",
-            "aws",
-            "gcp",
-            "azure",
-            "docker",
-            "kubernetes",
-            "git",
-            "sql",
-            "html",
-            "css",
-            "json",
-            "xml",
-            "rest",
-            "graphql",
-            "api",
-            "ml",
-            "ai",
-            "tensorflow",
-            "pytorch",
-            "sklearn",
-        }
+        """Get technology keywords from centralized keywords module.
+
+        Returns:
+            Set of 86+ technology keywords across all categories
+        """
+        return get_all_keywords()
 
     @staticmethod
     def _extract_from_ner(
@@ -280,3 +257,144 @@ class Preprocessor:
         except Exception as e:
             logger.error(f"Error removing stopwords: {e}")
             return text
+
+    def _extract_job_section(self, text: str) -> str:
+        """Extract job requirement sections, ignore boilerplate.
+
+        Returns text from recognized job sections, stops at legal disclaimers.
+        Returns empty string if no job section found (fallback to original text).
+        """
+        if not text:
+            return ""
+
+        import re
+
+        # Job requirement section headers (in priority order)
+        # Match headers that are followed by colon or newline (to avoid matching mid-sentence)
+        job_section_headers = [
+            (
+                r"(?i)(qualifications|requirements|what we're looking for|what we need|"
+                r"what you'll need|must-have|essential|desired qualifications)(?:\s*[:|\n])"
+            ),
+            (
+                r"(?i)(responsibilities|what you'll do|your role|what you will|"
+                r"primary responsibilities)(?:\s*[:|\n])"
+            ),
+            r"(?i)(skills|technical skills|core skills|desired skills)(?:\s*[:|\n])",
+        ]
+
+        # Cutoff markers (stop extraction after these)
+        cutoff_markers = [
+            "equal opportunity",
+            "affirmative action",
+            "background check",
+            "export control",
+            "compliance",
+            "how to apply",
+            "apply now",
+            "benefits",
+            "compensation",
+        ]
+
+        # Find first job section marker
+        first_match = None
+        for pattern in job_section_headers:
+            match = re.search(pattern, text)
+            if match and (first_match is None or match.start() < first_match.start()):
+                first_match = match
+
+        # If no formal job section found, return empty (fallback to original text)
+        if not first_match:
+            logger.debug("No formal job section found, will use full text")
+            return ""
+
+        # Start extraction after the header
+        start_idx = first_match.end()
+
+        # Find first cutoff marker
+        cutoff_idx = len(text)
+        for marker in cutoff_markers:
+            idx = text.lower().find(marker)
+            if idx != -1 and idx > start_idx:
+                cutoff_idx = min(cutoff_idx, idx)
+
+        # Extract section between markers
+        section = text[start_idx:cutoff_idx]
+        logger.debug(f"Extracted job section: {len(section)} chars from {len(text)}")
+        return section
+
+    def _remove_boilerplate(self, text: str) -> str:
+        """Remove salary, location, and legal boilerplate from text."""
+        if not text:
+            return ""
+
+        import re
+
+        # Patterns to remove
+        boilerplate_patterns = [
+            r"salary.*?(\n|$)",  # Salary mentions
+            r"\$[\d,]+.*?(?:year|hour|annually)",  # Salary ranges
+            r"(?:remote|on-site|location).*?(?:\n|$)",  # Location metadata
+            r"(?:equal opportunity|affirmative action|fcra|dbids).*?(?:\n|$)",  # Legal
+            r"(?:background check|export control).*?(?:\n|$)",  # Compliance
+            r"(?:benefits|compensation|401\(k\)|health insurance).*?(?:\n|$)",  # Benefits
+        ]
+
+        cleaned = text
+        for pattern in boilerplate_patterns:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+
+        logger.debug(f"Removed boilerplate: {len(text)} → {len(cleaned)} chars")
+        return cleaned
+
+    def _filter_entities(self, entities: list[str]) -> list[str]:
+        """Filter extracted entities to remove noise and short fragments.
+
+        Validation rules (Phase 1 - Conservative):
+        - Reject if: len < 2 or len > 70
+        - Reject if: Matches boilerplate keywords
+        - Reject if: Duplicate
+        """
+        boilerplate_keywords = {
+            "affirmative",
+            "action",
+            "equal",
+            "opportunity",
+            "applications",
+            "candidates",
+            "recruitment",
+            "fcra",
+            "dbids",
+            "compliance",
+            "background",
+            "check",
+            "export",
+            "control",
+            "base pay",
+            "salary",
+            "wage",
+            "location",
+            "remote",
+        }
+
+        filtered: set[str] = set()
+        for entity in entities:
+            entity_clean = entity.strip()
+
+            # Length validation (Phase 1: conservative)
+            if len(entity_clean) < 2 or len(entity_clean) > 70:
+                continue
+
+            # Skip boilerplate keywords
+            entity_lower = entity_clean.lower()
+            if any(kw in entity_lower for kw in boilerplate_keywords):
+                continue
+
+            # Skip if contains excessive formatting artifacts (but allow parentheses in some contexts)
+            if entity_clean.count("\xa0") > 1 or entity_clean.count("(") > 2:
+                continue
+
+            filtered.add(entity_clean)
+
+        logger.debug(f"Filtered entities: {len(entities)} → {len(filtered)} after validation")
+        return sorted(filtered)

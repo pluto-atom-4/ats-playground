@@ -60,6 +60,9 @@ class PreprocessedJob(BaseModel):
     clean_text: str = Field(..., description="Cleaned HTML -> text")
     sentences: List[str] = Field(..., description="Sentence-segmented text")
     chunks: List[str] = Field(..., description="Semantic chunks")
+    skills: List[str] = Field(default_factory=list, description="Extracted skills (NLP)")
+    technologies: List[str] = Field(default_factory=list, description="Extracted technologies (NLP)")
+    requirements: List[str] = Field(default_factory=list, description="Extracted requirements (NLP)")
     token_count: int = Field(..., description="Total tokens")
     estimated_cost: float = Field(
         ..., description="Estimated LLM cost in USD (model-specific)"
