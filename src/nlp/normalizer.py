@@ -75,33 +75,52 @@ def normalize_skills(skills: Set[str]) -> Set[str]:
     # Skills are already in correct format from extraction via keyphrases
     # Only add normalization if needed (fallback keywords)
     normalized = set()
+
+    # Known correctly-capitalized skills
+    known_skills = {
+        "Guidance and Control",
+        "G&C algorithms",
+        "Conceptual level design",
+        "Post flight analysis",
+        "Team leadership",
+        "Staff coaching",
+        "Collaborative skills",
+        "Software integration",
+        "Unit testing",
+        "Launch operations support",
+        "Test operations support",
+        "Cross-functional communication",
+        "Technical oversight",
+        "Design reviews",
+        "Systems analysis",
+        "Architectural decision making",
+        "Verification and validation",
+        "Software development",
+        "Mentoring",
+        "Technical planning",
+        "System modeling",
+        "Hardware-in-the-loop testing",
+        "Vehicle test campaigns",
+        # ASIC/Hardware
+        "Formal verification",
+        "Clock gating",
+        "CDC analysis",
+        "RDC analysis",
+        "Lint checking",
+        "Verilog design",
+        "SystemVerilog design",
+        "SoC design",
+        "ASIC design",
+        "SOC verification",
+        "Performance optimization",
+        "Power optimization",
+        "DFT implementation",
+        "Gate simulation",
+        "Timing analysis",
+    }
+
     for skill in skills:
-        # If it's already capitalized correctly, keep it
-        if skill in [
-            "Guidance and Control",
-            "G&C algorithms",
-            "Conceptual level design",
-            "Post flight analysis",
-            "Team leadership",
-            "Staff coaching",
-            "Collaborative skills",
-            "Software integration",
-            "Unit testing",
-            "Launch operations support",
-            "Test operations support",
-            "Cross-functional communication",
-            "Technical oversight",
-            "Design reviews",
-            "Systems analysis",
-            "Architectural decision making",
-            "Verification and validation",
-            "Software development",
-            "Mentoring",
-            "Technical planning",
-            "System modeling",
-            "Hardware-in-the-loop testing",
-            "Vehicle test campaigns",
-        ]:
+        if skill in known_skills:
             normalized.add(skill)
         else:
             # Fallback: capitalize first letter of each word

@@ -24,7 +24,9 @@ TECH_PATTERNS = {
 }
 
 # Skill keyphrases (extracted directly from job requirements)
+# Note: Includes aerospace/software (job 1) + ASIC/hardware (job 0) domains
 SKILL_KEYPHRASES = {
+    # Aerospace/Software Leadership (Job 1)
     "Guidance and Control",
     "G&C algorithms",
     "Conceptual level design",
@@ -48,6 +50,22 @@ SKILL_KEYPHRASES = {
     "System modeling",
     "Hardware-in-the-loop testing",
     "Vehicle test campaigns",
+    # ASIC/Hardware Design (Job 0 + general)
+    "Formal verification",
+    "Clock gating",
+    "CDC analysis",
+    "RDC analysis",
+    "Lint checking",
+    "Verilog design",
+    "SystemVerilog design",
+    "SoC design",
+    "ASIC design",
+    "SOC verification",
+    "Performance optimization",
+    "Power optimization",
+    "DFT implementation",
+    "Gate simulation",
+    "Timing analysis",
 }
 
 # Fallback: single keywords for skills extraction
