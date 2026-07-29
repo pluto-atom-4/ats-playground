@@ -1,0 +1,162 @@
+{
+  "job_title": "Senior Software Engineer | Rocky Program",
+  "extracted": {
+    "skills": [
+      "Architecture",
+      "Code reviews",
+      "Configuration management",
+      "Design",
+      "Design reviews",
+      "Engineering data interpretation",
+      "Hands-on software development",
+      "Integration",
+      "Integration testing",
+      "Management",
+      "Performance",
+      "Review",
+      "Security testing",
+      "Software architecture",
+      "Software design",
+      "Software development",
+      "System design",
+      "Team leadership",
+      "Test operations support",
+      "Testing",
+      "Testing strategy"
+    ],
+    "technologies": [
+      "AWS",
+      "Azure",
+      "C",
+      "Git",
+      "Gradle",
+      "Hibernate",
+      "Java",
+      "JavaScript",
+      "Jenkins",
+      "Maven",
+      "MongoDB",
+      "OpenAPI",
+      "Python",
+      "REST",
+      "React",
+      "Spring Framework"
+    ],
+    "requirements": [
+      "An Active Top Secret/SCI U.S. Security Clearance (Preferred)",
+      "Experience using cloud-based infrastructure  (Preferred)",
+      "Experience using dependency management and automation services  (Preferred)",
+      "Familiarity with practices such as test-driven development (TDD), agile software development, DevSecOps, and CI/CD management (Preferred)",
+      "U.S. citizen, national, permanent resident, refugee, or asylee status"
+    ]
+  },
+  "expected": {
+    "skills": [
+      "Software architecture",
+      "Hands-on software development",
+      "Systems maintenance",
+      "Binary data transformation",
+      "Integrity check implementation",
+      "Time-series data analytics",
+      "Storage architecture design",
+      "Technical leadership",
+      "Sensor data calibration",
+      "Sensor data synchronization",
+      "Technology evaluation",
+      "Code reviews",
+      "Design walkthroughs",
+      "Technical coaching",
+      "Project management",
+      "Problem decomposition",
+      "Technical communication",
+      "Engineering data interpretation",
+      "Engineering drawing interpretation",
+      "Quantitative analysis",
+      "Statistical analysis",
+      "Data collection",
+      "Data preparation",
+      "Cloud service deployment",
+      "Software documentation"
+    ],
+    "technologies": [
+      "Java",
+      "C++",
+      "Python",
+      "ARINC 429",
+      "ARINC 717",
+      "ARINC 767",
+      "Apache Parquet",
+      "Apache ORC",
+      "HDF5",
+      "Delta Lake"
+    ],
+    "requirements": [
+      "Bachelor's Degree",
+      "Ability to obtain a U.S. Security Clearance (requires U.S. Citizenship)",
+      "9+ years of experience with software development using Java, C++, or Python",
+      "2+ years of experience interpreting engineering data or drawings",
+      "2+ years of experience performing quantitative or statistical analysis",
+      "Completion of the CodeVue Coding Challenge during the selection process",
+      "U.S. Person status as defined by 22 C.F.R. \u00a7120.62 for export control compliance",
+      "Passing a post-offer drug test",
+      "2+ years of experience developing large scale distributed software systems (Preferred)",
+      "Subject matter expertise in sensor physics and aircraft dynamics (Preferred)"
+    ]
+  },
+  "metrics": {
+    "skills": {
+      "precision": 0.19,
+      "recall": 0.16,
+      "f1": 0.17,
+      "correct": 4,
+      "missing": 21,
+      "extra": 17,
+      "missing_examples": [
+        "Data collection",
+        "Integrity check implementation",
+        "Sensor data calibration"
+      ],
+      "extra_examples": [
+        "Security testing",
+        "Performance",
+        "Testing strategy"
+      ]
+    },
+    "technologies": {
+      "precision": 0.12,
+      "recall": 0.2,
+      "f1": 0.15,
+      "correct": 2,
+      "missing": 8,
+      "extra": 14,
+      "missing_examples": [
+        "Apache Parquet",
+        "C++",
+        "Delta Lake"
+      ],
+      "extra_examples": [
+        "MongoDB",
+        "C",
+        "AWS"
+      ]
+    },
+    "requirements": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "correct": 0,
+      "missing": 10,
+      "extra": 5,
+      "missing_examples": [
+        "Subject matter expertise in sensor physics and aircraft dynamics (Preferred)",
+        "9+ years of experience with software development using Java, C++, or Python",
+        "2+ years of experience interpreting engineering data or drawings"
+      ],
+      "extra_examples": [
+        "An Active Top Secret/SCI U.S. Security Clearance (Preferred)",
+        "Experience using dependency management and automation services  (Preferred)",
+        "Familiarity with practices such as test-driven development (TDD), agile software development, DevSecOps, and CI/CD management (Preferred)"
+      ]
+    }
+  }
+}

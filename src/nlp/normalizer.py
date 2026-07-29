@@ -145,8 +145,9 @@ def normalize_skills(skills: Set[str]) -> Set[str]:
     # Only add normalization if needed (fallback keywords)
     normalized = set()
 
-    # Known correctly-capitalized skills
+    # Known correctly-capitalized skills (multi-domain)
     known_skills = {
+        # Aerospace/Software Leadership
         "Guidance and Control",
         "G&C algorithms",
         "Conceptual level design",
@@ -186,6 +187,56 @@ def normalize_skills(skills: Set[str]) -> Set[str]:
         "DFT implementation",
         "Gate simulation",
         "Timing analysis",
+        # Software/Systems Domain
+        "Software architecture",
+        "Hands-on software development",
+        "Systems maintenance",
+        "Binary data transformation",
+        "Integrity check implementation",
+        "Time-series data analytics",
+        "Storage architecture design",
+        "Sensor data calibration",
+        "Sensor data synchronization",
+        "Technology evaluation",
+        "Code reviews",
+        "Design walkthroughs",
+        "Technical coaching",
+        "Project management",
+        "Problem decomposition",
+        "Technical communication",
+        "Engineering data interpretation",
+        "Engineering drawing interpretation",
+        "Quantitative analysis",
+        "Statistical analysis",
+        "Data collection",
+        "Data preparation",
+        "Cloud service deployment",
+        "Software documentation",
+        # Additional Software/Systems
+        "Software design",
+        "System design",
+        "Component design",
+        "API design",
+        "Database design",
+        "Architecture review",
+        "Code quality assurance",
+        "Testing strategy",
+        "Integration testing",
+        "Performance testing",
+        "Security testing",
+        "Agile development",
+        "DevOps practices",
+        "CI/CD implementation",
+        "Deployment automation",
+        "Infrastructure management",
+        "Configuration management",
+        "Requirements analysis",
+        "Stakeholder management",
+        "Technical documentation",
+        "Knowledge transfer",
+        "Best practices implementation",
+        "Standards compliance",
+        "Process improvement",
     }
 
     for skill in skills:

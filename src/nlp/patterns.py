@@ -5,6 +5,57 @@ from typing import Set
 
 # Technology stack patterns (exact matches + variations)
 TECH_PATTERNS = {
+    # Languages
+    "Java": [r"\bJava\b(?!\s*Script)"],
+    "C++": [r"\bC\+\+\b"],
+    "C": [r"\bC\b(?!\+)"],  # C but not C++
+    "C#": [r"\bC#\b"],
+    "Python": [r"\bPython\b"],
+    "JavaScript": [r"\bJavaScript\b", r"\bJS\b"],
+    "TypeScript": [r"\bTypeScript\b"],
+    "Go": [r"\bGo\b(?!\s+(?:language|programming))"],
+    "Rust": [r"\bRust\b"],
+    "Verilog": [r"\bVerilog\b"],
+    "SystemVerilog": [r"\bSystemVerilog\b", r"System\s+Verilog"],
+    # Data/Big Data
+    "Apache Parquet": [r"Apache\s+Parquet", r"\bParquet\b"],
+    "Apache ORC": [r"Apache\s+ORC", r"\bORC\b(?!\s+orchestra)"],
+    "HDF5": [r"\bHDF5\b", r"\bHDF\s+5\b"],
+    "Delta Lake": [r"Delta\s+Lake"],
+    "Apache Spark": [r"Apache\s+Spark", r"\bSpark\b"],
+    "Hadoop": [r"\bHadoop\b"],
+    "Elasticsearch": [r"\bElasticsearch\b"],
+    # Databases
+    "PostgreSQL": [r"\bPostgreSQL\b", r"\bPostgres\b"],
+    "MongoDB": [r"\bMongoDB\b"],
+    "MySQL": [r"\bMySQL\b"],
+    "Oracle": [r"\bOracle\s+Database\b", r"\bOracle\b(?!\s+Corporation)"],
+    # Frameworks
+    "Spring Framework": [r"Spring\s+Framework", r"\bSpring\b(?!\s+Boot)"],
+    "Spring Boot": [r"Spring\s+Boot"],
+    "React": [r"\bReact\b", r"\bReactJS\b"],
+    "Angular": [r"\bAngular\b"],
+    "Vue": [r"\bVue\.js\b", r"\bVue\b"],
+    "Hibernate": [r"\bHibernate\b"],
+    # ARINC protocols
+    "ARINC 429": [r"ARINC\s+429"],
+    "ARINC 717": [r"ARINC\s+717"],
+    "ARINC 767": [r"ARINC\s+767"],
+    # DevOps/Cloud
+    "AWS": [r"\bAWS\b", r"\bAmazon\s+Web\s+Services\b"],
+    "Azure": [r"\bAzure\b"],
+    "Kubernetes": [r"\bKubernetes\b", r"\bK8s\b"],
+    "Docker": [r"\bDocker\b"],
+    "Jenkins": [r"\bJenkins\b"],
+    "Git": [r"\bGit\b"],
+    "Maven": [r"\bMaven\b"],
+    "Gradle": [r"\bGradle\b"],
+    # APIs/Standards
+    "REST": [r"\bREST\b", r"\bRESTful\b"],
+    "GraphQL": [r"\bGraphQL\b"],
+    "OpenAPI": [r"\bOpenAPI\b"],
+    "SOAP": [r"\bSOAP\b"],
+    # Other
     "AI": [r"\bAI\b", r"\bartificial\s+intelligence\b"],
     "MATLAB": [r"\bMATLAB\b"],
     "Simulink": [r"\bSimulink\b"],
@@ -14,19 +65,13 @@ TECH_PATTERNS = {
     ],
     "DOORS Next Generation": [r"DOORS\s+Next\s+Generation", r"DOORS\s+NG"],
     "JIRA": [r"\bJIRA\b"],
-    "Git": [r"\bGit\b"],
-    "Python": [r"\bPython\b"],
-    "Verilog": [r"\bVerilog\b"],
-    "SystemVerilog": [r"\bSystemVerilog\b", r"System\s+Verilog"],
     "ARM": [r"\bARM\b"],
-    "C": [r"\bC\b(?!\+)"],  # C but not C++
-    "C++": [r"\bC\+\+\b"],
 }
 
 # Skill keyphrases (extracted directly from job requirements)
-# Note: Includes aerospace/software (job 1) + ASIC/hardware (job 0) domains
+# Note: Multi-domain (aerospace, ASIC/hardware, software/systems, defense)
 SKILL_KEYPHRASES = {
-    # Aerospace/Software Leadership (Job 1)
+    # Aerospace/Software Leadership (Blue Origin)
     "Guidance and Control",
     "G&C algorithms",
     "Conceptual level design",
@@ -50,7 +95,7 @@ SKILL_KEYPHRASES = {
     "System modeling",
     "Hardware-in-the-loop testing",
     "Vehicle test campaigns",
-    # ASIC/Hardware Design (Job 0 + general)
+    # ASIC/Hardware Design
     "Formal verification",
     "Clock gating",
     "CDC analysis",
@@ -66,6 +111,56 @@ SKILL_KEYPHRASES = {
     "DFT implementation",
     "Gate simulation",
     "Timing analysis",
+    # Software/Systems Domain (Boeing + general)
+    "Software architecture",
+    "Hands-on software development",
+    "Systems maintenance",
+    "Binary data transformation",
+    "Integrity check implementation",
+    "Time-series data analytics",
+    "Storage architecture design",
+    "Sensor data calibration",
+    "Sensor data synchronization",
+    "Technology evaluation",
+    "Code reviews",
+    "Design walkthroughs",
+    "Technical coaching",
+    "Project management",
+    "Problem decomposition",
+    "Technical communication",
+    "Engineering data interpretation",
+    "Engineering drawing interpretation",
+    "Quantitative analysis",
+    "Statistical analysis",
+    "Data collection",
+    "Data preparation",
+    "Cloud service deployment",
+    "Software documentation",
+    # Additional Software/Systems patterns
+    "Software design",
+    "System design",
+    "Component design",
+    "API design",
+    "Database design",
+    "Architecture review",
+    "Code quality assurance",
+    "Testing strategy",
+    "Integration testing",
+    "Performance testing",
+    "Security testing",
+    "Agile development",
+    "DevOps practices",
+    "CI/CD implementation",
+    "Deployment automation",
+    "Infrastructure management",
+    "Configuration management",
+    "Requirements analysis",
+    "Stakeholder management",
+    "Technical documentation",
+    "Knowledge transfer",
+    "Best practices implementation",
+    "Standards compliance",
+    "Process improvement",
 }
 
 # Fallback: single keywords for skills extraction

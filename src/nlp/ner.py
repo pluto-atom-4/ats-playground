@@ -46,8 +46,9 @@ class JobNERExtractor:
         """Infer skills from context by looking for related phrases."""
         inferred = set()
 
-        # Map patterns to skill phrases
+        # Map patterns to skill phrases (aerospace + software domains)
         skill_mappings = {
+            # Aerospace domain
             "Guidance and Control": [r"guidance\s+and\s+control|G&C", r"guidance.*control"],
             "G&C algorithms": [r"G&C\s+algorithms|guidance.*control.*algorithm"],
             "Conceptual level design": [r"conceptual.*design"],
@@ -61,7 +62,7 @@ class JobNERExtractor:
             "Test operations support": [r"test.*operation|operational.*test"],
             "Cross-functional communication": [r"cross.?functional|cross.?team.*communicat"],
             "Technical oversight": [r"technical.*oversight|oversee.*technical"],
-            "Design reviews": [r"design.*review|review.*design"],
+            "Design reviews": [r"design.*review|review.*design|code\s+review"],
             "Systems analysis": [r"system.*analysis|systems.*analysis"],
             "Architectural decision making": [r"architectur.*decision"],
             "Verification and validation": [r"verif.*validat|v&v"],
@@ -71,6 +72,60 @@ class JobNERExtractor:
             "System modeling": [r"system.*model|model.*system"],
             "Hardware-in-the-loop testing": [r"hardware.?in.?loop|HIL.*test"],
             "Vehicle test campaigns": [r"vehicle.*test.*campaign|test.*campaign"],
+            # Software/Systems domain
+            "Software architecture": [r"software.*architecture|architect.*software"],
+            "Hands-on software development": [r"hands.?on.*development|development.*hands.?on"],
+            "Systems maintenance": [r"system.*maintenance|maintain.*system"],
+            "Binary data transformation": [r"binary.*data|data.*transformation"],
+            "Integrity check implementation": [r"integrity.*check|check.*integrity"],
+            "Time-series data analytics": [r"time.?series|analytics.*time"],
+            "Storage architecture design": [r"storage.*architecture|architecture.*storage"],
+            "Sensor data calibration": [r"calibration.*sensor|sensor.*calibration"],
+            "Sensor data synchronization": [r"synchronization.*sensor|sensor.*sync"],
+            "Technology evaluation": [r"evaluat.*technology|technology.*evaluat"],
+            "Code reviews": [r"code.*review|review.*code"],
+            "Design walkthroughs": [r"design.*walkthrough|walkthrough"],
+            "Technical coaching": [r"coaching|coach.*engineer"],
+            "Project management": [r"project.*management|manage.*project"],
+            "Problem decomposition": [r"decomposition|decompose.*problem"],
+            "Technical communication": [r"technical.*communication|communicat.*technical"],
+            "Engineering data interpretation": [r"engineering.*data|interpret.*data"],
+            "Engineering drawing interpretation": [r"engineering.*drawing"],
+            "Quantitative analysis": [r"quantitative.*analysis"],
+            "Statistical analysis": [r"statistical.*analysis|statistical"],
+            "Data collection": [r"data.*collection|collect.*data"],
+            "Data preparation": [r"data.*preparation|prepare.*data"],
+            "Cloud service deployment": [r"cloud.*deployment|deploy.*cloud"],
+            "Software documentation": [r"software.*documentation|document.*software"],
+            "Software design": [r"software.*design|design.*software"],
+            "System design": [r"system.*design|design.*system"],
+            "Component design": [r"component.*design"],
+            "API design": [r"API.*design|design.*API"],
+            "Database design": [r"database.*design"],
+            "Architecture review": [r"architecture.*review"],
+            "Code quality assurance": [r"code.*quality|quality.*code"],
+            "Testing strategy": [r"testing.*strategy|strategy.*test"],
+            "Integration testing": [r"integration.*test"],
+            "Performance testing": [r"performance.*test"],
+            "Security testing": [r"security.*test"],
+            # Note: These are often in "Preferred" or context; be conservative
+            # "Agile development": [r"agile.*development"],  # Too broad
+            # "DevOps practices": [r"DevOps|devops"],  # Often preference
+            # "CI/CD implementation": [r"CI/CD|CI.?CD"],  # Often preference
+            "Deployment automation": [r"deployment.*automat|automat.*deploy"],
+            "Infrastructure management": [r"infrastructure.*management"],
+            "Configuration management": [r"configuration.*management|SCM"],
+            "Requirements analysis": [r"requirement.*analysis"],
+            "Stakeholder management": [r"stakeholder.*management"],
+            "Technical documentation": [r"technical.*documentation"],
+            "Knowledge transfer": [r"knowledge.*transfer"],
+            # Removed: too generic, appear in preferences not skills
+            # "Best practices implementation": [r"best.*practice"],
+            # "Standards compliance": [r"standard.*compliance"],
+            # "Process improvement": [r"process.*improvement"],
+            # "Deployment automation": [r"deployment.*automat"],
+            # "Software design": [r"software.*design"],
+            # "System design": [r"system.*design"],
         }
 
         for skill, patterns in skill_mappings.items():
