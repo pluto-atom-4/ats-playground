@@ -112,9 +112,9 @@ class Preprocessor:
             self._extract_from_tokens(doc, tech_keywords, skills, technologies)
 
             # 4. Filter entities (remove noise, duplicates, short fragments)
-            skills = set(self._filter_entities(list(skills)))
-            technologies = set(self._filter_entities(list(technologies)))
-            requirements = set(self._filter_entities(list(requirements)))
+            skills = set(self._filter_entities(list(skills), entity_type="skills"))
+            technologies = set(self._filter_entities(list(technologies), entity_type="technologies"))
+            requirements = set(self._filter_entities(list(requirements), entity_type="requirements"))
 
             logger.debug(
                 f"Extracted {len(skills)} skills, "
@@ -347,13 +347,14 @@ class Preprocessor:
         logger.debug(f"Removed boilerplate: {len(text)} → {len(cleaned)} chars")
         return cleaned
 
-    def _filter_entities(self, entities: list[str]) -> list[str]:
+    def _filter_entities(self, entities: list[str], entity_type: str = "skills") -> list[str]:
         """Filter extracted entities to remove noise and short fragments.
 
-        Validation rules (Phase 1 - Conservative):
+        Validation rules (Phase 12 with requirement-specific filtering):
         - Reject if: len < 2 or len > 70
         - Reject if: Matches boilerplate keywords
         - Reject if: Duplicate
+        - For requirements: Skip numbers, possessives, job titles, policies, etc.
         """
         boilerplate_keywords = {
             "affirmative",
@@ -387,12 +388,88 @@ class Preprocessor:
 
             # Skip boilerplate keywords
             entity_lower = entity_clean.lower()
+            words = entity_lower.split()
             if any(kw in entity_lower for kw in boilerplate_keywords):
                 continue
 
             # Skip if contains excessive formatting artifacts (but allow parentheses in some contexts)
             if entity_clean.count("\xa0") > 1 or entity_clean.count("(") > 2:
                 continue
+
+            # Phase 12: Requirement-specific filtering
+            if entity_type == "requirements":
+                # Skip pure numbers or numbers with decimals
+                if __import__("re").match(r"^\d+(\.\d+)?$", entity_clean):
+                    continue
+
+                # Skip salary/cost ranges with $ or commas
+                if "$" in entity_clean or ("range" in entity_lower and ":" in entity_clean):
+                    continue
+
+                # Skip items ending with colon (artifacts)
+                if entity_clean.rstrip().endswith(":"):
+                    continue
+
+                # Skip possessive forms (Blue Origin's, Carbon Robotics', Blue's)
+                if entity_clean.endswith("'s") or entity_clean.endswith("'"):
+                    continue
+
+                # Skip articles at start (the, a, an)
+                if words and words[0] in ("the", "a", "an"):
+                    continue
+
+                # Skip single-word fragments
+                if len(words) == 1:
+                    if entity_lower in ("one", "review", "oversees"):
+                        continue
+
+                # Skip incomplete phrases
+                if entity_clean in ("s of Service", "Oversees"):
+                    continue
+
+                # Skip generic phrases
+                if entity_clean in ("each year", "U.S. National"):
+                    continue
+
+                # Skip job titles and generic categories
+                job_titles = {
+                    "design and verification engineer", "software lead",
+                    "technical leadership", "technical oversight and authority of a range of software solutions"
+                }
+                if entity_lower in job_titles:
+                    continue
+
+                generic_categories = {
+                    "software engineering", "software architecture and design",
+                    "software configuration management", "software life cycle management",
+                    "college of arts", "college of arts and sciences",
+                    "computer science"
+                }
+                if entity_lower in generic_categories:
+                    continue
+
+                # Skip policy/benefit/regulation keywords
+                policy_patterns = {
+                    "alcohol", "commercial motor", "federal motor carrier",
+                    "pre-ipo", "pre-IPO", "stock option", "regulation"
+                }
+                if any(pattern in entity_lower for pattern in policy_patterns):
+                    continue
+
+                # Skip responsibility phrases (action verbs)
+                if len(words) >= 2:
+                    action_verbs = {"optimize", "prepare", "manage", "oversee"}
+                    if words[0] in action_verbs:
+                        continue
+
+                # Skip location/proper nouns
+                location_nouns = {"seattle", "rocky", "road test"}
+                if entity_lower in location_nouns:
+                    continue
+
+                # Skip unclear abbreviations
+                if entity_lower in ("hdhp", "blue's"):
+                    continue
 
             filtered.add(entity_clean)
 
