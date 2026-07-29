@@ -122,11 +122,25 @@ class Preprocessor:
             doc = self.nlp(cleaned_text)
             tech_keywords = self._get_tech_keywords()
 
-            # Extract from NER (named entities)
+            # Extract from NER (named entities) - always do this
             self._extract_from_ner(doc, tech_keywords, technologies, requirements)
 
             # Extract from POS tags and noun compounds
-            self._extract_from_tokens(doc, tech_keywords, skills, technologies)
+            # For markdown: only extract soft skills and techs (skills already from section-based extraction)
+            # For plain text: extract all (skills, techs)
+            if not is_md:
+                self._extract_from_tokens(doc, tech_keywords, skills, technologies)
+            else:
+                # For markdown: only extract techs, not general skills
+                # Extract techs from tokens
+                for token in doc:
+                    token_text = token.text.strip()
+                    if not token_text:
+                        continue
+                    if token_text.lower() in tech_keywords:
+                        technologies.add(token_text)
+                    elif token.lemma_.lower() in tech_keywords:
+                        technologies.add(token.text)
 
             # Extract soft skills from text
             soft_skills_set: set[str] = set()
@@ -606,6 +620,11 @@ class Preprocessor:
             "fte", "temporary", "education:", "hiring practice"
         }
 
+        # Sections that should contribute to skills (explicitly named skills sections)
+        skills_section_keywords = ("skill", "technical", "core", "competency", "ability", "expertise", "proficiency")
+        # Sections that should contribute to requirements (but NOT skills)
+        req_section_keywords = ("requirement", "qualif", "needed", "essential", "must", "knowledge", "experience", "responsibility", "duty")
+
         for section_name, section_content in sections.items():
             section_lower = section_name.lower().replace("_", " ")
             if any(skip_kw in section_lower for skip_kw in skip_sections):
@@ -621,22 +640,28 @@ class Preprocessor:
             section_lower = section_name.lower()
             list_items = re.findall(r"^[\*\-\+]\s+(.+)$|^\d+\.\s+(.+)$", section_content, re.MULTILINE)
 
+            # Determine section type
+            is_skills_section = any(kw in section_lower for kw in skills_section_keywords)
+            is_req_section = any(kw in section_lower for kw in req_section_keywords)
+
+            # Extract entities based on section type
             for ent in doc.ents:
                 entity_text = ent.text.strip()
                 if not entity_text or len(entity_text) < 2:
                     continue
 
-                if any(kw in section_lower for kw in ("skill", "technical", "ability")):
+                if is_skills_section:
+                    # Skills section: route to skills or technologies
                     if any(kw in entity_text.lower() for kw in tech_keywords):
                         technologies.add(entity_text)
                     else:
                         skills.add(entity_text)
-                elif any(kw in section_lower for kw in ("requirement", "qualif", "needed", "essential")):
-                    requirements.add(entity_text)
-                elif any(kw in section_lower for kw in ("knowledge", "experience", "responsibility")):
+                elif is_req_section:
+                    # Requirements/Qualifications section: route to requirements
                     requirements.add(entity_text)
 
-            if any(kw in section_lower for kw in ("skill", "technical")):
+            # Extract noun compounds from skills sections only
+            if is_skills_section:
                 for token in doc:
                     if token.pos_ in ("NOUN", "PROPN") and len(token.text) > 2:
                         if token.text.lower() in tech_keywords:
@@ -644,6 +669,7 @@ class Preprocessor:
                         elif token.text not in skills:
                             skills.add(token.text)
 
+            # Extract list items: route based on section type
             for item in list_items:
                 if isinstance(item, tuple):
                     item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
@@ -657,10 +683,11 @@ class Preprocessor:
                 if re.search(r"\d+\s*[-–]\s*\d+\s*years?|^\d+\+\s*years?", item_text.lower()):
                     continue
 
-                if any(kw in section_lower for kw in ("skill", "technical")):
+                # Route based on section type
+                if is_skills_section:
                     if len(item_text) > 3 and item_text.count(",") < 2:
                         skills.add(item_text)
-                else:
+                elif is_req_section:
                     if len(item_text) > 3 and item_text.count(",") < 2:
                         requirements.add(item_text)
 
