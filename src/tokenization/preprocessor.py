@@ -106,8 +106,11 @@ class Preprocessor:
                 technologies.update(md_technologies)
                 requirements.update(md_requirements)
 
-                # Use full text for additional extraction
-                text_to_clean = text
+                # For markdown: exclude benefits/compensation sections from full-text extraction
+                # Remove sections with headers containing: Benefits, Compensation, Salary, About, Culture, etc.
+                skip_pattern = r"^#{1,3}\s+.*?(benefits|compensation|salary|pay|about|culture|company|how to apply).*?$.*?(?=^#{1,3}\s|\Z)"
+                text_to_extract = re.sub(skip_pattern, "", text, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL)
+                text_to_clean = text_to_extract if text_to_extract.strip() else text
             else:
                 # Phase 1: Smart filtering pipeline
                 # 1. Extract job section (ignore boilerplate sections)
@@ -122,29 +125,18 @@ class Preprocessor:
             doc = self.nlp(cleaned_text)
             tech_keywords = self._get_tech_keywords()
 
-            # Extract from NER (named entities) - always do this
+            # Extract from NER (named entities) - always do this for comprehensive extraction
             self._extract_from_ner(doc, tech_keywords, technologies, requirements)
 
             # Extract from POS tags and noun compounds
-            # For markdown: only extract soft skills and techs (skills already from section-based extraction)
-            # For plain text: extract all (skills, techs)
-            if not is_md:
-                self._extract_from_tokens(doc, tech_keywords, skills, technologies)
-            else:
-                # For markdown: only extract techs, not general skills
-                # Extract techs from tokens
-                for token in doc:
-                    token_text = token.text.strip()
-                    if not token_text:
-                        continue
-                    if token_text.lower() in tech_keywords:
-                        technologies.add(token_text)
-                    elif token.lemma_.lower() in tech_keywords:
-                        technologies.add(token.text)
+            self._extract_from_tokens(doc, tech_keywords, skills, technologies)
 
             # Extract soft skills from text
+            # For markdown: only include soft skills that were extracted from skills sections (already in skills from _extract_entities_by_section)
+            # For plain text: extract soft skills from full text
             soft_skills_set: set[str] = set()
-            self._extract_soft_skills(doc, soft_skills_set)
+            if not is_md:
+                self._extract_soft_skills(doc, soft_skills_set)
 
             # Reclassify technical compounds (Phase 4)
             # Move compound phrases from skills to technologies
@@ -400,6 +392,7 @@ class Preprocessor:
         - Reject if: Matches boilerplate keywords
         - Reject if: Duplicate
         - For requirements: Skip numbers, possessives, job titles, policies, etc.
+        - For skills: Skip generic words, numbers, company names, publications
         """
         boilerplate_keywords = {
             "affirmative",
@@ -423,12 +416,31 @@ class Preprocessor:
             "remote",
         }
 
+        # Generic/low-signal skills that are too broad
+        generic_skills = {
+            "company", "data", "time", "level", "market", "process", "industry",
+            "role", "work", "job", "experience", "position", "area", "field",
+            "range", "option", "form", "base", "suite", "tech", "able",
+            "available", "dollar", "pay", "year", "cost", "product", "service",
+            "employee", "employees", "culture", "team", "person", "people",
+            "value", "values", "benefit", "benefits", "compensation", "salary",
+            "state", "location", "place", "site", "office", "center",
+        }
+
+        # Company names, publications, brands (should go to requirements/technologies)
+        company_names = {
+            "google", "forbes", "wsj", "carbon", "robotics", "john deere", "deere",
+            "blue origin", "origin", "boeing", "uw", "university",
+        }
+
         filtered: set[str] = set()
         for entity in entities:
             entity_clean = entity.strip()
 
             # Length validation (Phase 1: conservative)
-            if len(entity_clean) < 2 or len(entity_clean) > 70:
+            # Requirements can be longer phrases (100 chars), skills/tech shorter (70 chars)
+            max_length = 100 if entity_type == "requirements" else 70
+            if len(entity_clean) < 2 or len(entity_clean) > max_length:
                 continue
 
             # Skip boilerplate keywords
@@ -515,6 +527,33 @@ class Preprocessor:
                 # Skip unclear abbreviations
                 if entity_lower in ("hdhp", "blue's"):
                     continue
+
+            # Skills-specific filtering
+            elif entity_type == "skills":
+                # Skip numbers and percentages
+                if __import__("re").match(r"^\d+[\d\.,\-]*%?$|^\$[\d,]+", entity_clean):
+                    continue
+
+                # Skip items containing percentages or large numbers (e.g., "5–50 %", "% Carbon Robotics", "90,000")
+                if "%" in entity_clean or __import__("re").search(r"\d+[\–-]\d+\s*%?|\d{3,}", entity_clean):
+                    continue
+
+                # Skip very generic single-word skills
+                if len(words) == 1 and entity_lower in generic_skills:
+                    continue
+
+                # Skip company names
+                if entity_lower in company_names:
+                    continue
+
+                # Skip if contains company name
+                if any(company in entity_lower for company in company_names):
+                    continue
+
+                # Skip nonsense phrases (articles + generic words)
+                if entity_lower.startswith(("an ", "a ", "the ")):
+                    if len(words) <= 3 and any(word in generic_skills for word in words[1:]):
+                        continue
 
             filtered.add(entity_clean)
 
@@ -632,6 +671,31 @@ class Preprocessor:
             if not section_content.strip():
                 continue
 
+            # Remove boilerplate from section content (compensation/benefits paragraphs mixed in)
+            boilerplate_phrases = {
+                "carbon robotics follows equitable",
+                "offers additional compensation",
+                "base pay",
+                "pay ranges",
+                "pay equity",
+                "individual base",
+                "pre-ipo stock",
+                "target earning",
+                "commissions",
+                "offers compensation",
+                "benefits premiums",
+                "on target earning",
+            }
+            content_lines = []
+            for line in section_content.split('\n'):
+                line_lower = line.lower()
+                if not any(phrase in line_lower for phrase in boilerplate_phrases):
+                    content_lines.append(line)
+            section_content = '\n'.join(content_lines)
+
+            if not section_content.strip():
+                continue
+
             try:
                 doc = self.nlp(section_content)
             except Exception:
@@ -643,11 +707,15 @@ class Preprocessor:
             # Determine section type
             is_skills_section = any(kw in section_lower for kw in skills_section_keywords)
             is_req_section = any(kw in section_lower for kw in req_section_keywords)
+            is_description_section = any(kw in section_lower for kw in ("description", "overview", "summary", "about"))
 
             # Extract entities based on section type
+            # Skip ORG/PRODUCT/QUANTITY entities - focus on PERSON, WORK_OF_ART, etc.
+            skip_ent_types = {"ORG", "PRODUCT", "QUANTITY", "CARDINAL", "DATE", "TIME", "MONEY"}
+
             for ent in doc.ents:
                 entity_text = ent.text.strip()
-                if not entity_text or len(entity_text) < 2:
+                if not entity_text or len(entity_text) < 2 or ent.label_ in skip_ent_types:
                     continue
 
                 if is_skills_section:
@@ -659,8 +727,12 @@ class Preprocessor:
                 elif is_req_section:
                     # Requirements/Qualifications section: route to requirements
                     requirements.add(entity_text)
+                elif is_description_section:
+                    # Description section: only extract clear tech/product terms
+                    if any(kw in entity_text.lower() for kw in tech_keywords):
+                        technologies.add(entity_text)
 
-            # Extract noun compounds from skills sections only
+            # Extract noun compounds from skills sections (and tech from other sections)
             if is_skills_section:
                 for token in doc:
                     if token.pos_ in ("NOUN", "PROPN") and len(token.text) > 2:
@@ -668,6 +740,11 @@ class Preprocessor:
                             technologies.add(token.text)
                         elif token.text not in skills:
                             skills.add(token.text)
+            elif is_description_section or section_name == "responsibilities":
+                # From other sections, only extract clear tech keywords
+                for token in doc:
+                    if token.text.lower() in tech_keywords and len(token.text) > 2:
+                        technologies.add(token.text)
 
             # Extract list items: route based on section type
             for item in list_items:
@@ -680,16 +757,28 @@ class Preprocessor:
                 if not item_text or len(item_text) < 3:
                     continue
 
-                if re.search(r"\d+\s*[-–]\s*\d+\s*years?|^\d+\+\s*years?", item_text.lower()):
+                # Skip only pure year ranges (2020-2025) not experience requirements (10+ years)
+                if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
                     continue
 
                 # Route based on section type
                 if is_skills_section:
-                    if len(item_text) > 3 and item_text.count(",") < 2:
+                    # Allow commas for skill phrases (C++, Python; Communication, Teamwork)
+                    if len(item_text) > 3:
                         skills.add(item_text)
                 elif is_req_section:
-                    if len(item_text) > 3 and item_text.count(",") < 2:
+                    # Allow commas for requirements (BS, MS; Must know X, Y)
+                    if len(item_text) > 3:
                         requirements.add(item_text)
+                elif section_name == "responsibilities" or is_description_section:
+                    # From responsibilities/descriptions: treat substantive items as skills
+                    # (e.g., "Develop software systems", "Debug complex issues")
+                    if len(item_text) > 5 and not any(word in item_text.lower() for word in ("design", "architecture", "strategy")):
+                        # Extract tech terms from the item
+                        item_lower = item_text.lower()
+                        for keyword in tech_keywords:
+                            if keyword in item_lower:
+                                technologies.add(keyword)
 
         logger.debug(
             f"Entity extraction by section: {len(skills)} skills, "
