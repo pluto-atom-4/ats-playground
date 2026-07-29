@@ -72,31 +72,31 @@ class JobNERExtractor:
             "System modeling": [r"system.*model|model.*system"],
             "Hardware-in-the-loop testing": [r"hardware.?in.?loop|HIL.*test"],
             "Vehicle test campaigns": [r"vehicle.*test.*campaign|test.*campaign"],
-            # Software/Systems domain
-            "Software architecture": [r"software.*architecture|architect.*software"],
-            "Hands-on software development": [r"hands.?on.*development|development.*hands.?on"],
-            "Systems maintenance": [r"system.*maintenance|maintain.*system"],
-            "Binary data transformation": [r"binary.*data|data.*transformation"],
-            "Integrity check implementation": [r"integrity.*check|check.*integrity"],
-            "Time-series data analytics": [r"time.?series|analytics.*time"],
-            "Storage architecture design": [r"storage.*architecture|architecture.*storage"],
+            # Software/Systems domain (be conservative to avoid false positives)
+            # "Software architecture": [r"software.*architecture"],  # Too broad - matches "architectural"
+            "Hands-on software development": [r"hands.?on.*development"],  # Specific phrase
+            # "Systems maintenance": [r"system.*maintenance"],  # Too broad
+            "Binary data transformation": [r"binary.*data.*transformation"],  # Specific
+            "Integrity check implementation": [r"integrity\s+check"],  # Specific
+            "Time-series data analytics": [r"time.?series.*data|data.*time.?series"],  # Specific
+            "Storage architecture design": [r"storage.*architecture"],  # Less likely to false match
             "Sensor data calibration": [r"calibration.*sensor|sensor.*calibration"],
             "Sensor data synchronization": [r"synchronization.*sensor|sensor.*sync"],
-            "Technology evaluation": [r"evaluat.*technology|technology.*evaluat"],
-            "Code reviews": [r"code.*review|review.*code"],
-            "Design walkthroughs": [r"design.*walkthrough|walkthrough"],
-            "Technical coaching": [r"coaching|coach.*engineer"],
-            "Project management": [r"project.*management|manage.*project"],
-            "Problem decomposition": [r"decomposition|decompose.*problem"],
-            "Technical communication": [r"technical.*communication|communicat.*technical"],
-            "Engineering data interpretation": [r"engineering.*data|interpret.*data"],
-            "Engineering drawing interpretation": [r"engineering.*drawing"],
-            "Quantitative analysis": [r"quantitative.*analysis"],
-            "Statistical analysis": [r"statistical.*analysis|statistical"],
-            "Data collection": [r"data.*collection|collect.*data"],
-            "Data preparation": [r"data.*preparation|prepare.*data"],
+            "Technology evaluation": [r"evaluat.*(?:technology|emerging)"],  # More specific context
+            "Code reviews": [r"code\s+review"],  # Exact phrase
+            "Design walkthroughs": [r"design\s+walkthrough"],  # Exact phrase
+            # "Technical coaching": [r"coaching"],  # Too generic
+            "Project management": [r"project.*management"],  # Less risky
+            "Problem decomposition": [r"problem\s+decomposition"],  # Exact
+            # "Technical communication": [r"technical.*communication"],  # Too broad
+            "Engineering data interpretation": [r"engineering\s+data"],  # Less generic
+            "Engineering drawing interpretation": [r"engineering\s+drawing"],  # Specific
+            "Quantitative analysis": [r"quantitative\s+analysis"],  # Exact
+            "Statistical analysis": [r"statistical\s+analysis"],  # Exact
+            "Data collection": [r"data\s+collection"],  # Exact
+            "Data preparation": [r"data\s+preparation"],  # Exact
             "Cloud service deployment": [r"cloud.*deployment|deploy.*cloud"],
-            "Software documentation": [r"software.*documentation|document.*software"],
+            "Software documentation": [r"software.*documentation"],
             "Software design": [r"software.*design|design.*software"],
             "System design": [r"system.*design|design.*system"],
             "Component design": [r"component.*design"],

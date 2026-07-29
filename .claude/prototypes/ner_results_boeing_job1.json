@@ -7,7 +7,6 @@
       "Configuration management",
       "Design",
       "Design reviews",
-      "Engineering data interpretation",
       "Hands-on software development",
       "Integration",
       "Integration testing",
@@ -15,7 +14,6 @@
       "Performance",
       "Review",
       "Security testing",
-      "Software architecture",
       "Software design",
       "Software development",
       "System design",
@@ -105,21 +103,21 @@
   },
   "metrics": {
     "skills": {
-      "precision": 0.19,
-      "recall": 0.16,
-      "f1": 0.17,
-      "correct": 4,
-      "missing": 21,
+      "precision": 0.11,
+      "recall": 0.08,
+      "f1": 0.09,
+      "correct": 2,
+      "missing": 23,
       "extra": 17,
       "missing_examples": [
-        "Data collection",
-        "Integrity check implementation",
-        "Sensor data calibration"
+        "Engineering drawing interpretation",
+        "Engineering data interpretation",
+        "Software documentation"
       ],
       "extra_examples": [
+        "Integration",
         "Security testing",
-        "Performance",
-        "Testing strategy"
+        "Architecture"
       ]
     },
     "technologies": {
@@ -130,14 +128,14 @@
       "missing": 8,
       "extra": 14,
       "missing_examples": [
-        "Apache Parquet",
         "C++",
-        "Delta Lake"
+        "Apache ORC",
+        "ARINC 429"
       ],
       "extra_examples": [
-        "MongoDB",
-        "C",
-        "AWS"
+        "OpenAPI",
+        "React",
+        "JavaScript"
       ]
     },
     "requirements": {
@@ -148,14 +146,14 @@
       "missing": 10,
       "extra": 5,
       "missing_examples": [
-        "Subject matter expertise in sensor physics and aircraft dynamics (Preferred)",
-        "9+ years of experience with software development using Java, C++, or Python",
-        "2+ years of experience interpreting engineering data or drawings"
+        "U.S. Person status as defined by 22 C.F.R. \u00a7120.62 for export control compliance",
+        "2+ years of experience interpreting engineering data or drawings",
+        "Ability to obtain a U.S. Security Clearance (requires U.S. Citizenship)"
       ],
       "extra_examples": [
-        "An Active Top Secret/SCI U.S. Security Clearance (Preferred)",
         "Experience using dependency management and automation services  (Preferred)",
-        "Familiarity with practices such as test-driven development (TDD), agile software development, DevSecOps, and CI/CD management (Preferred)"
+        "Familiarity with practices such as test-driven development (TDD), agile software development, DevSecOps, and CI/CD management (Preferred)",
+        "U.S. citizen, national, permanent resident, refugee, or asylee status"
       ]
     }
   }
