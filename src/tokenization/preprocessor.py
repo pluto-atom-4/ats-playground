@@ -1,12 +1,15 @@
 """NLP preprocessing for job postings using spaCy."""
 
 import logging
+import re
 from typing import Any, List, Optional, Set, Tuple
 
 import spacy
 from spacy.language import Language
 
 from src.tokenization.keywords import get_all_keywords
+from src.tokenization.soft_skills import get_all_soft_skills
+from src.tokenization.technical_compounds import is_technical_compound
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +95,25 @@ class Preprocessor:
         requirements: set[str] = set()
 
         try:
-            # Phase 1: Smart filtering pipeline
-            # 1. Extract job section (ignore boilerplate sections)
-            # Fallback to original text if no job section found
-            job_section = self._extract_job_section(text)
-            text_to_clean = job_section if job_section.strip() else text
+            # Phase 10: Check if text is markdown
+            is_md = self._is_markdown(text)
+
+            if is_md:
+                logger.debug("Text is markdown format, using entity-aware section extraction")
+                # Use section-based method for intelligent extraction
+                md_skills, md_technologies, md_requirements = self._extract_entities_by_section(text)
+                skills.update(md_skills)
+                technologies.update(md_technologies)
+                requirements.update(md_requirements)
+
+                # Use full text for additional extraction
+                text_to_clean = text
+            else:
+                # Phase 1: Smart filtering pipeline
+                # 1. Extract job section (ignore boilerplate sections)
+                # Fallback to original text if no job section found
+                job_section = self._extract_job_section(text)
+                text_to_clean = job_section if job_section.strip() else text
 
             # 2. Remove boilerplate (salary, legal, location metadata)
             cleaned_text = self._remove_boilerplate(text_to_clean)
@@ -111,8 +128,22 @@ class Preprocessor:
             # Extract from POS tags and noun compounds
             self._extract_from_tokens(doc, tech_keywords, skills, technologies)
 
-            # 4. Filter entities (remove noise, duplicates, short fragments)
-            skills = set(self._filter_entities(list(skills), entity_type="skills"))
+            # Extract soft skills from text
+            soft_skills_set: set[str] = set()
+            self._extract_soft_skills(doc, soft_skills_set)
+
+            # Reclassify technical compounds (Phase 4)
+            # Move compound phrases from skills to technologies
+            skills_list = list(skills) + list(soft_skills_set)
+            reclassified_skills: list[str] = []
+            for skill in skills_list:
+                if is_technical_compound(skill):
+                    technologies.add(skill)
+                else:
+                    reclassified_skills.append(skill)
+
+            # 5. Filter entities (remove noise, duplicates, short fragments)
+            skills = set(self._filter_entities(reclassified_skills, entity_type="skills"))
             technologies = set(self._filter_entities(list(technologies), entity_type="technologies"))
             requirements = set(self._filter_entities(list(requirements), entity_type="requirements"))
 
@@ -475,3 +506,192 @@ class Preprocessor:
 
         logger.debug(f"Filtered entities: {len(entities)} → {len(filtered)} after validation")
         return sorted(filtered)
+
+    def _is_markdown(self, text: str) -> bool:
+        """Detect if text is markdown format (Phase 9).
+
+        Checks for markdown indicators: headers, lists, bold, code blocks.
+        Prioritizes markdown headers (## Section) as strongest indicator.
+        """
+        if not text:
+            return False
+
+        # Strong indicator: Markdown section headers
+        if re.search(r"^##\s+", text, re.MULTILINE):
+            return True
+
+        markdown_indicators = [
+            r"^#+\s+",  # Headers (# ## ###)
+            r"^[\*\-\+]\s+",  # Unordered lists
+            r"^\d+\.\s+",  # Ordered lists
+            r"\*\*.*?\*\*",  # Bold
+            r"__.*?__",  # Bold (underscore)
+            r"`.*?`",  # Inline code
+            r"```.*?```",  # Code blocks
+        ]
+
+        for pattern in markdown_indicators:
+            if re.search(pattern, text, re.MULTILINE):
+                return True
+
+        return False
+
+    def _extract_markdown_sections(self, text: str) -> dict[str, str]:
+        """Extract sections from structured markdown with divider awareness (Phase 10)."""
+        if not text:
+            return {}
+
+        sections: dict[str, str] = {}
+        current_section = "description"
+        current_content: list[str] = []
+
+        lines = text.split("\n")
+        for line in lines:
+            if line.strip() == "---":
+                if current_content:
+                    sections[current_section] = "\n".join(current_content).strip()
+                    current_content = []
+                continue
+
+            header_match = re.match(r"^#+\s+(.+)$", line)
+            if header_match:
+                if current_content:
+                    sections[current_section] = "\n".join(current_content).strip()
+                    current_content = []
+
+                header_text = header_match.group(1).strip().lower()
+                if any(kw in header_text for kw in ("qualif", "requirement", "essential")):
+                    current_section = "qualifications"
+                elif any(kw in header_text for kw in ("skill", "technical", "core")):
+                    current_section = "skills"
+                elif any(kw in header_text for kw in ("knowledge", "experience")):
+                    current_section = "knowledge"
+                elif any(kw in header_text for kw in ("respons", "duty", "what you")):
+                    current_section = "responsibilities"
+                else:
+                    current_section = header_text.replace(" ", "_")
+            else:
+                if line.strip():
+                    current_content.append(line)
+
+        if current_content:
+            sections[current_section] = "\n".join(current_content).strip()
+
+        return sections
+
+    def _extract_entities_by_section(self, text: str) -> Tuple[Set[str], Set[str], Set[str]]:
+        """Extract entities intelligently from markdown sections using NER (Phase 11).
+
+        Routes entities to skills, technologies, or requirements based on section type.
+        Skips: Benefits, How to Apply, About, Company Culture, Legal content.
+        """
+        if not self.nlp or not text:
+            return set(), set(), set()
+
+        skills: Set[str] = set()
+        technologies: Set[str] = set()
+        requirements: Set[str] = set()
+
+        sections = self._extract_markdown_sections(text)
+        tech_keywords = self._get_tech_keywords()
+
+        skip_sections = {
+            "benefits", "compensation", "salary", "pay range", "401", "retirement",
+            "insurance", "health", "dental", "vision", "pto", "vacation",
+            "about", "company", "culture", "commitment", "team", "our",
+            "equal opportunity", "eoe", "affirmative action", "disability",
+            "background check", "export control", "security clearance", "visa",
+            "apply", "posting date", "posted", "application close", "codevue",
+            "shift", "location", "work location", "travel", "working condition",
+            "fte", "temporary", "education:", "hiring practice"
+        }
+
+        for section_name, section_content in sections.items():
+            section_lower = section_name.lower().replace("_", " ")
+            if any(skip_kw in section_lower for skip_kw in skip_sections):
+                continue
+            if not section_content.strip():
+                continue
+
+            try:
+                doc = self.nlp(section_content)
+            except Exception:
+                continue
+
+            section_lower = section_name.lower()
+            list_items = re.findall(r"^[\*\-\+]\s+(.+)$|^\d+\.\s+(.+)$", section_content, re.MULTILINE)
+
+            for ent in doc.ents:
+                entity_text = ent.text.strip()
+                if not entity_text or len(entity_text) < 2:
+                    continue
+
+                if any(kw in section_lower for kw in ("skill", "technical", "ability")):
+                    if any(kw in entity_text.lower() for kw in tech_keywords):
+                        technologies.add(entity_text)
+                    else:
+                        skills.add(entity_text)
+                elif any(kw in section_lower for kw in ("requirement", "qualif", "needed", "essential")):
+                    requirements.add(entity_text)
+                elif any(kw in section_lower for kw in ("knowledge", "experience", "responsibility")):
+                    requirements.add(entity_text)
+
+            if any(kw in section_lower for kw in ("skill", "technical")):
+                for token in doc:
+                    if token.pos_ in ("NOUN", "PROPN") and len(token.text) > 2:
+                        if token.text.lower() in tech_keywords:
+                            technologies.add(token.text)
+                        elif token.text not in skills:
+                            skills.add(token.text)
+
+            for item in list_items:
+                if isinstance(item, tuple):
+                    item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
+                else:
+                    item_text = str(item)
+
+                item_text = item_text.strip()
+                if not item_text or len(item_text) < 3:
+                    continue
+
+                if re.search(r"\d+\s*[-–]\s*\d+\s*years?|^\d+\+\s*years?", item_text.lower()):
+                    continue
+
+                if any(kw in section_lower for kw in ("skill", "technical")):
+                    if len(item_text) > 3 and item_text.count(",") < 2:
+                        skills.add(item_text)
+                else:
+                    if len(item_text) > 3 and item_text.count(",") < 2:
+                        requirements.add(item_text)
+
+        logger.debug(
+            f"Entity extraction by section: {len(skills)} skills, "
+            f"{len(technologies)} technologies, {len(requirements)} requirements"
+        )
+        return skills, technologies, requirements
+
+    @staticmethod
+    def _extract_soft_skills(doc: Any, soft_skills: Set[str]) -> None:
+        """Extract soft skills from tokens."""
+        soft_skills_list = get_all_soft_skills()
+        tokens_list = list(doc)
+
+        for token in tokens_list:
+            token_text = token.text.strip()
+            if not token_text or len(token_text) < 3:
+                continue
+
+            if token_text.lower() in soft_skills_list:
+                soft_skills.add(token_text)
+            elif token.lemma_.lower() in soft_skills_list:
+                soft_skills.add(token.text)
+
+            if token.pos_ in ("ADJ", "NOUN"):
+                parent = token.head
+                if parent.pos_ in ("NOUN", "ADJ") and parent != token:
+                    phrase = " ".join(
+                        child.text for child in tokens_list
+                        if child.head == parent or child == parent
+                    )
+                    if 3 < len(phrase) < 50 and phrase.lower() in soft_skills_list:
+                        soft_skills.add(phrase)
