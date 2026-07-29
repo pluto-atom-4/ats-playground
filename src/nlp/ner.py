@@ -116,31 +116,37 @@ class JobNERExtractor:
         """Extract requirements (years experience, degrees, qualifications)."""
         requirements = set()
 
-        # 1. Years of experience with domain context
-        years_matches = re.finditer(
-            r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|focused\s+on|related\s+to)\s+(.+?))?(?:[\.,\n]|$)",
+        # 1. Years of experience (from minimum qualifications section only)
+        min_qual_match = re.search(
+            r"(?:##\s+)?(?:minimum|required)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
             text,
-            re.IGNORECASE
+            re.IGNORECASE | re.DOTALL,
         )
-        for match in years_matches:
-            years = match.group(1)
-            domain = match.group(2)
-            if domain:
-                # Clean domain text
-                domain = domain.strip()
-                domain = re.sub(r"[\.,;]*$", "", domain)
-                # Shorten very long domains
-                if len(domain) > 80:
-                    # Try to extract key parts
+        if min_qual_match:
+            min_qual_section = min_qual_match.group(1)
+
+            # Extract years from this section only
+            years_pattern = r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|focused\s+on|involving|related\s+to)\s+([^\.\n]+))?"
+            for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
+                years = match.group(1)
+                domain = match.group(2)
+
+                if domain:
+                    domain = domain.strip()
+                    # Remove trailing punctuation
+                    domain = re.sub(r"[\.,;]*$", "", domain)
+                    # Normalize specific domains
                     if "autonomy" in domain.lower() and "aerospace" in domain.lower():
                         domain = "autonomy or aerospace autonomy/GNC"
-                requirements.add(f"{years}+ years of experience {domain}")
-            else:
-                requirements.add(f"{years}+ years of experience")
+                    elif "autonomy" in domain.lower():
+                        domain = "autonomy"
+                    requirements.add(f"{years}+ years of experience in {domain}")
+                else:
+                    requirements.add(f"{years}+ years of experience")
 
-        # 2. Extract from minimum qualifications section (bullets only)
+        # 2. Extract from "Minimum Qualifications" section
         min_qual_match = re.search(
-            r"(?:minimum|required)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n###|Preferred|$)",
+            r"(?:##\s+)?(?:minimum|required)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
             text,
             re.IGNORECASE | re.DOTALL,
         )
@@ -149,34 +155,55 @@ class JobNERExtractor:
             bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", qual_text)
             for bullet in bullets:
                 bullet = bullet.strip()
-                # Only add concise requirements (filter out long descriptions)
-                if 15 < len(bullet) < 120 and not re.match(r"^\d+\+", bullet):
+                # Skip very long bullets (likely responsibilities, not requirements)
+                if 15 < len(bullet) < 130 and not re.match(r"^\d+\+", bullet):
                     # Don't duplicate years of experience
                     if "years of experience" not in bullet.lower():
                         requirements.add(bullet)
 
-        # 3. Preferred qualifications (marked as such)
+        # 3. Extract from "Preferred Qualifications" section
         pref_match = re.search(
-            r"(?:preferred|desired)\s+(?:qualifications?|experience|qualifications?)[\s\n:]*(.+?)(?=\n###|Background|$)",
+            r"(?:##\s+)?(?:preferred|desired)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Background|---|\Z)",
             text,
             re.IGNORECASE | re.DOTALL,
         )
         if pref_match:
             pref_text = pref_match.group(1)
-            # Look for degree requirement
-            if re.search(r"(?:M\.S\.|MS|PhD|Ph\.D\.|master|advanced\s+degree)", pref_text, re.IGNORECASE):
+            pref_bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", pref_text)
+            for bullet in pref_bullets:
+                bullet = bullet.strip()
+                if 10 < len(bullet) < 150:
+                    # Add (Preferred) tag if not already there
+                    if "(Preferred)" not in bullet:
+                        bullet = f"{bullet} (Preferred)"
+                    requirements.add(bullet)
+
+        # 4. Look for specific requirement patterns in text
+        # Advanced degree pattern
+        advanced_degree_match = re.search(
+            r"(?:M\.S\.|MS|Master|PhD|Ph\.D\.)\s+(?:or|\/)\s+(?:PhD|Ph\.D\.)",
+            text,
+            re.IGNORECASE
+        )
+        if advanced_degree_match:
+            # Check if marked as preferred
+            context = text[max(0, advanced_degree_match.start() - 100):advanced_degree_match.end() + 100]
+            if "preferred" in context.lower():
                 requirements.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)")
-            # Look for specific experience
-            if re.search(r"launch\s+vehicle.*guidance|guidance.*launch\s+vehicle", pref_text, re.IGNORECASE):
-                requirements.add("Direct experience with launch vehicle guidance and control algorithms (Preferred)")
+            else:
+                # If in preferred section, don't add duplicate
+                if not any("Advanced degree" in req for req in requirements):
+                    requirements.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field")
 
-        # 4. Citizenship/export control
-        if re.search(r"U\.S\.\s+(?:citizen|national)|permanent\s+resident.*refugee|asylee", text, re.IGNORECASE):
-            requirements.add("U.S. citizen, national, permanent resident, refugee, or asylee status")
+        # 5. Citizenship/export control
+        if re.search(r"U\.S\.\s+(?:citizen|national)|permanent\s+resident", text, re.IGNORECASE):
+            if not any("U.S. citizen" in req for req in requirements):
+                requirements.add("U.S. citizen, national, permanent resident, refugee, or asylee status")
 
-        # 5. Background check
+        # 6. Background check
         if re.search(r"background\s+check", text, re.IGNORECASE):
-            requirements.add("Blue's Standard Background Check")
+            if not any("Background Check" in req for req in requirements):
+                requirements.add("Blue's Standard Background Check")
 
         return requirements
 

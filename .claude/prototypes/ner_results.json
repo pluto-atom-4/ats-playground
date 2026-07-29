@@ -37,16 +37,19 @@
       "Simulink"
     ],
     "requirements": [
-      "10+ years of experience development of autonomy for complex processes and/or aerospace autonomy/GNC",
+      "10+ years of experience in autonomy or aerospace autonomy/GNC",
       "Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)",
       "Blue's Standard Background Check",
-      "Demonstrated experience in software development from initial architecture to deployed systems",
-      "Demonstrated experience leading and managing lean teams on fast-paced projects",
+      "Demonstrated experience leading and managing lean teams",
       "Direct experience with launch vehicle guidance and control algorithms (Preferred)",
-      "Experience in development, implementation, and testing of Autonomy on aerospace vehicles",
-      "Experience in test, verification and validation of complex algorithms, simulations, and software",
+      "Experience in implementation and testing of Autonomy on aerospace vehicles",
+      "Experience in software development from initial architecture to deployed systems",
+      "Experience in test, verification and validation of complex algorithms",
+      "Experience with of AI-assisted coding techniques and tools to support efficient software production methods (Preferred)",
+      "Hands-on experience with hardware-in-the-loop testing and integrated vehicle test campaigns. (Preferred)",
       "Highly organized and capable of planning and guiding complex technical work",
-      "Leadership and management experience as well as a history of mentoring",
+      "Leadership and management experience and a history of mentoring",
+      "Proficiency in system modeling and analysis using tools like MATLAB/Simulink. (Preferred)",
       "U.S. citizen, national, permanent resident, refugee, or asylee status"
     ]
   },
@@ -121,21 +124,17 @@
       ]
     },
     "requirements": {
-      "precision": 0.36,
-      "recall": 0.44,
-      "f1": 0.4,
-      "correct": 4,
-      "missing": 5,
-      "extra": 7,
-      "missing_examples": [
-        "Experience in software development from initial architecture to deployed systems",
-        "10+ years of experience in autonomy or aerospace autonomy/GNC",
-        "Demonstrated experience leading and managing lean teams"
-      ],
+      "precision": 0.64,
+      "recall": 1.0,
+      "f1": 0.78,
+      "correct": 9,
+      "missing": 0,
+      "extra": 5,
+      "missing_examples": [],
       "extra_examples": [
-        "Experience in test, verification and validation of complex algorithms, simulations, and software",
-        "Highly organized and capable of planning and guiding complex technical work",
-        "Demonstrated experience in software development from initial architecture to deployed systems"
+        "Experience with of AI-assisted coding techniques and tools to support efficient software production methods (Preferred)",
+        "Leadership and management experience and a history of mentoring",
+        "Proficiency in system modeling and analysis using tools like MATLAB/Simulink. (Preferred)"
       ]
     }
   }
