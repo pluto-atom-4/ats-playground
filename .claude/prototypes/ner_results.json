@@ -1,0 +1,142 @@
+{
+  "job_title": "Director of Vehicle G&C \u2013 New Glenn",
+  "extracted": {
+    "skills": [
+      "Architectural decision making",
+      "Collaborative skills",
+      "Conceptual level design",
+      "Cross-functional communication",
+      "Design reviews",
+      "G&C algorithms",
+      "Guidance and Control",
+      "Hardware-in-the-loop testing",
+      "Launch operations support",
+      "Mentoring",
+      "Post flight analysis",
+      "Software development",
+      "Software integration",
+      "Staff coaching",
+      "System modeling",
+      "Systems analysis",
+      "Team leadership",
+      "Technical oversight",
+      "Technical planning",
+      "Test operations support",
+      "Unit testing",
+      "Vehicle test campaigns",
+      "Verification and validation"
+    ],
+    "technologies": [
+      "AI",
+      "AI-assisted coding techniques",
+      "C",
+      "DOORS Next Generation",
+      "Git",
+      "JIRA",
+      "MATLAB",
+      "Simulink"
+    ],
+    "requirements": [
+      "10+ years of experience development of autonomy for complex processes and/or aerospace autonomy/GNC",
+      "Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)",
+      "Blue's Standard Background Check",
+      "Demonstrated experience in software development from initial architecture to deployed systems",
+      "Demonstrated experience leading and managing lean teams on fast-paced projects",
+      "Direct experience with launch vehicle guidance and control algorithms (Preferred)",
+      "Experience in development, implementation, and testing of Autonomy on aerospace vehicles",
+      "Experience in test, verification and validation of complex algorithms, simulations, and software",
+      "Highly organized and capable of planning and guiding complex technical work",
+      "Leadership and management experience as well as a history of mentoring",
+      "U.S. citizen, national, permanent resident, refugee, or asylee status"
+    ]
+  },
+  "expected": {
+    "skills": [
+      "Guidance and Control",
+      "G&C algorithms",
+      "Conceptual level design",
+      "Post flight analysis",
+      "Team leadership",
+      "Staff coaching",
+      "Collaborative skills",
+      "Software integration",
+      "Unit testing",
+      "Launch operations support",
+      "Test operations support",
+      "Cross-functional communication",
+      "Technical oversight",
+      "Design reviews",
+      "Systems analysis",
+      "Architectural decision making",
+      "Verification and validation",
+      "Software development",
+      "Mentoring",
+      "Technical planning",
+      "System modeling",
+      "Hardware-in-the-loop testing",
+      "Vehicle test campaigns"
+    ],
+    "technologies": [
+      "AI",
+      "MATLAB",
+      "Simulink",
+      "AI-assisted coding techniques",
+      "DOORS Next Generation",
+      "JIRA",
+      "Git"
+    ],
+    "requirements": [
+      "10+ years of experience in autonomy or aerospace autonomy/GNC",
+      "Experience in implementation and testing of Autonomy on aerospace vehicles",
+      "Experience in test, verification and validation of complex algorithms",
+      "Demonstrated experience leading and managing lean teams",
+      "Experience in software development from initial architecture to deployed systems",
+      "U.S. citizen, national, permanent resident, refugee, or asylee status",
+      "Blue's Standard Background Check",
+      "Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)",
+      "Direct experience with launch vehicle guidance and control algorithms (Preferred)"
+    ]
+  },
+  "metrics": {
+    "skills": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "correct": 23,
+      "missing": 0,
+      "extra": 0,
+      "missing_examples": [],
+      "extra_examples": []
+    },
+    "technologies": {
+      "precision": 0.88,
+      "recall": 1.0,
+      "f1": 0.93,
+      "correct": 7,
+      "missing": 0,
+      "extra": 1,
+      "missing_examples": [],
+      "extra_examples": [
+        "C"
+      ]
+    },
+    "requirements": {
+      "precision": 0.36,
+      "recall": 0.44,
+      "f1": 0.4,
+      "correct": 4,
+      "missing": 5,
+      "extra": 7,
+      "missing_examples": [
+        "Experience in software development from initial architecture to deployed systems",
+        "10+ years of experience in autonomy or aerospace autonomy/GNC",
+        "Demonstrated experience leading and managing lean teams"
+      ],
+      "extra_examples": [
+        "Experience in test, verification and validation of complex algorithms, simulations, and software",
+        "Highly organized and capable of planning and guiding complex technical work",
+        "Demonstrated experience in software development from initial architecture to deployed systems"
+      ]
+    }
+  }
+}
