@@ -31,6 +31,11 @@
           "missing": 3,
           "extra": 3
         }
+      },
+      "confidence": {
+        "skills": 0.71,
+        "technologies": 0.92,
+        "requirements": 0.83
       }
     },
     {
@@ -62,6 +67,11 @@
           "missing": 6,
           "extra": 9
         }
+      },
+      "confidence": {
+        "skills": 0.7,
+        "technologies": 0.92,
+        "requirements": 0.91
       }
     }
   ],

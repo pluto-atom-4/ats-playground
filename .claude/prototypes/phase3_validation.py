@@ -106,17 +106,30 @@ def main():
         domain = detect_domain(description)
         print(f"Domain: {domain.value}")
 
-        # Extract (with company-specific parser)
+        # Extract (with company-specific parser and confidence scores)
         extractor = JobNERExtractor(company_name=company)
-        extracted = extractor.extract_all(description)
+        extracted_with_conf = extractor.extract_all_with_confidence(description)
+
+        # Convert for compatibility with existing metric calculation
+        extracted = {
+            "skills": [item["value"] for item in extracted_with_conf["skills"]],
+            "technologies": [item["value"] for item in extracted_with_conf["technologies"]],
+            "requirements": [item["value"] for item in extracted_with_conf["requirements"]],
+            "detected_domain": extracted_with_conf["detected_domain"],
+        }
 
         # Calculate metrics
         metrics = calculate_metrics(extracted, expected)
 
-        # Display metrics
-        print(f"Skills:   F1={metrics['skills']['f1']:<5} (P={metrics['skills']['precision']}, R={metrics['skills']['recall']}) [{metrics['skills']['correct']}/{len(expected['skills'])}]")
-        print(f"Tech:     F1={metrics['technologies']['f1']:<5} (P={metrics['technologies']['precision']}, R={metrics['technologies']['recall']}) [{metrics['technologies']['correct']}/{len(expected['technologies'])}]")
-        print(f"Req:      F1={metrics['requirements']['f1']:<5} (P={metrics['requirements']['precision']}, R={metrics['requirements']['recall']}) [{metrics['requirements']['correct']}/{len(expected['requirements'])}]")
+        # Get confidence metrics
+        conf_skills = extracted_with_conf["metrics"]["avg_skills_confidence"]
+        conf_tech = extracted_with_conf["metrics"]["avg_tech_confidence"]
+        conf_req = extracted_with_conf["metrics"]["avg_req_confidence"]
+
+        # Display metrics with confidence
+        print(f"Skills:   F1={metrics['skills']['f1']:<5} (P={metrics['skills']['precision']}, R={metrics['skills']['recall']}) Conf={conf_skills:<5} [{metrics['skills']['correct']}/{len(expected['skills'])}]")
+        print(f"Tech:     F1={metrics['technologies']['f1']:<5} (P={metrics['technologies']['precision']}, R={metrics['technologies']['recall']}) Conf={conf_tech:<5} [{metrics['technologies']['correct']}/{len(expected['technologies'])}]")
+        print(f"Req:      F1={metrics['requirements']['f1']:<5} (P={metrics['requirements']['precision']}, R={metrics['requirements']['recall']}) Conf={conf_req:<5} [{metrics['requirements']['correct']}/{len(expected['requirements'])}]")
 
         # Track results
         results.append({
@@ -124,6 +137,11 @@ def main():
             "title": title,
             "domain": domain.value,
             "metrics": metrics,
+            "confidence": {
+                "skills": conf_skills,
+                "technologies": conf_tech,
+                "requirements": conf_req,
+            }
         })
 
         # Track domain stats
