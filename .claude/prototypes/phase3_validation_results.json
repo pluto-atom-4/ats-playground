@@ -25,11 +25,11 @@
         },
         "requirements": {
           "f1": 0.67,
-          "precision": 0.53,
-          "recall": 0.89,
-          "correct": 8,
-          "missing": 1,
-          "extra": 7
+          "precision": 0.67,
+          "recall": 0.67,
+          "correct": 6,
+          "missing": 3,
+          "extra": 3
         }
       }
     },
@@ -55,12 +55,12 @@
           "extra": 1
         },
         "requirements": {
-          "f1": 0.18,
-          "precision": 0.17,
-          "recall": 0.2,
-          "correct": 2,
-          "missing": 8,
-          "extra": 10
+          "f1": 0.35,
+          "precision": 0.31,
+          "recall": 0.4,
+          "correct": 4,
+          "missing": 6,
+          "extra": 9
         }
       }
     }
@@ -85,7 +85,7 @@
         0.9
       ],
       "requirements": [
-        0.18
+        0.35
       ]
     }
   }

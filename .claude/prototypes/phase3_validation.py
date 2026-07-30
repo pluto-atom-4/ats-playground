@@ -106,8 +106,8 @@ def main():
         domain = detect_domain(description)
         print(f"Domain: {domain.value}")
 
-        # Extract
-        extractor = JobNERExtractor()
+        # Extract (with company-specific parser)
+        extractor = JobNERExtractor(company_name=company)
         extracted = extractor.extract_all(description)
 
         # Calculate metrics

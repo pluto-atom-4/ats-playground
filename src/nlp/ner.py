@@ -17,18 +17,21 @@ from src.nlp.normalizer import (
     normalize_technologies,
 )
 from src.nlp.domains import get_keyphrases_auto, detect_domain, Domain
+from src.nlp.company_parsers import get_parser
 
 
 class JobNERExtractor:
     """Extract skills, technologies, and requirements from job descriptions."""
 
-    def __init__(self, model: str = "en_core_web_md", domain: str = None):
+    def __init__(self, model: str = "en_core_web_md", domain: str = None, company_name: str = None):
         """Initialize spaCy NLP model.
 
         Args:
             model: spaCy model name
             domain: Force specific domain (aerospace, software, hardware, general)
                    If None, auto-detect from job description
+            company_name: Company name for company-specific parsers (blue origin, boeing, etc)
+                         If None, uses generic parser
         """
         try:
             self.nlp = spacy.load(model)
@@ -39,6 +42,8 @@ class JobNERExtractor:
             )
 
         self.domain = domain
+        self.company_name = company_name
+        self.parser = get_parser(company_name) if company_name else None
         # Matchers will be initialized per-job in extract_all
         self.keyphrase_matcher = None
         self.skill_matcher = None
@@ -209,7 +214,15 @@ class JobNERExtractor:
         return extract_technologies(text)
 
     def extract_requirements(self, text: str) -> Set[str]:
-        """Extract requirements (years experience, degrees, qualifications)."""
+        """Extract requirements (years experience, degrees, qualifications).
+
+        Uses company-specific parser if company_name provided, otherwise generic extraction.
+        """
+        # Use company-specific parser if available
+        if self.parser:
+            return self.parser.parse_requirements(text)
+
+        # Fallback to generic extraction
         requirements = set()
 
         # 1. Years of experience (from basic/minimum qualifications section)
