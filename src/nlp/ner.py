@@ -1,7 +1,7 @@
 """Job description NER extraction using spaCy."""
 
 import re
-from typing import Set
+from typing import Set, Dict
 import spacy
 from spacy.matcher import PhraseMatcher
 
@@ -18,6 +18,12 @@ from src.nlp.normalizer import (
 )
 from src.nlp.domains import get_keyphrases_auto, detect_domain, Domain
 from src.nlp.company_parsers import get_parser
+from src.nlp.confidence import (
+    ExtractionMethod,
+    ConfidentEntity,
+    get_confidence,
+    average_confidence,
+)
 
 
 class JobNERExtractor:
@@ -182,47 +188,96 @@ class JobNERExtractor:
 
         return inferred
 
-    def extract_skills(self, text: str) -> Set[str]:
-        """Extract skills using keyphrase matching + context inference."""
-        skills = set()
+    def extract_skills_with_confidence(self, text: str) -> Dict[str, tuple]:
+        """Extract skills with confidence scores.
+
+        Returns:
+            Dict mapping skill -> (skill, confidence, method)
+        """
+        skills_with_conf = {}
         doc = self.nlp(text)
 
-        # First pass: extract known keyphrases (highest priority)
+        # First pass: keyphrase exact match (high confidence)
         matches = self.keyphrase_matcher(doc)
         for match_id, start, end in matches:
             skill = doc[start:end].text
-            skills.add(skill)
+            if skill not in skills_with_conf:
+                skills_with_conf[skill] = (skill, get_confidence(ExtractionMethod.KEYPHRASE_EXACT), ExtractionMethod.KEYPHRASE_EXACT)
 
-        # Second pass: infer skills from context
+        # Second pass: infer from context (medium confidence)
         inferred = self._infer_related_skills(text)
-        skills.update(inferred)
+        for skill in inferred:
+            if skill not in skills_with_conf:
+                skills_with_conf[skill] = (skill, get_confidence(ExtractionMethod.CONTEXT_INFERRED), ExtractionMethod.CONTEXT_INFERRED)
 
-        # Third pass: extract from matched skill keywords (fallback)
-        if len(skills) < 15:
+        # Third pass: skill keyword fallback (low confidence)
+        if len(skills_with_conf) < 15:
             matches = self.skill_matcher(doc)
             for match_id, start, end in matches:
                 skill = doc[start:end].text.strip()
-                # Capitalize and format
                 formatted = " ".join(w.capitalize() for w in skill.split())
-                if formatted not in skills and len(formatted) > 2:
-                    skills.add(formatted)
+                if formatted not in skills_with_conf and len(formatted) > 2:
+                    skills_with_conf[formatted] = (formatted, get_confidence(ExtractionMethod.SKILL_KEYWORD), ExtractionMethod.SKILL_KEYWORD)
 
-        return skills
+        return skills_with_conf
+
+    def extract_skills(self, text: str) -> Set[str]:
+        """Extract skills using keyphrase matching + context inference."""
+        skills_with_conf = self.extract_skills_with_confidence(text)
+        return set(k for k in skills_with_conf.keys())
+
+    def extract_technologies_with_confidence(self, text: str) -> Dict[str, tuple]:
+        """Extract technologies with confidence scores.
+
+        Returns:
+            Dict mapping tech -> (tech, confidence, method)
+        """
+        techs = extract_technologies(text)
+        # All tech extractions use pattern matching
+        return {
+            tech: (tech, get_confidence(ExtractionMethod.PATTERN_MATCH), ExtractionMethod.PATTERN_MATCH)
+            for tech in techs
+        }
 
     def extract_technologies(self, text: str) -> Set[str]:
         """Extract known technologies (tools, frameworks, languages)."""
         return extract_technologies(text)
 
-    def extract_requirements(self, text: str) -> Set[str]:
-        """Extract requirements (years experience, degrees, qualifications).
+    def extract_requirements_with_confidence(self, text: str) -> Dict[str, tuple]:
+        """Extract requirements with confidence scores.
 
-        Uses company-specific parser if company_name provided, otherwise generic extraction.
+        Returns:
+            Dict mapping requirement -> (requirement, confidence, method)
         """
+        requirements_with_conf = {}
+
         # Use company-specific parser if available
         if self.parser:
-            return self.parser.parse_requirements(text)
+            reqs = self.parser.parse_requirements(text)
+            # Structured bullet requirements from company parser = high confidence
+            for req in reqs:
+                if req not in requirements_with_conf:
+                    # Determine if this is from a structured section or pattern
+                    is_structured = any(
+                        pattern in req.lower()
+                        for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
+                    ) and len(req) > 20
 
-        # Fallback to generic extraction
+                    method = ExtractionMethod.STRUCTURED_BULLET if is_structured else ExtractionMethod.PATTERN_MATCH
+                    conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET) if is_structured else get_confidence(ExtractionMethod.PATTERN_MATCH)
+                    requirements_with_conf[req] = (req, conf, method)
+            return requirements_with_conf
+
+        # Fallback to generic extraction (lower confidence)
+        requirements = self._extract_requirements_fallback(text)
+        for req in requirements:
+            if req not in requirements_with_conf:
+                requirements_with_conf[req] = (req, get_confidence(ExtractionMethod.FALLBACK), ExtractionMethod.FALLBACK)
+
+        return requirements_with_conf
+
+    def _extract_requirements_fallback(self, text: str) -> Set[str]:
+        """Generic requirement extraction fallback."""
         requirements = set()
 
         # 1. Years of experience (from basic/minimum qualifications section)
@@ -324,12 +379,64 @@ class JobNERExtractor:
             if not any("codevue" in req.lower() or "coding" in req.lower() for req in requirements):
                 requirements.add("Completion of the CodeVue Coding Challenge during the selection process")
 
-        # 8. Bachelor's/Degree requirement
-        if re.search(r"Bachelor['’s]*\s+(?:Degree|of\s+Science)", text, re.IGNORECASE):
+        # 8. Bachelor’s/Degree requirement
+        if re.search(r"Bachelor[‘’s]*\s+(?:Degree|of\s+Science)", text, re.IGNORECASE):
             if not any("Bachelor" in req or "Degree" in req for req in requirements):
-                requirements.add("Bachelor's Degree")
+                requirements.add("Bachelor’s Degree")
 
         return requirements
+
+    def extract_requirements(self, text: str) -> Set[str]:
+        """Extract requirements (backward compatibility).
+
+        Returns set of requirement strings. Use extract_requirements_with_confidence
+        for confidence scores.
+        """
+        reqs_with_conf = self.extract_requirements_with_confidence(text)
+        return set(k for k in reqs_with_conf.keys())
+
+    def extract_all_with_confidence(self, text: str) -> dict:
+        """Extract all entities with confidence scores."""
+        # Initialize matchers based on job description domain
+        self._init_matchers(text)
+
+        skills_with_conf = self.extract_skills_with_confidence(text)
+        techs_with_conf = self.extract_technologies_with_confidence(text)
+        reqs_with_conf = self.extract_requirements_with_confidence(text)
+
+        # Extract just values for normalization
+        skills = set(k for k in skills_with_conf.keys())
+        techs = set(k for k in techs_with_conf.keys())
+        reqs = set(k for k in reqs_with_conf.keys())
+
+        # Normalize
+        skills = normalize_skills(skills)
+        techs = normalize_technologies(techs)
+        reqs = normalize_requirements(reqs)
+
+        # Build result with confidence scores
+        def build_confident_list(values, conf_dict):
+            """Build list of dicts with value and confidence."""
+            result = []
+            for val in sorted(values):
+                # Find confidence from original dict (before normalization)
+                # For now, use average confidence from matches
+                confidences = [conf_dict.get(v, (v, 0.5, None))[1] for v in conf_dict if val.lower() in v.lower() or v.lower() in val.lower()]
+                avg_conf = sum(confidences) / len(confidences) if confidences else 0.5
+                result.append({"value": val, "confidence": round(avg_conf, 2)})
+            return result
+
+        return {
+            "skills": build_confident_list(skills, skills_with_conf),
+            "technologies": build_confident_list(techs, techs_with_conf),
+            "requirements": build_confident_list(reqs, reqs_with_conf),
+            "detected_domain": detect_domain(text).value,
+            "metrics": {
+                "avg_skills_confidence": round(average_confidence(build_confident_list(skills, skills_with_conf)), 2),
+                "avg_tech_confidence": round(average_confidence(build_confident_list(techs, techs_with_conf)), 2),
+                "avg_req_confidence": round(average_confidence(build_confident_list(reqs, reqs_with_conf)), 2),
+            }
+        }
 
     def extract_all(self, text: str) -> dict:
         """Extract all entities from job description."""
