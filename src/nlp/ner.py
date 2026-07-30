@@ -10,20 +10,26 @@ from src.nlp.patterns import (
     extract_requirement_spans,
     extract_skill_candidates,
     SKILL_KEYWORDS,
-    SKILL_KEYPHRASES,
 )
 from src.nlp.normalizer import (
     normalize_requirements,
     normalize_skills,
     normalize_technologies,
 )
+from src.nlp.domains import get_keyphrases_auto, detect_domain, Domain
 
 
 class JobNERExtractor:
     """Extract skills, technologies, and requirements from job descriptions."""
 
-    def __init__(self, model: str = "en_core_web_md"):
-        """Initialize spaCy NLP model."""
+    def __init__(self, model: str = "en_core_web_md", domain: str = None):
+        """Initialize spaCy NLP model.
+
+        Args:
+            model: spaCy model name
+            domain: Force specific domain (aerospace, software, hardware, general)
+                   If None, auto-detect from job description
+        """
         try:
             self.nlp = spacy.load(model)
         except OSError:
@@ -32,9 +38,25 @@ class JobNERExtractor:
                 f"python -m spacy download {model}"
             )
 
-        # Add phrase matcher for known keyphrases (best accuracy)
+        self.domain = domain
+        # Matchers will be initialized per-job in extract_all
+        self.keyphrase_matcher = None
+        self.skill_matcher = None
+
+    def _init_matchers(self, job_description: str) -> None:
+        """Initialize phrase matchers based on detected/specified domain."""
+        # Detect or use specified domain
+        if self.domain:
+            domain_enum = Domain[self.domain.upper()] if isinstance(self.domain, str) else self.domain
+            keyphrases = get_keyphrases_auto(job_description) if self.domain is None else \
+                        get_keyphrases_auto(job_description) if Domain[self.domain.upper()] == Domain.GENERAL \
+                        else get_keyphrases_auto(job_description)
+        else:
+            keyphrases = get_keyphrases_auto(job_description)
+
+        # Add phrase matcher for domain-specific keyphrases
         self.keyphrase_matcher = PhraseMatcher(self.nlp.vocab)
-        keyphrase_patterns = [self.nlp.make_doc(kp) for kp in SKILL_KEYPHRASES]
+        keyphrase_patterns = [self.nlp.make_doc(kp) for kp in keyphrases]
         self.keyphrase_matcher.add("KEYPHRASE", keyphrase_patterns)
 
         # Fallback matcher for skill keywords
@@ -45,8 +67,9 @@ class JobNERExtractor:
     def _infer_related_skills(self, text: str) -> Set[str]:
         """Infer skills from context by looking for related phrases."""
         inferred = set()
+        detected_domain = detect_domain(text)
 
-        # Map patterns to skill phrases (aerospace + software domains)
+        # Map patterns to skill phrases (domain-aware)
         skill_mappings = {
             # Aerospace domain
             "Guidance and Control": [r"guidance\s+and\s+control|G&C", r"guidance.*control"],
@@ -126,6 +149,15 @@ class JobNERExtractor:
             # "Deployment automation": [r"deployment.*automat"],
             # "Software design": [r"software.*design"],
             # "System design": [r"system.*design"],
+            # Defense/Software domain (less exact, more narrative)
+            "Software architecture": [r"(?:design|architect).*software\s+system|software\s+(?:design|architect)"],
+            "Systems maintenance": [r"maintain.*system|system.*maintain"],
+            "Binary data transformation": [r"binary.*(?:data|sensor)|data\s+(?:transformation|processing)"],
+            "Time-series data analytics": [r"time.?series|analytics.*time|temporal\s+data"],
+            "Data collection": [r"collect.*data|data\s+collection"],
+            "Data preparation": [r"preparation.*data|data\s+preparation"],
+            "Engineering data interpretation": [r"interpret.*data|(?:engineering|sensor)\s+data"],
+            "Technical communication": [r"communicate.*technical|technical\s+communicat"],
         }
 
         for skill, patterns in skill_mappings.items():
@@ -133,6 +165,15 @@ class JobNERExtractor:
                 if re.search(pattern, text, re.IGNORECASE):
                     inferred.add(skill)
                     break
+
+        # Defense/Software domain: ARINC-specific inferences
+        if detected_domain == Domain.DEFENSE or detected_domain == Domain.SOFTWARE:
+            if re.search(r"\bARINC\s+\d{3}\b", text, re.IGNORECASE):
+                inferred.add("Binary data transformation")
+                inferred.add("Integrity check implementation")
+                inferred.add("Sensor data calibration")
+                inferred.add("Time-series data analytics")
+                inferred.add("Sensor data synchronization")
 
         return inferred
 
@@ -264,6 +305,9 @@ class JobNERExtractor:
 
     def extract_all(self, text: str) -> dict:
         """Extract all entities from job description."""
+        # Initialize matchers based on job description domain
+        self._init_matchers(text)
+
         skills = self.extract_skills(text)
         technologies = self.extract_technologies(text)
         requirements = self.extract_requirements(text)
@@ -277,4 +321,5 @@ class JobNERExtractor:
             "skills": sorted(list(skills)),
             "technologies": sorted(list(technologies)),
             "requirements": sorted(list(requirements)),
+            "detected_domain": detect_domain(text).value,  # Include detected domain
         }
