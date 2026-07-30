@@ -24,18 +24,18 @@
           "extra": 1
         },
         "requirements": {
-          "f1": 0.67,
-          "precision": 0.67,
+          "f1": 0.63,
+          "precision": 0.6,
           "recall": 0.67,
           "correct": 6,
           "missing": 3,
-          "extra": 3
+          "extra": 4
         }
       },
       "confidence": {
         "skills": 0.71,
         "technologies": 0.92,
-        "requirements": 0.83
+        "requirements": 0.79
       }
     },
     {
@@ -71,7 +71,7 @@
       "confidence": {
         "skills": 0.7,
         "technologies": 0.92,
-        "requirements": 0.91
+        "requirements": 0.9
       }
     }
   ],
@@ -84,7 +84,7 @@
         0.93
       ],
       "requirements": [
-        0.67
+        0.63
       ]
     },
     "software": {
