@@ -24,6 +24,8 @@ from src.nlp.confidence import (
     get_confidence,
     average_confidence,
 )
+from src.nlp.narrative import NarrativeRequirementExtractor
+from src.nlp.requirement_normalizer import RequirementNormalizer
 
 
 class JobNERExtractor:
@@ -50,6 +52,7 @@ class JobNERExtractor:
         self.domain = domain
         self.company_name = company_name
         self.parser = get_parser(company_name) if company_name else None
+        self.narrative_extractor = NarrativeRequirementExtractor(self.nlp)
         # Matchers will be initialized per-job in extract_all
         self.keyphrase_matcher = None
         self.skill_matcher = None
@@ -243,8 +246,24 @@ class JobNERExtractor:
         """Extract known technologies (tools, frameworks, languages)."""
         return extract_technologies(text)
 
-    def extract_requirements_with_confidence(self, text: str) -> Dict[str, tuple]:
+    def extract_narrative_requirements(self, text: str) -> Set[str]:
+        """Extract requirements from narrative/prose text."""
+        return self.narrative_extractor.extract_narrative_requirements(text)
+
+    def extract_narrative_skills(self, text: str) -> Set[str]:
+        """Extract skills mentioned in narrative prose."""
+        return self.narrative_extractor.extract_skill_requirements(text)
+
+    def extract_narrative_qualifications(self, text: str) -> Set[str]:
+        """Extract degree/certification requirements from narrative."""
+        return self.narrative_extractor.extract_qualification_requirements(text)
+
+    def extract_requirements_with_confidence(self, text: str, include_narrative: bool = True) -> Dict[str, tuple]:
         """Extract requirements with confidence scores.
+
+        Args:
+            text: Job description text
+            include_narrative: Also extract from narrative prose (default: True)
 
         Returns:
             Dict mapping requirement -> (requirement, confidence, method)
@@ -266,6 +285,16 @@ class JobNERExtractor:
                     method = ExtractionMethod.STRUCTURED_BULLET if is_structured else ExtractionMethod.PATTERN_MATCH
                     conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET) if is_structured else get_confidence(ExtractionMethod.PATTERN_MATCH)
                     requirements_with_conf[req] = (req, conf, method)
+
+            # Add narrative requirements from prose (medium confidence)
+            if include_narrative:
+                narrative_reqs = self.extract_narrative_requirements(text)
+                for req in narrative_reqs:
+                    # Only add if not already covered by structured extraction
+                    if not any(req.lower() in existing.lower() or existing.lower() in req.lower() for existing in requirements_with_conf):
+                        # Lower confidence for narrative to account for possible false positives
+                        requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
+
             return requirements_with_conf
 
         # Fallback to generic extraction (lower confidence)
