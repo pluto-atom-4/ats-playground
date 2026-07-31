@@ -1,8 +1,8 @@
 """Domain detection and domain-specific keyphrase sets."""
 
 import re
-from typing import Set, Literal
 from enum import Enum
+from typing import Set
 
 
 class Domain(str, Enum):
@@ -58,7 +58,7 @@ def detect_domain(job_description: str) -> Domain:
     text_lower = job_description.lower()
 
     # Count signals per domain
-    domain_scores = {domain: 0 for domain in Domain}
+    domain_scores = dict.fromkeys(Domain, 0)
 
     for domain, patterns in DOMAIN_SIGNALS.items():
         for pattern in patterns:

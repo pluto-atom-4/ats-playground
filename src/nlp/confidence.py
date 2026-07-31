@@ -1,8 +1,8 @@
 """Confidence scoring for extracted entities."""
 
 from dataclasses import dataclass
-from typing import Dict, List
 from enum import Enum
+from typing import Dict, List
 
 
 class ExtractionMethod(str, Enum):
@@ -22,13 +22,13 @@ class ConfidentEntity:
     confidence: float  # 0.0 to 1.0
     method: ExtractionMethod
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, ConfidentEntity):
             return self.value == other.value
-        return self.value == other
+        return self.value == str(other)
 
 
 # Confidence scores by extraction method
@@ -51,9 +51,9 @@ def get_confidence(method: ExtractionMethod) -> float:
 
 
 def build_extraction_with_confidence(
-    values: Dict[str, list],
-    confidences: Dict[str, List[float]],
-) -> Dict[str, List[dict]]:
+    values: dict[str, list[str]],
+    confidences: dict[str, list[float]],
+) -> dict[str, list[dict[str, float | str]]]:
     """Build extraction result with confidence scores.
 
     Args:
@@ -63,7 +63,7 @@ def build_extraction_with_confidence(
     Returns:
         Dict with category -> [{"value": x, "confidence": y}, ...]
     """
-    result = {}
+    result: dict[str, list[dict[str, float | str]]] = {}
     for category, value_list in values.items():
         confidence_list = confidences.get(category, [0.5] * len(value_list))
         result[category] = [
@@ -73,8 +73,13 @@ def build_extraction_with_confidence(
     return result
 
 
-def average_confidence(items: List[dict]) -> float:
+def average_confidence(items: list[dict[str, float | str]]) -> float:
     """Calculate average confidence for list of confident items."""
     if not items:
         return 0.0
-    return sum(item["confidence"] for item in items) / len(items)
+    confidences: list[float] = []
+    for item in items:
+        conf = item.get("confidence", 0.0)
+        if isinstance(conf, (int, float)):
+            confidences.append(float(conf))
+    return sum(confidences) / len(confidences) if confidences else 0.0

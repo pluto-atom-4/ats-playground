@@ -1,9 +1,9 @@
 """Narrative requirement extraction from prose text."""
 
 import re
-from typing import Set, List, Tuple
-import spacy
-from spacy.tokens import Doc, Span
+from typing import Set
+
+from spacy.tokens import Span
 
 
 class NarrativeRequirementExtractor:

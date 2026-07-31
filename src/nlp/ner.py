@@ -1,31 +1,28 @@
 """Job description NER extraction using spaCy."""
 
 import re
-from typing import Set, Dict
+from typing import Dict, Set
+
 import spacy
 from spacy.matcher import PhraseMatcher
 
-from src.nlp.patterns import (
-    extract_technologies,
-    extract_requirement_spans,
-    extract_skill_candidates,
-    SKILL_KEYWORDS,
+from src.nlp.company_parsers import get_parser
+from src.nlp.confidence import (
+    ExtractionMethod,
+    average_confidence,
+    get_confidence,
 )
+from src.nlp.domains import Domain, detect_domain, get_keyphrases_auto
+from src.nlp.narrative import NarrativeRequirementExtractor
 from src.nlp.normalizer import (
     normalize_requirements,
     normalize_skills,
     normalize_technologies,
 )
-from src.nlp.domains import get_keyphrases_auto, detect_domain, Domain
-from src.nlp.company_parsers import get_parser
-from src.nlp.confidence import (
-    ExtractionMethod,
-    ConfidentEntity,
-    get_confidence,
-    average_confidence,
+from src.nlp.patterns import (
+    SKILL_KEYWORDS,
+    extract_technologies,
 )
-from src.nlp.narrative import NarrativeRequirementExtractor
-from src.nlp.requirement_normalizer import RequirementNormalizer
 
 
 class JobNERExtractor:
@@ -455,13 +452,13 @@ class JobNERExtractor:
         reqs = normalize_requirements(reqs)
 
         # Build result with confidence scores
-        def build_confident_list(values, conf_dict):
+        def build_confident_list(values: set[str], conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]) -> list[dict[str, float | str]]:
             """Build list of dicts with value and confidence."""
-            result = []
+            result: list[dict[str, float | str]] = []
             for val in sorted(values):
                 # Find confidence from original dict (before normalization)
                 # For now, use average confidence from matches
-                confidences = [conf_dict.get(v, (v, 0.5, None))[1] for v in conf_dict if val.lower() in v.lower() or v.lower() in val.lower()]
+                confidences: list[float] = [conf_dict.get(v, (v, 0.5, None))[1] for v in conf_dict if val.lower() in v.lower() or v.lower() in val.lower()]
                 avg_conf = sum(confidences) / len(confidences) if confidences else 0.5
                 result.append({"value": val, "confidence": round(avg_conf, 2)})
             return result

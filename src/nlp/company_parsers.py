@@ -1,8 +1,8 @@
 """Company-specific requirement parsers."""
 
 import re
-from typing import Set, Callable, Dict
 from abc import ABC, abstractmethod
+from typing import Dict, Set
 
 
 class CompanyParser(ABC):

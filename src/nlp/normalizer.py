@@ -1,8 +1,8 @@
 """Normalize extracted entities to match expected output format."""
 
 import re
-from typing import Set, List
 from difflib import SequenceMatcher
+from typing import Set
 
 
 def normalize_requirement(req: str) -> str:

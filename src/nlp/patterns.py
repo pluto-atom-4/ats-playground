@@ -216,9 +216,9 @@ def extract_technologies(text: str) -> Set[str]:
     return techs
 
 
-def extract_requirement_spans(text: str) -> dict:
+def extract_requirement_spans(text: str) -> dict[str, list[str]]:
     """Extract requirement-related spans."""
-    reqs = {
+    reqs: dict[str, list[str]] = {
         "years_experience": [],
         "degrees": [],
         "citizen_status": [],

@@ -1,8 +1,8 @@
 """Advanced normalization for requirement text matching."""
 
 import re
-from typing import Set, Tuple
 from difflib import SequenceMatcher
+from typing import Set, Tuple
 
 
 class RequirementNormalizer:
@@ -41,7 +41,7 @@ class RequirementNormalizer:
         return req
 
     @staticmethod
-    def find_matching_requirement(target: str, candidates: Set[str], threshold: float = 0.7) -> Tuple[str, float]:
+    def find_matching_requirement(target: str, candidates: Set[str], threshold: float = 0.7) -> tuple[str | None, float]:
         """Find best semantic match from candidates using fuzzy matching.
 
         Args:
@@ -54,8 +54,8 @@ class RequirementNormalizer:
         """
         normalized_target = RequirementNormalizer.normalize_requirement_for_comparison(target)
 
-        best_match = None
-        best_score = 0
+        best_match: str | None = None
+        best_score: float = 0.0
 
         for candidate in candidates:
             normalized_candidate = RequirementNormalizer.normalize_requirement_for_comparison(candidate)
@@ -90,7 +90,7 @@ class RequirementNormalizer:
         if best_score >= threshold:
             return (best_match, best_score)
 
-        return (None, 0)
+        return (None, 0.0)
 
     @staticmethod
     def deduplicate_requirements(requirements: Set[str]) -> Set[str]:
@@ -98,7 +98,7 @@ class RequirementNormalizer:
 
         Keeps original text of most specific/longest version.
         """
-        deduplicated = set()
+        deduplicated: set[str] = set()
         sorted_reqs = sorted(requirements, key=len, reverse=True)
 
         for req in sorted_reqs:
