@@ -31,7 +31,7 @@ from src.nlp.requirement_normalizer import RequirementNormalizer
 class JobNERExtractor:
     """Extract skills, technologies, and requirements from job descriptions."""
 
-    def __init__(self, model: str = "en_core_web_md", company_name: str = None):
+    def __init__(self, model: str = "en_core_web_md", company_name: str | None = None):
         """Initialize spaCy NLP model.
 
         Args:
