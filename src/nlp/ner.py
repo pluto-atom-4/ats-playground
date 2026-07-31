@@ -31,13 +31,11 @@ from src.nlp.requirement_normalizer import RequirementNormalizer
 class JobNERExtractor:
     """Extract skills, technologies, and requirements from job descriptions."""
 
-    def __init__(self, model: str = "en_core_web_md", domain: str = None, company_name: str = None):
+    def __init__(self, model: str = "en_core_web_md", company_name: str = None):
         """Initialize spaCy NLP model.
 
         Args:
             model: spaCy model name
-            domain: Force specific domain (aerospace, software, hardware, general)
-                   If None, auto-detect from job description
             company_name: Company name for company-specific parsers (blue origin, boeing, etc)
                          If None, uses generic parser
         """
@@ -49,34 +47,35 @@ class JobNERExtractor:
                 f"python -m spacy download {model}"
             )
 
-        self.domain = domain
         self.company_name = company_name
         self.parser = get_parser(company_name) if company_name else None
         self.narrative_extractor = NarrativeRequirementExtractor(self.nlp)
-        # Matchers will be initialized per-job in extract_all
-        self.keyphrase_matcher = None
-        self.skill_matcher = None
+        # Pre-compile matchers for reuse (not recreated per-job)
+        self.keyphrase_matcher = PhraseMatcher(self.nlp.vocab)
+        self.skill_matcher = PhraseMatcher(self.nlp.vocab)
 
     def _init_matchers(self, job_description: str) -> None:
-        """Initialize phrase matchers based on detected/specified domain."""
-        # Detect or use specified domain
-        if self.domain:
-            domain_enum = Domain[self.domain.upper()] if isinstance(self.domain, str) else self.domain
-            keyphrases = get_keyphrases_auto(job_description) if self.domain is None else \
-                        get_keyphrases_auto(job_description) if Domain[self.domain.upper()] == Domain.GENERAL \
-                        else get_keyphrases_auto(job_description)
-        else:
-            keyphrases = get_keyphrases_auto(job_description)
+        """Load keyphrases and patterns into pre-initialized matchers."""
+        # Get keyphrases (domain parameter is not currently used for filtering)
+        keyphrases = get_keyphrases_auto(job_description)
 
-        # Add phrase matcher for domain-specific keyphrases
-        self.keyphrase_matcher = PhraseMatcher(self.nlp.vocab)
+        # Clear and re-add patterns for domain-specific keyphrases
+        try:
+            self.keyphrase_matcher.remove("KEYPHRASE")
+        except (ValueError, KeyError):
+            pass  # Pattern doesn't exist yet
         keyphrase_patterns = [self.nlp.make_doc(kp) for kp in keyphrases]
-        self.keyphrase_matcher.add("KEYPHRASE", keyphrase_patterns)
+        if keyphrase_patterns:
+            self.keyphrase_matcher.add("KEYPHRASE", keyphrase_patterns)
 
-        # Fallback matcher for skill keywords
-        self.skill_matcher = PhraseMatcher(self.nlp.vocab)
+        # Clear and re-add patterns for skill keywords
+        try:
+            self.skill_matcher.remove("SKILL")
+        except (ValueError, KeyError):
+            pass  # Pattern doesn't exist yet
         skill_patterns = [self.nlp.make_doc(skill) for skill in SKILL_KEYWORDS]
-        self.skill_matcher.add("SKILL", skill_patterns)
+        if skill_patterns:
+            self.skill_matcher.add("SKILL", skill_patterns)
 
     def _infer_related_skills(self, text: str) -> Set[str]:
         """Infer skills from context by looking for related phrases."""
@@ -291,7 +290,19 @@ class JobNERExtractor:
                 narrative_reqs = self.extract_narrative_requirements(text)
                 for req in narrative_reqs:
                     # Only add if not already covered by structured extraction
-                    if not any(req.lower() in existing.lower() or existing.lower() in req.lower() for existing in requirements_with_conf):
+                    # Use word boundary check instead of substring to avoid false positives
+                    # (e.g., 'C' != 'C++', 'Python' != 'Python3')
+                    is_duplicate = False
+                    req_lower = req.lower()
+                    for existing in requirements_with_conf:
+                        existing_lower = existing.lower()
+                        # Check if they're very similar (word boundary or 80%+ match)
+                        # For now, just check exact match after normalization
+                        if req_lower == existing_lower:
+                            is_duplicate = True
+                            break
+
+                    if not is_duplicate:
                         # Lower confidence for narrative to account for possible false positives
                         requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
 
