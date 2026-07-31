@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-07-30",
+  "total_jobs": 7,
+  "jobs": [
+    {
+      "company": "carbonrobotics",
+      "title": "Deep Learning Engineer",
+      "domain": "defense",
+      "desc_len": 7415,
+      "skills": 14,
+      "tech": 2,
+      "req": 0,
+      "skill_conf": 0.6,
+      "tech_conf": 0.92,
+      "req_conf": 0.0,
+      "density": 0.2157788267026298
+    },
+    {
+      "company": "carbonrobotics",
+      "title": "Deep Learning Quality Specialist",
+      "domain": "defense",
+      "desc_len": 6598,
+      "skills": 6,
+      "tech": 2,
+      "req": 0,
+      "skill_conf": 0.57,
+      "tech_conf": 0.92,
+      "req_conf": 0.0,
+      "density": 0.12124886329190664
+    },
+    {
+      "company": "uw",
+      "title": "Operations Engineer - Infrastructure, College of Arts and Sc",
+      "domain": "software",
+      "desc_len": 9609,
+      "skills": 12,
+      "tech": 5,
+      "req": 2,
+      "skill_conf": 0.58,
+      "tech_conf": 0.92,
+      "req_conf": 0.82,
+      "density": 0.1977312935789364
+    },
+    {
+      "company": "blue origin",
+      "title": "Principal ASIC Design Engineer - Terawave",
+      "domain": "hardware",
+      "desc_len": 8043,
+      "skills": 16,
+      "tech": 5,
+      "req": 6,
+      "skill_conf": 0.67,
+      "tech_conf": 0.92,
+      "req_conf": 0.86,
+      "density": 0.3356956359567325
+    },
+    {
+      "company": "blue origin",
+      "title": "Director of Vehicle G&C \u2013 New Glenn",
+      "domain": "aerospace",
+      "desc_len": 8769,
+      "skills": 24,
+      "tech": 8,
+      "req": 10,
+      "skill_conf": 0.71,
+      "tech_conf": 0.92,
+      "req_conf": 0.79,
+      "density": 0.4789599726308587
+    },
+    {
+      "company": "boeing",
+      "title": "Senior Software Engineer",
+      "domain": "software",
+      "desc_len": 8328,
+      "skills": 25,
+      "tech": 10,
+      "req": 13,
+      "skill_conf": 0.7,
+      "tech_conf": 0.92,
+      "req_conf": 0.9,
+      "density": 0.5763688760806917
+    },
+    {
+      "company": "boeing",
+      "title": "Senior Software Engineer | Rocky Program",
+      "domain": "defense",
+      "desc_len": 9430,
+      "skills": 20,
+      "tech": 16,
+      "req": 13,
+      "skill_conf": 0.62,
+      "tech_conf": 0.92,
+      "req_conf": 0.82,
+      "density": 0.5196182396606575
+    }
+  ],
+  "summary": {
+    "high_extraction_jobs": 4,
+    "low_extraction_jobs": 0,
+    "no_requirements_jobs": 2
+  }
+}
