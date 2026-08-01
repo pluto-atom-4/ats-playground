@@ -845,24 +845,18 @@ def crawl(
 # ============================================================================
 
 
-@app.command()
-def preprocess(
-    batch_size: int = typer.Option(10, help="Jobs per batch"),
-    show_estimates: bool = typer.Option(False, help="Show token/cost estimates"),
-) -> None:
-    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities)."""
-    import json
-    from pathlib import Path
+def _validate_and_load_job_files(extracted_dir: Path) -> List[Path]:
+    """Validate directory and load extracted job files.
 
-    from src.models.job import JobPosting, PreprocessedJob
-    from src.tokenization.chunker import SemanticChunker
-    from src.tokenization.counter import TokenCounter
-    from src.tokenization.preprocessor import Preprocessor
+    Args:
+        extracted_dir: Path to directory containing extracted jobs
 
-    logger.info("Starting preprocessing")
-    typer.echo("🔄 Preprocessing jobs...\n")
+    Returns:
+        List of job file paths to process
 
-    extracted_dir = Path("data/extracted_jobs")
+    Raises:
+        typer.Exit on validation failure
+    """
     if not extracted_dir.exists():
         typer.echo(f"❌ Directory not found: {extracted_dir}", err=True)
         raise typer.Exit(1) from None
@@ -872,82 +866,214 @@ def preprocess(
         typer.echo("❌ No extracted jobs found", err=True)
         raise typer.Exit(1) from None
 
+    return job_files
+
+
+def _preprocess_single_job(
+    job_dict: dict,
+    chunker: Any,
+    counter: Any,
+    preprocessor: Any,
+    pricing_date: str,
+    show_estimates: bool,
+    job_index: int,
+) -> Optional[tuple]:
+    """Process a single job and return preprocessed job or None on failure.
+
+    Args:
+        job_dict: Raw job dictionary
+        chunker: SemanticChunker instance
+        counter: TokenCounter instance
+        preprocessor: Preprocessor instance
+        pricing_date: ISO format date string
+        show_estimates: Whether to display token/cost estimates
+        job_index: 1-based job index for logging
+
+    Returns:
+        Tuple of (PreprocessedJob, token_count, cost) or None if processing fails
+    """
+    from src.models.job import JobPosting, PreprocessedJob
+
+    try:
+        job = JobPosting(**job_dict)
+
+        # Build clean text from job fields
+        clean_text = job.title
+        if job.location:
+            clean_text += f"\n{job.location}"
+        if job.description:
+            clean_text += f"\n{job.description}"
+
+        # Process text
+        chunks = chunker.chunk(clean_text)
+        token_count = sum(counter.count_tokens(c) for c in chunks)
+        estimated_cost = counter.estimate_cost(token_count)
+
+        # Extract entities
+        skills, technologies, requirements = preprocessor.extract_entities(clean_text)
+
+        # Generate or use existing job ID
+        job_id = job.id or generate_job_id(
+            company=job.company,
+            title=job.title,
+            location=job.location or "Not specified",
+            url=str(job.url) if job.url else None,
+        )
+
+        preprocessed = PreprocessedJob(
+            job_id=job_id,
+            company=job.company,
+            clean_text=clean_text,
+            sentences=clean_text.split("\n"),
+            chunks=chunks,
+            skills=skills,
+            technologies=technologies,
+            requirements=requirements,
+            token_count=token_count,
+            estimated_cost=estimated_cost,
+            model_name=counter.model,
+            pricing_date=pricing_date,
+        )
+
+        # Display estimates if requested
+        if show_estimates and job_index <= 3:
+            typer.echo(f"   Job {job_index}: {job.title[:40]}...")
+            typer.echo(f"      Tokens: {token_count} | Cost: ${estimated_cost:.4f}")
+
+        return (preprocessed, token_count, estimated_cost)
+
+    except Exception as e:
+        logger.warning(f"Failed to preprocess job {job_index}: {e}")
+        return None
+
+
+def _preprocess_job_file(
+    job_file: Path,
+    chunker: Any,
+    counter: Any,
+    preprocessor: Any,
+    pricing_date: str,
+    show_estimates: bool,
+) -> Tuple[List, int]:
+    """Process all jobs in a single file.
+
+    Args:
+        job_file: Path to JSON file containing jobs
+        chunker: SemanticChunker instance
+        counter: TokenCounter instance
+        preprocessor: Preprocessor instance
+        pricing_date: ISO format date string
+        show_estimates: Whether to display token/cost estimates
+
+    Returns:
+        Tuple of (list of preprocessed jobs, count of failures)
+    """
+    preprocessed_jobs = []
+    failed_count = 0
+    total_tokens = 0
+    total_cost = 0.0
+
+    try:
+        with open(job_file) as f:
+            jobs_data = json.load(f)
+
+        for i, job_dict in enumerate(jobs_data, 1):
+            result = _preprocess_single_job(
+                job_dict, chunker, counter, preprocessor, pricing_date, show_estimates, i
+            )
+            if result:
+                prep_job, tokens, cost = result
+                preprocessed_jobs.append(prep_job)
+                total_tokens += tokens
+                total_cost += cost
+            else:
+                failed_count += 1
+
+    except Exception as e:
+        logger.error(f"Failed to process {job_file}: {e}")
+
+    return preprocessed_jobs, failed_count
+
+
+def _save_preprocessed_jobs(jobs: List, output_path: Path) -> None:
+    """Save preprocessed jobs to JSON file.
+
+    Args:
+        jobs: List of PreprocessedJob objects
+        output_path: Path where to save the JSON file
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    jobs_output = [j.model_dump(mode="json") for j in jobs]
+
+    with open(output_path, "w") as f:
+        json.dump(jobs_output, f, indent=2, default=str)
+
+    typer.echo(f"   ✓ Saved to: {output_path}")
+
+
+def _update_job_timelines(jobs: List) -> None:
+    """Update database timestamps for preprocessed jobs.
+
+    Args:
+        jobs: List of PreprocessedJob objects
+    """
+    try:
+        from src.verification import JobReviewer
+
+        db_path = Path("data/ats_playground.db")
+        if db_path.exists():
+            reviewer = JobReviewer(str(db_path))
+            for prep_job in jobs:
+                reviewer.set_preprocessed_at(prep_job.job_id)
+            reviewer._close_db()
+            typer.echo(f"   ✓ Updated {len(jobs)} job timelines")
+    except Exception as e:
+        logger.warning(f"Could not update preprocessing timestamps: {e}")
+
+
+@app.command()
+def preprocess(
+    batch_size: int = typer.Option(10, help="Jobs per batch"),
+    show_estimates: bool = typer.Option(False, help="Show token/cost estimates"),
+) -> None:
+    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities)."""
+    from datetime import date as date_class
+
+    from src.tokenization.chunker import SemanticChunker
+    from src.tokenization.counter import TokenCounter
+    from src.tokenization.preprocessor import Preprocessor
+
+    logger.info("Starting preprocessing")
+    typer.echo("🔄 Preprocessing jobs...\n")
+
+    # Validate and load files
+    extracted_dir = Path("data/extracted_jobs")
+    job_files = _validate_and_load_job_files(extracted_dir)
+    typer.echo(f"📂 Processing {len(job_files)} job files...\n")
+
+    # Initialize components
     chunker = SemanticChunker(target_chunk_size=400)
     counter = TokenCounter()
     preprocessor = Preprocessor()
-
-    from datetime import date as date_class
-
-    # Get current date for pricing_date field
     pricing_date = date_class.today().isoformat()
 
-    all_preprocessed: list[PreprocessedJob] = []
+    # Process all files
+    all_preprocessed = []
     total_tokens = 0
     total_cost = 0.0
     failed_count = 0
 
     for job_file in job_files:
         typer.echo(f"📂 Processing {job_file.name}...")
+        preprocessed_jobs, file_failed = _preprocess_job_file(
+            job_file, chunker, counter, preprocessor, pricing_date, show_estimates
+        )
+        all_preprocessed.extend(preprocessed_jobs)
+        failed_count += file_failed
+        total_tokens += sum(j.token_count for j in preprocessed_jobs)
+        total_cost += sum(j.estimated_cost for j in preprocessed_jobs)
 
-        try:
-            with open(job_file) as f:
-                jobs_data = json.load(f)
-
-            for i, job_dict in enumerate(jobs_data, 1):
-                try:
-                    job = JobPosting(**job_dict)
-
-                    clean_text = job.title
-                    if job.location:
-                        clean_text += f"\n{job.location}"
-                    if job.description:
-                        clean_text += f"\n{job.description}"
-
-                    chunks = chunker.chunk(clean_text)
-                    token_count = sum(counter.count_tokens(c) for c in chunks)
-                    estimated_cost = counter.estimate_cost(token_count)
-
-                    # Extract entities from job description
-                    skills, technologies, requirements = preprocessor.extract_entities(clean_text)
-
-                    # Use job.id if available, otherwise generate from job details
-                    job_id = job.id or generate_job_id(
-                        company=job.company,
-                        title=job.title,
-                        location=job.location or "Not specified",
-                        url=str(job.url) if job.url else None,
-                    )
-
-                    preprocessed = PreprocessedJob(
-                        job_id=job_id,
-                        company=job.company,
-                        clean_text=clean_text,
-                        sentences=clean_text.split("\n"),
-                        chunks=chunks,
-                        skills=skills,
-                        technologies=technologies,
-                        requirements=requirements,
-                        token_count=token_count,
-                        estimated_cost=estimated_cost,
-                        model_name=counter.model,
-                        pricing_date=pricing_date,
-                    )
-
-                    all_preprocessed.append(preprocessed)
-                    total_tokens += token_count
-                    total_cost += estimated_cost
-
-                    if show_estimates and i <= 3:
-                        typer.echo(f"   Job {i}: {job.title[:40]}...")
-                        typer.echo(f"      Tokens: {token_count} | Cost: ${estimated_cost:.4f}")
-
-                except Exception as e:
-                    logger.warning(f"Failed to preprocess job {i}: {e}")
-                    failed_count += 1
-
-        except Exception as e:
-            logger.error(f"Failed to process {job_file}: {e}")
-
+    # Display summary
     typer.echo("\n✅ Preprocessing complete!\n")
     typer.echo("📊 Summary:")
     typer.echo(f"   Total jobs: {len(all_preprocessed) + failed_count}")
@@ -961,27 +1087,9 @@ def preprocess(
         typer.echo(f"   Avg tokens/job: {avg_tokens}")
         typer.echo("\n💾 Saving preprocessed jobs...")
 
-        output_file = Path("data/extracted_jobs/preprocessed_jobs.json")
-        jobs_output = [j.model_dump(mode="json") for j in all_preprocessed]
-
-        with open(output_file, "w") as f:
-            json.dump(jobs_output, f, indent=2, default=str)
-
-        typer.echo(f"   ✓ Saved to: {output_file}")
-
-        # Record preprocessing timestamp for timeline tracking
-        try:
-            from src.verification import JobReviewer
-
-            db_path = Path("data/ats_playground.db")
-            if db_path.exists():
-                reviewer = JobReviewer(str(db_path))
-                for prep_job in all_preprocessed:
-                    reviewer.set_preprocessed_at(prep_job.job_id)
-                reviewer._close_db()
-                typer.echo(f"   ✓ Updated {len(all_preprocessed)} job timelines")
-        except Exception as e:
-            logger.warning(f"Could not update preprocessing timestamps: {e}")
+        output_file = extracted_dir / "preprocessed_jobs.json"
+        _save_preprocessed_jobs(all_preprocessed, output_file)
+        _update_job_timelines(all_preprocessed)
 
 
 # ============================================================================
