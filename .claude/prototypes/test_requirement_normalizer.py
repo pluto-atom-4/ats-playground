@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Test requirement normalization and semantic matching."""
 
-import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd()))
 
@@ -17,7 +16,10 @@ test_cases = [
         "verbose variant"
     ),
     (
-        "2+ years of experience performing quantitative or statistical analysis, data collection, preparation and interpretation",
+        (
+            "2+ years of experience performing quantitative or statistical analysis, "
+            "data collection, preparation and interpretation"
+        ),
         "2+ years of experience performing quantitative or statistical analysis",
         "truncated variant"
     ),
@@ -60,9 +62,17 @@ print("\n\n2. SEMANTIC MATCHING")
 print("-" * 80)
 
 extracted_reqs = {
-    "2+ years of experience working with and/or interpreting engineering data or engineering drawings",
-    "2+ years of experience performing quantitative or statistical analysis, data collection, preparation and interpretation",
-    "9+ years of experience software development using either Java, C++, or Python",
+    (
+        "2+ years of experience working with and/or interpreting engineering data or "
+        "engineering drawings"
+    ),
+    (
+        "2+ years of experience performing quantitative or statistical analysis, "
+        "data collection, preparation and interpretation"
+    ),
+    (
+        "9+ years of experience software development using either Java, C++, or Python"
+    ),
     "Bachelor's Degree",
     "Deep experience with ARINC 429, ARINC 717, and ARINC 767 formats (Preferred)",
     "Hands-on experience with Apache Parquet, Apache ORC, HDF5, and Delta Lake (Preferred)",
@@ -81,11 +91,11 @@ print(f"Expected: {len(expected_reqs)} requirements\n")
 
 matched = 0
 for expected in expected_reqs:
-    match, score = normalizer.find_matching_requirement(expected, extracted_reqs, threshold=0.7)
-    if match:
+    best_match, score = normalizer.find_matching_requirement(expected, extracted_reqs, threshold=0.7)
+    if best_match:
         matched += 1
         print(f"✓ [{score:.2f}] {expected}")
-        print(f"         → {match}")
+        print(f"         → {best_match}")
     else:
         print(f"✗ {expected}")
 
