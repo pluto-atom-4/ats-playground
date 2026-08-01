@@ -58,7 +58,7 @@ def main():
                 if len(reqs) > 5:
                     print(f"    ... and {len(reqs) - 5} more")
             else:
-                print(f"  Requirements: NONE extracted")
+                print("  Requirements: NONE extracted")
 
         # Statistics
         total_reqs = len(company_reqs)

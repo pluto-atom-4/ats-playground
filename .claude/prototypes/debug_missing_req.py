@@ -2,8 +2,8 @@
 """Debug missing requirement."""
 
 import json
-import sys
 import re
+import sys
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent

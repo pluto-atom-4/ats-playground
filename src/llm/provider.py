@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from src.config.models import (
     DEFAULT_MODEL,
@@ -146,17 +146,14 @@ class LLMProvider:
         """
         import anthropic
 
-        # Combine job chunks
+        # Combine job chunks and build prompt
         job_text = "\n".join(job_chunks)
-
-        # Build assessment prompt
         prompt = self._build_assessment_prompt(cv_text, job_text)
 
         # Retry logic (max 3 attempts)
         for attempt in range(3):
             try:
                 logger.debug(f"Assessing job {job_id} (attempt {attempt + 1}/3)")
-
                 response = self.client.messages.create(
                     model=self.model,
                     max_tokens=1024,
@@ -165,98 +162,228 @@ class LLMProvider:
                     messages=[{"role": "user", "content": prompt}],
                 )
 
-                # Extract token usage
-                input_tokens = response.usage.input_tokens
-                output_tokens = response.usage.output_tokens
-                total_tokens = input_tokens + output_tokens
-
-                # Calculate actual cost
-                actual_cost = (input_tokens / 1_000_000) * self.input_price_per_1m + (
-                    output_tokens / 1_000_000
-                ) * self.output_price_per_1m
-
-                # Parse response - ensure we get a TextBlock
-                response_text = ""
-                for block in response.content:
-                    if hasattr(block, "text"):
-                        response_text = block.text.strip()
-                        break
-
-                # Clean up JSON if wrapped in markdown code blocks
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:]
-                if response_text.startswith("```"):
-                    response_text = response_text[3:]
-                if response_text.endswith("```"):
-                    response_text = response_text[:-3]
-                response_text = response_text.strip()
-
-                data = json.loads(response_text)
-
-                # Build result
-                result = AssessmentResult(
-                    job_id=job_id,
-                    overall_score=float(data.get("overall_score", 50)),
-                    tech_score=float(data.get("tech_score", 50)),
-                    seniority_score=float(data.get("seniority_score", 50)),
-                    location_score=float(data.get("location_score", 50)),
-                    recommendations=data.get("recommendations", []),
-                    summary=data.get("summary", "Assessment completed."),
-                    tokens_used=total_tokens,
-                    actual_cost=actual_cost,
+                # Parse response and extract tokens
+                response_text = self._extract_response_text(response)
+                response_text = self._clean_json_response(response_text)
+                data = self._parse_assessment_response(
+                    response_text,
+                    response.usage.input_tokens,
+                    response.usage.output_tokens,
                 )
 
+                # Build and return result
+                result = self._build_assessment_result(job_id, data, response)
                 logger.info(
                     f"Assessed job {job_id}: overall={result.overall_score}, "
-                    f"tokens={total_tokens}, cost=${actual_cost:.6f}"
+                    f"tokens={result.tokens_used}, cost=${result.actual_cost:.6f}"
                 )
-
                 return result
 
             except anthropic.RateLimitError as e:
-                wait_time = 2**attempt
-                if attempt < 2:
-                    logger.warning(
-                        f"Rate limited on job {job_id}, waiting {wait_time}s before retry"
-                    )
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"Rate limited on job {job_id} after 3 attempts")
-                    raise RuntimeError(f"Rate limited after 3 attempts for job {job_id}") from e
+                should_retry = self._handle_rate_limit_error(attempt, job_id)
+                if not should_retry:
+                    raise RuntimeError(
+                        f"Rate limited after 3 attempts for job {job_id}"
+                    ) from e
 
             except anthropic.APIConnectionError as e:
-                if attempt < 2:
-                    logger.warning(f"API connection error for job {job_id}, retrying...")
-                    time.sleep(1)
-                else:
-                    logger.error(f"API connection failed for job {job_id}")
+                should_retry = self._handle_connection_error(attempt, job_id)
+                if not should_retry:
                     raise RuntimeError(f"API connection failed for job {job_id}") from e
 
-            except (json.JSONDecodeError, KeyError):
-                if attempt < 2:
-                    logger.warning(
-                        f"Failed to parse response for job {job_id}, retrying with fallback..."
-                    )
-                    # Try with more explicit JSON prompt on retry
-                    continue
-                else:
-                    logger.error(f"Failed to parse assessment response for job {job_id}")
-                    # Return default assessment on parse failure
-                    return AssessmentResult(
-                        job_id=job_id,
-                        overall_score=50,
-                        tech_score=50,
-                        seniority_score=50,
-                        location_score=50,
-                        recommendations=[
-                            "Unable to fully assess. Please review job details manually."
-                        ],
-                        summary="Assessment parsing failed. Scores are defaults.",
-                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                        actual_cost=0.0,
-                    )
+            except (json.JSONDecodeError, KeyError, ValueError):
+                resp = response if "response" in locals() else None
+                result_or_retry = self._handle_parse_error(attempt, job_id, resp)
+                if isinstance(result_or_retry, AssessmentResult):
+                    return result_or_retry
+                # Continue to next attempt if should_retry is True
 
         raise ValueError(f"Failed to assess job {job_id} after 3 attempts")
+
+    def _extract_response_text(self, response: Any) -> str:
+        """
+        Extract text from response content blocks.
+
+        Args:
+            response: API response object
+
+        Returns:
+            Extracted response text
+        """
+        for block in response.content:
+            if hasattr(block, "text"):
+                text_value = getattr(block, "text", "")
+                return str(text_value).strip()
+        return ""
+
+    def _clean_json_response(self, text: str) -> str:
+        """
+        Clean JSON response by removing markdown code block wrappers.
+
+        Args:
+            text: Raw response text
+
+        Returns:
+            Clean JSON string
+        """
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        return text.strip()
+
+    def _parse_assessment_response(
+        self, response_text: str, input_tokens: int, output_tokens: int
+    ) -> Dict[str, Any]:
+        """
+        Parse and validate JSON assessment response.
+
+        Args:
+            response_text: Raw response text
+            input_tokens: Input token count
+            output_tokens: Output token count
+
+        Returns:
+            Parsed data dictionary
+
+        Raises:
+            json.JSONDecodeError: If JSON is invalid
+            ValueError: If required fields are missing
+        """
+        data: Dict[str, Any] = json.loads(response_text)
+
+        # Validate required fields
+        required_fields = [
+            "overall_score",
+            "tech_score",
+            "seniority_score",
+            "location_score",
+        ]
+        for field in required_fields:
+            if field not in data:
+                raise ValueError(f"Missing required field: {field}")
+
+        return data
+
+    def _build_assessment_result(
+        self, job_id: str, data: dict, response: Any
+    ) -> AssessmentResult:
+        """
+        Build AssessmentResult from parsed data.
+
+        Args:
+            job_id: Job ID
+            data: Parsed assessment data
+            response: API response object (for token counts)
+
+        Returns:
+            AssessmentResult object
+        """
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
+        total_tokens = input_tokens + output_tokens
+
+        actual_cost = (input_tokens / 1_000_000) * self.input_price_per_1m + (
+            output_tokens / 1_000_000
+        ) * self.output_price_per_1m
+
+        return AssessmentResult(
+            job_id=job_id,
+            overall_score=float(data.get("overall_score", 50)),
+            tech_score=float(data.get("tech_score", 50)),
+            seniority_score=float(data.get("seniority_score", 50)),
+            location_score=float(data.get("location_score", 50)),
+            recommendations=data.get("recommendations", []),
+            summary=data.get("summary", "Assessment completed."),
+            tokens_used=total_tokens,
+            actual_cost=actual_cost,
+        )
+
+    def _handle_rate_limit_error(self, attempt: int, job_id: str) -> bool:
+        """
+        Handle rate limit error with exponential backoff.
+
+        Args:
+            attempt: Current attempt number (0-2)
+            job_id: Job ID for logging
+
+        Returns:
+            True if should retry, False if final attempt
+        """
+        wait_time = 2**attempt
+        if attempt < 2:
+            logger.warning(
+                f"Rate limited on job {job_id}, waiting {wait_time}s before retry"
+            )
+            time.sleep(wait_time)
+            return True
+        else:
+            logger.error(f"Rate limited on job {job_id} after 3 attempts")
+            return False
+
+    def _handle_connection_error(self, attempt: int, job_id: str) -> bool:
+        """
+        Handle API connection error.
+
+        Args:
+            attempt: Current attempt number (0-2)
+            job_id: Job ID for logging
+
+        Returns:
+            True if should retry, False if final attempt
+        """
+        if attempt < 2:
+            logger.warning(f"API connection error for job {job_id}, retrying...")
+            time.sleep(1)
+            return True
+        else:
+            logger.error(f"API connection failed for job {job_id}")
+            return False
+
+    def _handle_parse_error(
+        self, attempt: int, job_id: str, response: Optional[Any]
+    ) -> Union[AssessmentResult, bool]:
+        """
+        Handle JSON parsing error.
+
+        Args:
+            attempt: Current attempt number (0-2)
+            job_id: Job ID for logging
+            response: API response object (if available)
+
+        Returns:
+            AssessmentResult on final attempt, True to retry otherwise
+        """
+        if attempt < 2:
+            logger.warning(
+                f"Failed to parse response for job {job_id}, retrying with fallback..."
+            )
+            return True
+        else:
+            logger.error(f"Failed to parse assessment response for job {job_id}")
+            # Return default assessment on final parse failure
+            if response:
+                total_tokens = (
+                    response.usage.input_tokens + response.usage.output_tokens
+                )
+            else:
+                total_tokens = 0
+
+            return AssessmentResult(
+                job_id=job_id,
+                overall_score=50,
+                tech_score=50,
+                seniority_score=50,
+                location_score=50,
+                recommendations=[
+                    "Unable to fully assess. Please review job details manually."
+                ],
+                summary="Assessment parsing failed. Scores are defaults.",
+                tokens_used=total_tokens,
+                actual_cost=0.0,
+            )
 
     def _build_assessment_prompt(self, cv_text: str, job_text: str) -> str:
         """

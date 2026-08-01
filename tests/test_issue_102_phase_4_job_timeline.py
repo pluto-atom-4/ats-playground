@@ -154,8 +154,10 @@ class TestJobTimeline:
 
         timeline = reviewer_with_jobs.get_job_timeline("job_3")
         assert timeline["preprocessed_at"] is not None
-        # Should be recent timestamp
-        assert "2026-07" in timeline["preprocessed_at"]
+        # Should be recent timestamp (current year-month)
+        today = datetime.now(timezone.utc)
+        year_month = today.strftime("%Y-%m")
+        assert year_month in timeline["preprocessed_at"]
 
     def test_set_crawled_at_explicit(self, temp_db):
         """Test setting crawled_at with explicit timestamp."""
@@ -175,7 +177,10 @@ class TestJobTimeline:
 
         timeline = reviewer.get_job_timeline("job_test")
         assert timeline["crawled_at"] is not None
-        assert "2026-07" in timeline["crawled_at"]
+        # Should be recent timestamp (current year-month)
+        today = datetime.now(timezone.utc)
+        year_month = today.strftime("%Y-%m")
+        assert year_month in timeline["crawled_at"]
         reviewer._close_db()
 
     def test_format_timestamp_iso(self, reviewer_with_jobs):

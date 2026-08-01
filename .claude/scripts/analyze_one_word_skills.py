@@ -2,8 +2,8 @@
 """Analyze one-word skills to identify overly generic entries."""
 
 import json
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 
 def categorize_word(word: str) -> str:
@@ -16,7 +16,7 @@ def categorize_word(word: str) -> str:
         "react", "angular", "vue", "django", "flask", "fastapi",
         "aws", "azure", "gcp", "kubernetes", "docker", "postgres",
         "mongodb", "redis", "elasticsearch", "kafka", "git",
-        "kubernetes", "terraform", "ansible", "jenkins",
+        "terraform", "ansible", "jenkins",
         "tensorflow", "pytorch", "scikit-learn", "pandas", "numpy",
         "agile", "scrum", "jira", "sql", "html", "css", "xml",
         "json", "yaml", "protobuf", "graphql", "rest", "grpc",
@@ -33,7 +33,7 @@ def categorize_word(word: str) -> str:
         "experience", "knowledge", "understanding", "ability", "skill",
         "leadership", "teamwork", "work", "team", "project", "system",
         "process", "organization", "company", "business", "industry",
-        "operations", "environment", "application", "platform", "solution",
+        "environment", "application", "platform", "solution",
         "technology", "framework", "library", "tool", "service", "product",
         "requirement", "documentation", "specification", "architecture",
         # Adjectives
@@ -43,7 +43,7 @@ def categorize_word(word: str) -> str:
         "effective", "professional", "technical", "general", "specific",
         # Abstract
         "concept", "principle", "practice", "method", "approach", "strategy",
-        "pattern", "standard", "protocol", "specification", "interface",
+        "pattern", "standard", "protocol", "interface",
     }
 
     if word_lower in tech_terms:
@@ -90,7 +90,7 @@ def main():
                     total_generic += 1
                     generic_by_job[job_idx].append((skill, title))
 
-    print(f"📊 SUMMARY")
+    print("📊 SUMMARY")
     print("-" * 100)
     print(f"Total skills: {total_skills}")
     print(f"One-word skills: {total_one_word} ({total_one_word/total_skills*100:.1f}%)")
@@ -123,7 +123,7 @@ def main():
         print(f"• {skill:20} appears in {count} jobs")
 
     print()
-    print(f"❓ UNKNOWN ONE-WORD SKILLS")
+    print("❓ UNKNOWN ONE-WORD SKILLS")
     print("-" * 100)
 
     unknown_words_list = {}
@@ -139,7 +139,7 @@ def main():
         print(f"... and {len(unknown_words_list) - 20} more")
 
     print()
-    print(f"📋 RECOMMENDATIONS")
+    print("📋 RECOMMENDATIONS")
     print("-" * 100)
     print(f"✗ Filter {total_generic} generic one-word skills")
     print(f"✓ Keep {total_one_word - total_generic} legitimate tech/domain skills")

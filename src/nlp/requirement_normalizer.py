@@ -2,7 +2,7 @@
 
 import re
 from difflib import SequenceMatcher
-from typing import Set, Tuple
+from typing import Set
 
 
 class RequirementNormalizer:
@@ -27,13 +27,15 @@ class RequirementNormalizer:
         req = re.sub(r'working\s+with\s+', '', req, flags=re.IGNORECASE)
 
         # Simplify adjectives before "experience"
-        req = re.sub(r'\b(deep|strong|extensive|proven|demonstrated)\s+experience\b', 'experience', req, flags=re.IGNORECASE)
+        adj_pattern = r'\b(deep|strong|extensive|proven|demonstrated)\s+experience\b'
+        req = re.sub(adj_pattern, 'experience', req, flags=re.IGNORECASE)
 
         # Remove "hands-on" prefix
         req = re.sub(r'\bhands-?on\s+', '', req, flags=re.IGNORECASE)
 
         # Standardize years patterns
-        req = re.sub(r'(\d+)\+?\s+years?\s+(?:of\s+)?experience\s+', r'\1+ years of experience ', req, flags=re.IGNORECASE)
+        years_pattern = r'(\d+)\+?\s+years?\s+(?:of\s+)?experience\s+'
+        req = re.sub(years_pattern, r'\1+ years of experience ', req, flags=re.IGNORECASE)
 
         # Collapse multiple spaces
         req = re.sub(r'\s+', ' ', req).strip()
@@ -41,7 +43,9 @@ class RequirementNormalizer:
         return req
 
     @staticmethod
-    def find_matching_requirement(target: str, candidates: Set[str], threshold: float = 0.7) -> tuple[str | None, float]:
+    def find_matching_requirement(
+        target: str, candidates: Set[str], threshold: float = 0.7
+    ) -> tuple[str | None, float]:
         """Find best semantic match from candidates using fuzzy matching.
 
         Args:

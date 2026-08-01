@@ -113,6 +113,8 @@ known-first-party = ["models", "browser", "cli", "llm", "parsers", "storage", "t
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
 "tests/*" = ["F401", "F403"]
+".claude/prototypes/*" = ["E402", "E501", "C401", "F841", "B905", "C901"]  # Debug/test utilities
+".claude/scripts/*" = ["C901", "B007"]  # Analysis/debug scripts
 "src/llm/provider.py" = ["C901"]  # assess_job method complexity (retry logic)
 "src/cli.py" = ["C901"]  # assess_jobs command complexity (workflow orchestration)
 "src/nlp/company_parsers.py" = ["C901"]  # parse_requirements complexity (multiple sections)

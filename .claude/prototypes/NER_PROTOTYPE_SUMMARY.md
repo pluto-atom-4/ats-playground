@@ -124,9 +124,9 @@ uv run .claude/prototypes/ner_prototype.py
 ## Key Insights
 
 1. **Skills are contextual:** Can't rely on isolated skill names; must infer from surrounding text (requirements, responsibilities).
-   
+
 2. **Tech stack is explicit:** Tools/frameworks are named directly; pattern matching alone is sufficient.
-   
+
 3. **Requirements are prose:** No standard format; must parse natural language (bullets, sections, narrative).
 
 4. **Normalization matters:** Raw extraction ≠ expected output; post-processing needed to match human-curated format.

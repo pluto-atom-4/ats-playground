@@ -3,8 +3,8 @@
 
 import json
 import re
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 
 def categorize_one_word(word: str) -> str:
@@ -82,7 +82,7 @@ def main():
                 categories[category][skill] += 1
                 all_items[skill] = category
 
-    print(f"📊 SUMMARY")
+    print("📊 SUMMARY")
     print("-" * 100)
     print(f"Total one-word items: {total_one_word}")
     print()
@@ -107,7 +107,7 @@ def main():
 
     # Summary for filtering
     print()
-    print(f"📋 FILTERING RECOMMENDATIONS")
+    print("📋 FILTERING RECOMMENDATIONS")
     print("-" * 100)
 
     vague_adj = sorted(categories["VAGUE_ADJ"].keys())

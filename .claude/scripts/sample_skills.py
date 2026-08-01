@@ -26,7 +26,7 @@ def main():
 
         print(f"\n📌 Job {job_idx}: {title}")
         print(f"   Total skills: {len(skills)}")
-        print(f"   Sample skills:")
+        print("   Sample skills:")
 
         # Show first 10 skills
         for skill in sorted(skills)[:10]:

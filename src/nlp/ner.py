@@ -1,7 +1,7 @@
 """Job description NER extraction using spaCy."""
 
 import re
-from typing import Any, Dict, Set
+from typing import Dict, Set
 
 import spacy
 from spacy.matcher import PhraseMatcher
@@ -162,6 +162,7 @@ class JobNERExtractor:
             # Defense/Software domain (less exact, more narrative)
             "Software architecture": [r"(?:design|architect).*software\s+system|software\s+(?:design|architect)"],
             "Systems maintenance": [r"maintain.*system|system.*maintain"],
+            "Technical communication": [r"communicate.*technical|technical\s+communicat"],
         }
 
         for skill, patterns in skill_mappings.items():
@@ -181,9 +182,7 @@ class JobNERExtractor:
 
         return inferred
 
-    def extract_skills_with_confidence(
-        self, text: str
-    ) -> Dict[str, tuple[str, float, ExtractionMethod]]:
+    def extract_skills_with_confidence(self, text: str) -> Dict[str, tuple]:
         """Extract skills with confidence scores.
 
         Returns:
@@ -198,22 +197,14 @@ class JobNERExtractor:
             skill = doc[start:end].text
             if skill not in skills_with_conf:
                 conf = get_confidence(ExtractionMethod.KEYPHRASE_EXACT)
-                skills_with_conf[skill] = (
-                    skill,
-                    conf,
-                    ExtractionMethod.KEYPHRASE_EXACT,
-                )
+                skills_with_conf[skill] = (skill, conf, ExtractionMethod.KEYPHRASE_EXACT)
 
         # Second pass: infer from context (medium confidence)
         inferred = self._infer_related_skills(text)
         for skill in inferred:
             if skill not in skills_with_conf:
                 conf = get_confidence(ExtractionMethod.CONTEXT_INFERRED)
-                skills_with_conf[skill] = (
-                    skill,
-                    conf,
-                    ExtractionMethod.CONTEXT_INFERRED,
-                )
+                skills_with_conf[skill] = (skill, conf, ExtractionMethod.CONTEXT_INFERRED)
 
         # Third pass: skill keyword fallback (low confidence)
         if len(skills_with_conf) < 15:
@@ -223,11 +214,7 @@ class JobNERExtractor:
                 formatted = " ".join(w.capitalize() for w in skill.split())
                 if formatted not in skills_with_conf and len(formatted) > 2:
                     conf = get_confidence(ExtractionMethod.SKILL_KEYWORD)
-                    skills_with_conf[formatted] = (
-                        formatted,
-                        conf,
-                        ExtractionMethod.SKILL_KEYWORD,
-                    )
+                    skills_with_conf[formatted] = (formatted, conf, ExtractionMethod.SKILL_KEYWORD)
 
         return skills_with_conf
 
@@ -236,9 +223,7 @@ class JobNERExtractor:
         skills_with_conf = self.extract_skills_with_confidence(text)
         return set(skills_with_conf.keys())
 
-    def extract_technologies_with_confidence(
-        self, text: str
-    ) -> Dict[str, tuple[str, float, ExtractionMethod]]:
+    def extract_technologies_with_confidence(self, text: str) -> Dict[str, tuple]:
         """Extract technologies with confidence scores.
 
         Returns:
@@ -246,9 +231,8 @@ class JobNERExtractor:
         """
         techs = extract_technologies(text)
         # All tech extractions use pattern matching
-        conf = get_confidence(ExtractionMethod.PATTERN_MATCH)
         return {
-            tech: (tech, conf, ExtractionMethod.PATTERN_MATCH)
+            tech: (tech, get_confidence(ExtractionMethod.PATTERN_MATCH), ExtractionMethod.PATTERN_MATCH)
             for tech in techs
         }
 
@@ -268,9 +252,78 @@ class JobNERExtractor:
         """Extract degree/certification requirements from narrative."""
         return self.narrative_extractor.extract_qualification_requirements(text)
 
-    def extract_requirements_with_confidence(
-        self, text: str, include_narrative: bool = True
-    ) -> Dict[str, tuple[str, float, ExtractionMethod]]:
+    def _extract_structured_requirements(self, text: str) -> Dict[str, tuple]:
+        """Extract structured requirements from company parser.
+
+        Args:
+            text: Job description text
+
+        Returns:
+            Dict mapping requirement -> (requirement, confidence, method)
+        """
+        requirements_with_conf: Dict[str, tuple] = {}
+        if not self.parser:
+            return requirements_with_conf
+        reqs = self.parser.parse_requirements(text)
+
+        # Structured bullet requirements from company parser = high confidence
+        for req in reqs:
+            if req not in requirements_with_conf:
+                # Determine if this is from a structured section or pattern
+                is_structured = any(
+                    pattern in req.lower()
+                    for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
+                ) and len(req) > 20
+
+                if is_structured:
+                    method = ExtractionMethod.STRUCTURED_BULLET
+                    conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET)
+                else:
+                    method = ExtractionMethod.PATTERN_MATCH
+                    conf = get_confidence(ExtractionMethod.PATTERN_MATCH)
+                requirements_with_conf[req] = (req, conf, method)
+
+        return requirements_with_conf
+
+    def _extract_narrative_and_merge(self, text: str, requirements_with_conf: Dict[str, tuple]) -> None:
+        """Extract narrative requirements and merge into requirements dict.
+
+        Args:
+            text: Job description text
+            requirements_with_conf: Dict to merge narrative requirements into (mutated in place)
+        """
+        narrative_reqs = self.extract_narrative_requirements(text)
+
+        for req in narrative_reqs:
+            # Only add if not already covered by structured extraction
+            # Use word boundary check instead of substring to avoid false positives
+            # (e.g., 'C' != 'C++', 'Python' != 'Python3')
+            if self._is_duplicate_requirement(req, requirements_with_conf):
+                continue
+
+            # Lower confidence for narrative to account for possible false positives
+            requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
+
+    def _is_duplicate_requirement(self, req: str, requirements_with_conf: Dict[str, tuple]) -> bool:
+        """Check if requirement is already in the dict after normalization.
+
+        Args:
+            req: Requirement to check
+            requirements_with_conf: Existing requirements dict
+
+        Returns:
+            True if duplicate found, False otherwise
+        """
+        req_lower = req.lower()
+        for existing in requirements_with_conf:
+            existing_lower = existing.lower()
+            # Check if they're very similar (word boundary or 80%+ match)
+            # For now, just check exact match after normalization
+            if req_lower == existing_lower:
+                return True
+        return False
+
+    def extract_requirements_with_confidence(self, text: str, include_narrative: bool = True) -> Dict[str, tuple]:
         """Extract requirements with confidence scores.
 
         Args:
@@ -280,132 +333,121 @@ class JobNERExtractor:
         Returns:
             Dict mapping requirement -> (requirement, confidence, method)
         """
-        requirements_with_conf = {}
-
         # Use company-specific parser if available
         if self.parser:
-            reqs = self.parser.parse_requirements(text)
-            # Structured bullet requirements from company parser = high confidence
-            for req in reqs:
-                if req not in requirements_with_conf:
-                    # Determine if this is from a structured section or pattern
-                    is_structured = any(
-                        pattern in req.lower()
-                        for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
-                    ) and len(req) > 20
-
-                    if is_structured:
-                        method = ExtractionMethod.STRUCTURED_BULLET
-                        conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET)
-                    else:
-                        method = ExtractionMethod.PATTERN_MATCH
-                        conf = get_confidence(ExtractionMethod.PATTERN_MATCH)
-                    requirements_with_conf[req] = (req, conf, method)
+            requirements_with_conf = self._extract_structured_requirements(text)
 
             # Add narrative requirements from prose (medium confidence)
             if include_narrative:
-                narrative_reqs = self.extract_narrative_requirements(text)
-                for req in narrative_reqs:
-                    # Only add if not already covered by structured extraction
-                    # Use word boundary check instead of substring to avoid false positives
-                    # (e.g., 'C' != 'C++', 'Python' != 'Python3')
-                    is_duplicate = False
-                    req_lower = req.lower()
-                    for existing in requirements_with_conf:
-                        existing_lower = existing.lower()
-                        # Check if they're very similar (word boundary or 80%+ match)
-                        # For now, just check exact match after normalization
-                        if req_lower == existing_lower:
-                            is_duplicate = True
-                            break
-
-                    if not is_duplicate:
-                        # Lower confidence for narrative to account for possible false positives
-                        requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
+                self._extract_narrative_and_merge(text, requirements_with_conf)
 
             return requirements_with_conf
 
         # Fallback to generic extraction (lower confidence)
-        requirements = self._extract_requirements_fallback(text)
-        for req in requirements:
-            if req not in requirements_with_conf:
-                conf = get_confidence(ExtractionMethod.FALLBACK)
-                requirements_with_conf[req] = (req, conf, ExtractionMethod.FALLBACK)
+        fallback_requirements = self._extract_requirements_fallback(text)
+        requirements_with_conf = self._build_fallback_requirements(fallback_requirements)
 
         return requirements_with_conf
 
-    def _extract_requirements_fallback(self, text: str) -> Set[str]:
-        """Generic requirement extraction fallback."""
-        requirements = set()
+    def _build_fallback_requirements(self, requirements: Set[str]) -> Dict[str, tuple]:
+        """Build requirements dict from fallback extraction.
 
-        # 1. Years of experience (from basic/minimum qualifications section)
-        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills"]:
-            min_qual_match = re.search(
-                rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
-                text,
-                re.IGNORECASE | re.DOTALL,
-            )
-            if min_qual_match:
-                min_qual_section = min_qual_match.group(1)
+        Args:
+            requirements: Set of requirements to build dict from
 
-                # Extract years from this section
-                years_pattern = (
-                    r"(\d+)\+?\s+years\s+(?:of\s+)?experience"
-                    r"(?:\s+(?:in|with|focused\s+on|involving|related\s+to|using|with)\s+([^\.\n]+))?"
-                )
-                for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
-                    years = match.group(1)
-                    domain = match.group(2)
+        Returns:
+            Dict mapping requirement -> (requirement, confidence, method)
+        """
+        result: Dict[str, tuple] = {}
+        for req in requirements:
+            if req not in result:
+                conf = get_confidence(ExtractionMethod.FALLBACK)
+                result[req] = (req, conf, ExtractionMethod.FALLBACK)
+        return result
 
-                    if domain:
-                        domain = domain.strip()
-                        domain = re.sub(r"[\.,;]*$", "", domain)
-                        # Normalize specific domains
-                        if "autonomy" in domain.lower() and "aerospace" in domain.lower():
-                            domain = "autonomy or aerospace autonomy/GNC"
-                        elif "autonomy" in domain.lower():
-                            domain = "autonomy"
-                        requirements.add(f"{years}+ years of experience {domain}")
-                    else:
-                        requirements.add(f"{years}+ years of experience")
+    def _extract_years_from_section(self, text: str, section_label: str) -> Set[str]:
+        """Extract years of experience from a section."""
+        years_reqs: Set[str] = set()
+        min_qual_match = re.search(
+            rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not min_qual_match:
+            return years_reqs
 
-        # 2. Extract other bullets from Basic/Minimum Qualifications section
-        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills/experience"]:
-            min_qual_match = re.search(
-                rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
-                text,
-                re.IGNORECASE | re.DOTALL,
-            )
-            if min_qual_match:
-                qual_text = min_qual_match.group(1)
-                bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", qual_text)
-                for bullet in bullets:
-                    bullet = bullet.strip()
-                    # Keep requirement bullets (10-150 chars, not starting with years)
-                    if 10 < len(bullet) < 150 and not re.match(r"^\d+\+", bullet):
-                        # Don't duplicate years of experience
-                        if "years of experience" not in bullet.lower():
-                            requirements.add(bullet)
+        min_qual_section = min_qual_match.group(1)
+        years_pattern = (
+            r"(\d+)\+?\s+years\s+(?:of\s+)?experience"
+            r"(?:\s+(?:in|with|focused\s+on|involving|related\s+to|using|with)\s+([^\.\n]+))?"
+        )
+        for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
+            years = match.group(1)
+            domain = match.group(2)
 
-        # 3. Extract from "Preferred Qualifications" section
+            if domain:
+                domain = domain.strip()
+                domain = re.sub(r"[\.,;]*$", "", domain)
+                # Normalize specific domains
+                if "autonomy" in domain.lower() and "aerospace" in domain.lower():
+                    domain = "autonomy or aerospace autonomy/GNC"
+                elif "autonomy" in domain.lower():
+                    domain = "autonomy"
+                years_reqs.add(f"{years}+ years of experience {domain}")
+            else:
+                years_reqs.add(f"{years}+ years of experience")
+
+        return years_reqs
+
+    def _extract_qualification_bullets(self, text: str, section_label: str) -> Set[str]:
+        """Extract bullet points from a qualifications section."""
+        bullets_reqs: Set[str] = set()
+        min_qual_match = re.search(
+            rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not min_qual_match:
+            return bullets_reqs
+
+        qual_text = min_qual_match.group(1)
+        bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", qual_text)
+        for bullet in bullets:
+            bullet = bullet.strip()
+            # Keep requirement bullets (10-150 chars, not starting with years)
+            if 10 < len(bullet) < 150 and not re.match(r"^\d+\+", bullet):
+                # Don’t duplicate years of experience
+                if "years of experience" not in bullet.lower():
+                    bullets_reqs.add(bullet)
+
+        return bullets_reqs
+
+    def _extract_preferred_qualifications(self, text: str) -> Set[str]:
+        """Extract from Preferred Qualifications section."""
+        pref_reqs: Set[str] = set()
         pref_match = re.search(
             r"(?:##\s+)?(?:preferred|desired)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Background|---|\Z)",
             text,
             re.IGNORECASE | re.DOTALL,
         )
-        if pref_match:
-            pref_text = pref_match.group(1)
-            pref_bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", pref_text)
-            for bullet in pref_bullets:
-                bullet = bullet.strip()
-                if 10 < len(bullet) < 150:
-                    # Add (Preferred) tag if not already there
-                    if "(Preferred)" not in bullet:
-                        bullet = f"{bullet} (Preferred)"
-                    requirements.add(bullet)
+        if not pref_match:
+            return pref_reqs
 
-        # 4. Look for specific requirement patterns in text
-        # Advanced degree pattern
+        pref_text = pref_match.group(1)
+        pref_bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", pref_text)
+        for bullet in pref_bullets:
+            bullet = bullet.strip()
+            if 10 < len(bullet) < 150:
+                # Add (Preferred) tag if not already there
+                if "(Preferred)" not in bullet:
+                    bullet = f"{bullet} (Preferred)"
+                pref_reqs.add(bullet)
+
+        return pref_reqs
+
+    def _extract_advanced_degree(self, text: str) -> Set[str]:
+        """Extract advanced degree requirements."""
+        degree_reqs = set()
         advanced_degree_match = re.search(
             r"(?:M\.S\.|MS|Master|PhD|Ph\.D\.)\s+(?:or|\/)\s+(?:PhD|Ph\.D\.)",
             text,
@@ -415,35 +457,83 @@ class JobNERExtractor:
             # Check if marked as preferred
             context = text[max(0, advanced_degree_match.start() - 100):advanced_degree_match.end() + 100]
             if "preferred" in context.lower():
-                requirements.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)")
+                degree_reqs.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)")
             else:
-                # If in preferred section, don't add duplicate
-                if not any("Advanced degree" in req for req in requirements):
-                    requirements.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field")
+                # If in preferred section, don’t add duplicate
+                if not any("Advanced degree" in req for req in degree_reqs):
+                    degree_reqs.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field")
 
-        # 5. Citizenship/export control
+        return degree_reqs
+
+    def _extract_citizenship_requirement(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract citizenship/export control requirements."""
+        citizen_reqs = set()
         if re.search(r"U\.S\.\s+(?:citizen|national)|permanent\s+resident", text, re.IGNORECASE):
-            if not any("U.S. citizen" in req for req in requirements):
-                requirements.add("U.S. citizen, national, permanent resident, refugee, or asylee status")
+            if not any("U.S. citizen" in req for req in existing_reqs):
+                citizen_reqs.add("U.S. citizen, national, permanent resident, refugee, or asylee status")
 
-        # 6. Background check & drug test
+        return citizen_reqs
+
+    def _extract_background_check(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract background check and drug test requirements."""
+        bg_reqs = set()
         if re.search(r"background\s+check", text, re.IGNORECASE):
-            if not any("Background Check" in req for req in requirements):
-                requirements.add("Blue's Standard Background Check")
+            if not any("Background Check" in req for req in existing_reqs):
+                bg_reqs.add("Blue’s Standard Background Check")
 
         if re.search(r"drug", text, re.IGNORECASE):
-            if not any("drug" in req.lower() for req in requirements):
-                requirements.add("Passing a post-offer drug test")
+            if not any("drug" in req.lower() for req in existing_reqs):
+                bg_reqs.add("Passing a post-offer drug test")
 
-        # 7. Coding assessments & challenges
+        return bg_reqs
+
+    def _extract_coding_assessment(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract coding assessment requirements."""
+        coding_reqs = set()
         if re.search(r"CodeVue|coding\s+challenge|technical.*assessment", text, re.IGNORECASE):
-            if not any("codevue" in req.lower() or "coding" in req.lower() for req in requirements):
-                requirements.add("Completion of the CodeVue Coding Challenge during the selection process")
+            if not any("codevue" in req.lower() or "coding" in req.lower() for req in existing_reqs):
+                coding_reqs.add("Completion of the CodeVue Coding Challenge during the selection process")
 
-        # 8. Bachelor’s/Degree requirement
+        return coding_reqs
+
+    def _extract_bachelors_degree(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract Bachelor’s degree requirements."""
+        bs_reqs = set()
         if re.search(r"Bachelor[‘’s]*\s+(?:Degree|of\s+Science)", text, re.IGNORECASE):
-            if not any("Bachelor" in req or "Degree" in req for req in requirements):
-                requirements.add("Bachelor’s Degree")
+            if not any("Bachelor" in req or "Degree" in req for req in existing_reqs):
+                bs_reqs.add("Bachelor’s Degree")
+
+        return bs_reqs
+
+    def _extract_requirements_fallback(self, text: str) -> Set[str]:
+        """Generic requirement extraction fallback."""
+        requirements = set()
+
+        # 1. Years of experience (from basic/minimum qualifications section)
+        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills"]:
+            requirements.update(self._extract_years_from_section(text, section_label))
+
+        # 2. Extract other bullets from Basic/Minimum Qualifications section
+        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills/experience"]:
+            requirements.update(self._extract_qualification_bullets(text, section_label))
+
+        # 3. Extract from "Preferred Qualifications" section
+        requirements.update(self._extract_preferred_qualifications(text))
+
+        # 4. Extract advanced degree requirements
+        requirements.update(self._extract_advanced_degree(text))
+
+        # 5. Extract citizenship/export control
+        requirements.update(self._extract_citizenship_requirement(text, requirements))
+
+        # 6. Extract background check & drug test
+        requirements.update(self._extract_background_check(text, requirements))
+
+        # 7. Extract coding assessments & challenges
+        requirements.update(self._extract_coding_assessment(text, requirements))
+
+        # 8. Extract Bachelor’s degree requirement
+        requirements.update(self._extract_bachelors_degree(text, requirements))
 
         return requirements
 
@@ -456,7 +546,7 @@ class JobNERExtractor:
         reqs_with_conf = self.extract_requirements_with_confidence(text)
         return set(reqs_with_conf.keys())
 
-    def extract_all_with_confidence(self, text: str) -> Dict[str, Any]:
+    def extract_all_with_confidence(self, text: str) -> dict:
         """Extract all entities with confidence scores."""
         # Initialize matchers based on job description domain
         self._init_matchers(text)
@@ -478,23 +568,20 @@ class JobNERExtractor:
         # Build result with confidence scores
         def build_confident_list(
             values: set[str],
-            conf_dict: Dict[str, tuple[str, float, ExtractionMethod]],
+            conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]
         ) -> list[dict[str, float | str]]:
             """Build list of dicts with value and confidence."""
             result: list[dict[str, float | str]] = []
             for val in sorted(values):
                 # Find confidence from original dict (before normalization)
                 # For now, use average confidence from matches
-                confidences: list[float] = [
-                    conf_dict.get(v, (v, 0.5, ExtractionMethod.FALLBACK))[1]
+                val_lower = val.lower()
+                matching_confs = [
+                    conf_dict.get(v, (v, 0.5, None))[1]
                     for v in conf_dict
-                    if val.lower() in v.lower() or v.lower() in val.lower()
+                    if val_lower in v.lower() or v.lower() in val_lower
                 ]
-                avg_conf = (
-                    sum(confidences) / len(confidences)
-                    if confidences
-                    else 0.5
-                )
+                avg_conf = sum(matching_confs) / len(matching_confs) if matching_confs else 0.5
                 result.append({"value": val, "confidence": round(avg_conf, 2)})
             return result
 
@@ -510,7 +597,7 @@ class JobNERExtractor:
             }
         }
 
-    def extract_all(self, text: str) -> Dict[str, Any]:
+    def extract_all(self, text: str) -> dict:
         """Extract all entities from job description."""
         # Initialize matchers based on job description domain
         self._init_matchers(text)
@@ -528,5 +615,5 @@ class JobNERExtractor:
             "skills": sorted(skills),
             "technologies": sorted(technologies),
             "requirements": sorted(requirements),
-            "detected_domain": detect_domain(text).value,  # Include detected domain
+            "detected_domain": detect_domain(text).value,
         }

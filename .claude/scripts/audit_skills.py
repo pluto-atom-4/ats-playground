@@ -2,8 +2,8 @@
 """Audit extracted skills for inappropriate content."""
 
 import json
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 
 def categorize_skill(skill: str) -> str:
@@ -111,14 +111,14 @@ def analyze_skills():
             print(f"{category:12} {count:4} ({pct:5.1f}%)")
 
     # Print job distribution
-    print(f"\n\n📈 SKILLS PER JOB")
+    print("\n\n📈 SKILLS PER JOB")
     print("-" * 100)
     for idx, title, count in job_skill_counts:
         print(f"Job {idx}: {title:45} {count:3} skills")
 
     # Print issues found
     if issues_by_type:
-        print(f"\n\n⚠️  INAPPROPRIATE SKILLS FOUND")
+        print("\n\n⚠️  INAPPROPRIATE SKILLS FOUND")
         print("-" * 100)
 
         for category in ["SUSPICIOUS", "FRAGMENT", "GENERIC"]:

@@ -3,14 +3,14 @@
 
 import json
 import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from src.nlp.domains import detect_domain
 from src.nlp.ner import JobNERExtractor
-from src.nlp.domains import detect_domain, Domain
 
 
 def load_all_jobs():
