@@ -116,6 +116,9 @@ known-first-party = ["models", "browser", "cli", "llm", "parsers", "storage", "t
 "src/llm/provider.py" = ["C901"]  # assess_job method complexity (retry logic)
 "src/cli.py" = ["C901"]  # assess_jobs command complexity (workflow orchestration)
 ".claude/prototypes/*" = ["E402", "E501", "C401", "F841", "B905"]  # Debug/test utilities
+"src/nlp/company_parsers.py" = ["C901"]  # parse_requirements complexity (multi-section parsing)
+"src/nlp/ner.py" = ["C901"]  # extract/fallback method complexity (multi-pass extraction)
+"src/tokenization/preprocessor.py" = ["C901"]  # filter/extract method complexity (section processing)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
