@@ -66,7 +66,7 @@ def detect_domain(job_description: str) -> Domain:
                 domain_scores[domain] += 1
 
     # Return domain with highest score, or GENERAL if no signals
-    best_domain = max(domain_scores, key=domain_scores.get)
+    best_domain = max(domain_scores, key=lambda d: domain_scores[d])
     if domain_scores[best_domain] > 0:
         return best_domain
     return Domain.GENERAL

@@ -82,7 +82,7 @@ def deduplicate_requirements(
     requirements: Set[str], similarity_threshold: float = 0.65
 ) -> Set[str]:
     """Remove near-duplicate requirements, keeping shortest/best version."""
-    reqs = sorted(list(requirements), key=lambda r: (len(r), r))
+    reqs = sorted(requirements, key=lambda r: (len(r), r))
     deduplicated = []
     used_indices = set()
 

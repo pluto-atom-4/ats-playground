@@ -46,7 +46,11 @@ class BlueOriginParser(CompanyParser):
                     requirements.add(bullet)
 
         # Years of experience (only add if domain specified)
-        for match in re.finditer(r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|focused\s+on)\s+([^\.\n]+))?", text, re.IGNORECASE):
+        years_pattern = (
+            r"(\d+)\+?\s+years\s+(?:of\s+)?experience"
+            r"(?:\s+(?:in|with|focused\s+on)\s+([^\.\n]+))?"
+        )
+        for match in re.finditer(years_pattern, text, re.IGNORECASE):
             years = match.group(1)
             domain = match.group(2)
             if domain:

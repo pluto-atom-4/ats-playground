@@ -122,7 +122,6 @@ class NarrativeRequirementExtractor:
 
         for pattern in degree_patterns:
             for match in re.finditer(pattern, text, re.IGNORECASE):
-                field = match.group(1).strip()
                 full_match = match.group(0).strip()
                 qualifications.add(full_match)
 

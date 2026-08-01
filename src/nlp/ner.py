@@ -38,11 +38,11 @@ class JobNERExtractor:
         """
         try:
             self.nlp = spacy.load(model)
-        except OSError:
+        except OSError as err:
             raise RuntimeError(
                 f"spaCy model '{model}' not found. Install with: "
                 f"python -m spacy download {model}"
-            )
+            ) from err
 
         self.company_name = company_name
         self.parser = get_parser(company_name) if company_name else None
@@ -162,11 +162,6 @@ class JobNERExtractor:
             # Defense/Software domain (less exact, more narrative)
             "Software architecture": [r"(?:design|architect).*software\s+system|software\s+(?:design|architect)"],
             "Systems maintenance": [r"maintain.*system|system.*maintain"],
-            "Binary data transformation": [r"binary.*(?:data|sensor)|data\s+(?:transformation|processing)"],
-            "Time-series data analytics": [r"time.?series|analytics.*time|temporal\s+data"],
-            "Data collection": [r"collect.*data|data\s+collection"],
-            "Data preparation": [r"preparation.*data|data\s+preparation"],
-            "Engineering data interpretation": [r"interpret.*data|(?:engineering|sensor)\s+data"],
             "Technical communication": [r"communicate.*technical|technical\s+communicat"],
         }
 
@@ -198,32 +193,35 @@ class JobNERExtractor:
 
         # First pass: keyphrase exact match (high confidence)
         matches = self.keyphrase_matcher(doc)
-        for match_id, start, end in matches:
+        for _match_id, start, end in matches:
             skill = doc[start:end].text
             if skill not in skills_with_conf:
-                skills_with_conf[skill] = (skill, get_confidence(ExtractionMethod.KEYPHRASE_EXACT), ExtractionMethod.KEYPHRASE_EXACT)
+                conf = get_confidence(ExtractionMethod.KEYPHRASE_EXACT)
+                skills_with_conf[skill] = (skill, conf, ExtractionMethod.KEYPHRASE_EXACT)
 
         # Second pass: infer from context (medium confidence)
         inferred = self._infer_related_skills(text)
         for skill in inferred:
             if skill not in skills_with_conf:
-                skills_with_conf[skill] = (skill, get_confidence(ExtractionMethod.CONTEXT_INFERRED), ExtractionMethod.CONTEXT_INFERRED)
+                conf = get_confidence(ExtractionMethod.CONTEXT_INFERRED)
+                skills_with_conf[skill] = (skill, conf, ExtractionMethod.CONTEXT_INFERRED)
 
         # Third pass: skill keyword fallback (low confidence)
         if len(skills_with_conf) < 15:
             matches = self.skill_matcher(doc)
-            for match_id, start, end in matches:
+            for _match_id, start, end in matches:
                 skill = doc[start:end].text.strip()
                 formatted = " ".join(w.capitalize() for w in skill.split())
                 if formatted not in skills_with_conf and len(formatted) > 2:
-                    skills_with_conf[formatted] = (formatted, get_confidence(ExtractionMethod.SKILL_KEYWORD), ExtractionMethod.SKILL_KEYWORD)
+                    conf = get_confidence(ExtractionMethod.SKILL_KEYWORD)
+                    skills_with_conf[formatted] = (formatted, conf, ExtractionMethod.SKILL_KEYWORD)
 
         return skills_with_conf
 
     def extract_skills(self, text: str) -> Set[str]:
         """Extract skills using keyphrase matching + context inference."""
         skills_with_conf = self.extract_skills_with_confidence(text)
-        return set(k for k in skills_with_conf.keys())
+        return set(skills_with_conf.keys())
 
     def extract_technologies_with_confidence(self, text: str) -> Dict[str, tuple]:
         """Extract technologies with confidence scores.
@@ -278,8 +276,12 @@ class JobNERExtractor:
                         for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
                     ) and len(req) > 20
 
-                    method = ExtractionMethod.STRUCTURED_BULLET if is_structured else ExtractionMethod.PATTERN_MATCH
-                    conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET) if is_structured else get_confidence(ExtractionMethod.PATTERN_MATCH)
+                    if is_structured:
+                        method = ExtractionMethod.STRUCTURED_BULLET
+                        conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET)
+                    else:
+                        method = ExtractionMethod.PATTERN_MATCH
+                        conf = get_confidence(ExtractionMethod.PATTERN_MATCH)
                     requirements_with_conf[req] = (req, conf, method)
 
             # Add narrative requirements from prose (medium confidence)
@@ -309,7 +311,8 @@ class JobNERExtractor:
         requirements = self._extract_requirements_fallback(text)
         for req in requirements:
             if req not in requirements_with_conf:
-                requirements_with_conf[req] = (req, get_confidence(ExtractionMethod.FALLBACK), ExtractionMethod.FALLBACK)
+                conf = get_confidence(ExtractionMethod.FALLBACK)
+                requirements_with_conf[req] = (req, conf, ExtractionMethod.FALLBACK)
 
         return requirements_with_conf
 
@@ -328,7 +331,10 @@ class JobNERExtractor:
                 min_qual_section = min_qual_match.group(1)
 
                 # Extract years from this section
-                years_pattern = r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|focused\s+on|involving|related\s+to|using|with)\s+([^\.\n]+))?"
+                years_pattern = (
+                    r"(\d+)\+?\s+years\s+(?:of\s+)?experience"
+                    r"(?:\s+(?:in|with|focused\s+on|involving|related\s+to|using|with)\s+([^\.\n]+))?"
+                )
                 for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
                     years = match.group(1)
                     domain = match.group(2)
@@ -430,7 +436,7 @@ class JobNERExtractor:
         for confidence scores.
         """
         reqs_with_conf = self.extract_requirements_with_confidence(text)
-        return set(k for k in reqs_with_conf.keys())
+        return set(reqs_with_conf.keys())
 
     def extract_all_with_confidence(self, text: str) -> dict:
         """Extract all entities with confidence scores."""
@@ -442,9 +448,9 @@ class JobNERExtractor:
         reqs_with_conf = self.extract_requirements_with_confidence(text)
 
         # Extract just values for normalization
-        skills = set(k for k in skills_with_conf.keys())
-        techs = set(k for k in techs_with_conf.keys())
-        reqs = set(k for k in reqs_with_conf.keys())
+        skills = set(skills_with_conf.keys())
+        techs = set(techs_with_conf.keys())
+        reqs = set(reqs_with_conf.keys())
 
         # Normalize
         skills = normalize_skills(skills)
@@ -452,14 +458,22 @@ class JobNERExtractor:
         reqs = normalize_requirements(reqs)
 
         # Build result with confidence scores
-        def build_confident_list(values: set[str], conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]) -> list[dict[str, float | str]]:
+        def build_confident_list(
+            values: set[str],
+            conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]
+        ) -> list[dict[str, float | str]]:
             """Build list of dicts with value and confidence."""
             result: list[dict[str, float | str]] = []
             for val in sorted(values):
                 # Find confidence from original dict (before normalization)
                 # For now, use average confidence from matches
-                confidences: list[float] = [conf_dict.get(v, (v, 0.5, None))[1] for v in conf_dict if val.lower() in v.lower() or v.lower() in val.lower()]
-                avg_conf = sum(confidences) / len(confidences) if confidences else 0.5
+                val_lower = val.lower()
+                matching_confs = [
+                    conf_dict.get(v, (v, 0.5, None))[1]
+                    for v in conf_dict
+                    if val_lower in v.lower() or v.lower() in val_lower
+                ]
+                avg_conf = sum(matching_confs) / len(matching_confs) if matching_confs else 0.5
                 result.append({"value": val, "confidence": round(avg_conf, 2)})
             return result
 
@@ -490,8 +504,8 @@ class JobNERExtractor:
         requirements = normalize_requirements(requirements)
 
         return {
-            "skills": sorted(list(skills)),
-            "technologies": sorted(list(technologies)),
-            "requirements": sorted(list(requirements)),
-            "detected_domain": detect_domain(text).value,  # Include detected domain
+            "skills": sorted(skills),
+            "technologies": sorted(technologies),
+            "requirements": sorted(requirements),
+            "detected_domain": detect_domain(text).value,
         }

@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List
 
 
 class ExtractionMethod(str, Enum):
@@ -68,7 +67,7 @@ def build_extraction_with_confidence(
         confidence_list = confidences.get(category, [0.5] * len(value_list))
         result[category] = [
             {"value": v, "confidence": c}
-            for v, c in zip(value_list, confidence_list)
+            for v, c in zip(value_list, confidence_list, strict=False)
         ]
     return result
 
