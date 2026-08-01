@@ -4,6 +4,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -12,7 +13,7 @@ sys.path.insert(0, str(project_root))
 from src.nlp.ner import JobNERExtractor
 
 
-def load_job_data(job_idx: int = 1) -> dict:
+def load_job_data(job_idx: int = 1) -> Any:
     """Load job from extracted_jobs JSON."""
     jobs_file = project_root / "data/extracted_jobs/blue origin_jobs.json"
     with open(jobs_file) as f:
@@ -20,14 +21,14 @@ def load_job_data(job_idx: int = 1) -> dict:
     return jobs[job_idx]
 
 
-def load_expected() -> dict:
+def load_expected() -> Any:
     """Load expected extractions."""
     expected_file = project_root / "data/extracted_jobs/expected_extractions.json"
     with open(expected_file) as f:
         return json.load(f)
 
 
-def compare_extractions(extracted: dict, expected: dict) -> dict:
+def compare_extractions(extracted: dict, expected: dict) -> Any:
     """Compare extracted vs expected and report precision/recall."""
     results = {}
 

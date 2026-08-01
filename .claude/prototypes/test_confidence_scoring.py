@@ -4,6 +4,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -11,7 +12,7 @@ sys.path.insert(0, str(project_root))
 from src.nlp.ner import JobNERExtractor
 
 
-def load_job(company: str, job_idx: int) -> dict:
+def load_job(company: str, job_idx: int) -> Any:
     jobs_file = project_root / f"data/extracted_jobs/{company.lower()}_jobs.json"
     with open(jobs_file) as f:
         jobs = json.load(f)

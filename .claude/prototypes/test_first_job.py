@@ -4,6 +4,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -11,7 +12,7 @@ sys.path.insert(0, str(project_root))
 from src.nlp.ner import JobNERExtractor
 
 
-def load_job_data(job_idx: int = 0) -> dict:
+def load_job_data(job_idx: int = 0) -> Any:
     """Load job from extracted_jobs JSON."""
     jobs_file = project_root / "data/extracted_jobs/blue origin_jobs.json"
     with open(jobs_file) as f:
@@ -37,11 +38,11 @@ def main():
     for skill in extracted["skills"]:
         print(f"  - {skill}")
 
-    print(f"\nTECHNOLOGIES:")
+    print("\nTECHNOLOGIES:")
     for tech in extracted["technologies"]:
         print(f"  - {tech}")
 
-    print(f"\nREQUIREMENTS:")
+    print("\nREQUIREMENTS:")
     for req in extracted["requirements"]:
         print(f"  - {req}")
 

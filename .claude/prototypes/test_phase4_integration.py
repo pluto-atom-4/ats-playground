@@ -4,28 +4,28 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.nlp.ner import JobNERExtractor
-from src.nlp.domains import detect_domain
 
 
-def load_job(company: str, job_idx: int) -> dict:
+def load_job(company: str, job_idx: int) -> Any:
     jobs_file = project_root / f"data/extracted_jobs/{company.lower()}_jobs.json"
     with open(jobs_file) as f:
         jobs = json.load(f)
     return jobs[job_idx]
 
 
-def load_expected(file_name: str) -> dict:
+def load_expected(file_name: str) -> Any:
     expected_file = project_root / f"data/extracted_jobs/{file_name}"
     with open(expected_file) as f:
         return json.load(f)
 
 
-def compare_f1(extracted: dict, expected: dict) -> dict:
+def compare_f1(extracted: dict, expected: dict) -> Any:
     results = {}
     for category in ["skills", "technologies", "requirements"]:
         extracted_set = set(extracted.get(category, []))

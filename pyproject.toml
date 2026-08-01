@@ -115,6 +115,7 @@ known-first-party = ["models", "browser", "cli", "llm", "parsers", "storage", "t
 "tests/*" = ["F401", "F403"]
 "src/llm/provider.py" = ["C901"]  # assess_job method complexity (retry logic)
 "src/cli.py" = ["C901"]  # assess_jobs command complexity (workflow orchestration)
+".claude/prototypes/*" = ["E402", "E501", "C401", "F841", "B905"]  # Debug/test utilities
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
