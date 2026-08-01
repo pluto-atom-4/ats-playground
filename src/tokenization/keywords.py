@@ -1,7 +1,15 @@
 """Technology keywords for NLP entity extraction.
 
 Organized by category for easy maintenance and discoverability.
-Includes 44 baseline keywords + 42 Phase 2 additions (86 total).
+Includes 44 baseline keywords + 42 Phase 2 additions (Issue #185) + 33 Phase 5 additions (161 total).
+
+Phase 5 (Issue #192) additions focus on aerospace/defense/manufacturing domains:
+- Engineering tools: ANSYS, Nastran, Optistruct, Creo, SolidWorks, CATIA, Windchill, Simulink, COMSOL
+- Signal processing: FFT, IFFT, CORDIC, MAC (multiply-accumulate)
+- Cloud/DevOps: ArgoCD, Flux, GitOps, Harbor, Quay
+- Data tools: TimescaleDB, ClickHouse, DVC, Pydantic, SQLAlchemy, Celery
+- IoT/Protocols: MQTT, AMQP, WebSocket, CoAP
+- Manufacturing: CAM, CNC, PLM, ERP, MRP
 """
 
 TECH_KEYWORDS = {
@@ -37,7 +45,7 @@ TECH_KEYWORDS = {
         "svelte",
         "astro",
     },
-    # Cloud & Infrastructure (15)
+    # Cloud & Infrastructure (20)
     "infrastructure": {
         "aws",
         "gcp",
@@ -54,8 +62,13 @@ TECH_KEYWORDS = {
         "docker-compose",
         "podman",
         "buildah",
+        "argocd",
+        "flux",
+        "gitops",
+        "harbor",
+        "quay",
     },
-    # Databases (13)
+    # Databases & Data (16)
     "databases": {
         "postgresql",
         "mysql",
@@ -70,8 +83,11 @@ TECH_KEYWORDS = {
         "bigquery",
         "duckdb",
         "cockroachdb",
+        "timescaledb",
+        "clickhouse",
+        "dvc",
     },
-    # Hardware/FPGA/Embedded (18) - CRITICAL for ATS domain
+    # Hardware/FPGA/Embedded & Engineering Tools (31) - CRITICAL for ATS domain
     "hardware": {
         "verilog",
         "systemverilog",
@@ -91,6 +107,19 @@ TECH_KEYWORDS = {
         "def",
         "gds",
         "matlab",
+        "ansys",
+        "nastran",
+        "optistruct",
+        "creo",
+        "solidworks",
+        "catia",
+        "windchill",
+        "simulink",
+        "comsol",
+        "fft",
+        "ifft",
+        "cordic",
+        "mac",
     },
     # ML/AI Frameworks (20)
     "ml_ai": {
@@ -115,7 +144,7 @@ TECH_KEYWORDS = {
         "llm",
         "timm",
     },
-    # DevOps & Tools (15)
+    # DevOps, Tools & Protocols (28)
     "tools": {
         "jira",
         "confluence",
@@ -132,6 +161,18 @@ TECH_KEYWORDS = {
         "grpc",
         "graphql",
         "sql",
+        "pydantic",
+        "sqlalchemy",
+        "celery",
+        "mqtt",
+        "amqp",
+        "websocket",
+        "coap",
+        "cam",
+        "cnc",
+        "plm",
+        "erp",
+        "mrp",
     },
     # Methodologies & Practices (8)
     "methodologies": {
