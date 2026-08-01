@@ -3,8 +3,9 @@
 import asyncio
 import json
 import logging
+from datetime import date
 from pathlib import Path
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional, Tuple, TypedDict
 
 import anthropic
 import typer
@@ -1494,6 +1495,124 @@ def assess(
 # ============================================================================
 
 
+def _validate_score_range(min_score: int, max_score: int) -> None:
+    """Validate score range parameters.
+
+    Args:
+        min_score: Minimum score to include (0-100)
+        max_score: Maximum score to include (0-100)
+
+    Raises:
+        typer.Exit: If validation fails
+    """
+    if not 0 <= min_score <= 100:
+        typer.echo("❌ min_score must be 0-100", err=True)
+        raise typer.Exit(1)
+    if not 0 <= max_score <= 100:
+        typer.echo("❌ max_score must be 0-100", err=True)
+        raise typer.Exit(1)
+    if min_score > max_score:
+        typer.echo("❌ min_score must be <= max_score", err=True)
+        raise typer.Exit(1)
+
+
+def _parse_date_filters(
+    from_date: Optional[str], to_date: Optional[str]
+) -> Tuple[Optional[date], Optional[date]]:
+    """Parse and validate date filter parameters.
+
+    Args:
+        from_date: Start date (YYYY-MM-DD format) or None
+        to_date: End date (YYYY-MM-DD format) or None
+
+    Returns:
+        Tuple of (date_from, date_to) parsed dates
+
+    Raises:
+        typer.Exit: If date parsing fails
+    """
+    from src.storage.export import parse_date_str
+
+    date_from = None
+    date_to = None
+    try:
+        if from_date:
+            date_from = parse_date_str(from_date)
+        if to_date:
+            date_to = parse_date_str(to_date)
+    except ValueError as e:
+        typer.echo(f"❌ {e}", err=True)
+        raise typer.Exit(1) from e
+
+    return date_from, date_to
+
+
+def _build_filter_message(
+    min_score: int, max_score: int, from_date: Optional[str], to_date: Optional[str]
+) -> str:
+    """Build human-readable filter message for output.
+
+    Args:
+        min_score: Minimum score in range
+        max_score: Maximum score in range
+        from_date: Start date string or None
+        to_date: End date string or None
+
+    Returns:
+        Human-readable filter message
+    """
+    filter_msg = f"score {min_score}-{max_score}"
+    if from_date or to_date:
+        date_range = f"{from_date or 'any'} to {to_date or 'any'}"
+        filter_msg += f", date {date_range}"
+    return filter_msg
+
+
+def _generate_and_save_report(
+    exporter: MarkdownExporter, output: str, template: str
+) -> Path:
+    """Generate report and save to file.
+
+    Args:
+        exporter: MarkdownExporter instance
+        output: Output file path
+        template: Template style ('detailed' or 'summary')
+
+    Returns:
+        Path object for the output file
+    """
+    report = (
+        exporter.generate_summary() if template == "summary" else exporter.generate_report()
+    )
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+
+    return output_path
+
+
+def _display_export_summary(
+    output_path: Path, filtered_count: int, total_count: int, template: str
+) -> None:
+    """Display export summary information to user.
+
+    Args:
+        output_path: Path to the output file
+        filtered_count: Number of filtered results
+        total_count: Total number of assessments
+        template: Template style used
+    """
+    file_size_kb = output_path.stat().st_size / 1024
+
+    typer.echo(f"✅ Exported to {output_path}")
+    typer.echo(f"   Filtered: {filtered_count}/{total_count} jobs")
+    typer.echo(f"   File size: {file_size_kb:.1f} KB")
+    typer.echo(f"   Template: {template}")
+
+    logger.info(f"Export complete: {filtered_count} jobs, {file_size_kb:.1f} KB")
+
+
 @app.command()
 def export(
     output: str = typer.Option("data/assessments/report.md", help="Output file path"),
@@ -1521,31 +1640,12 @@ def export(
         # Combined filters
         uv run python -m src.cli export --from-date 2026-05-01 --to-date 2026-05-31 --min-score 75
     """
-    from src.storage.export import parse_date_str
-
     try:
         # Validate score inputs
-        if not 0 <= min_score <= 100:
-            typer.echo("❌ min_score must be 0-100", err=True)
-            raise typer.Exit(1)
-        if not 0 <= max_score <= 100:
-            typer.echo("❌ max_score must be 0-100", err=True)
-            raise typer.Exit(1)
-        if min_score > max_score:
-            typer.echo("❌ min_score must be <= max_score", err=True)
-            raise typer.Exit(1)
+        _validate_score_range(min_score, max_score)
 
         # Parse and validate dates
-        date_from = None
-        date_to = None
-        try:
-            if from_date:
-                date_from = parse_date_str(from_date)
-            if to_date:
-                date_to = parse_date_str(to_date)
-        except ValueError as e:
-            typer.echo(f"❌ {e}", err=True)
-            raise typer.Exit(1) from e
+        date_from, date_to = _parse_date_filters(from_date, to_date)
 
         # Load assessment store
         db_path = "data/ats_playground.db"
@@ -1571,33 +1671,17 @@ def export(
             date_to=date_to,
         )
 
-        # Generate report
-        filter_msg = f"score {min_score}-{max_score}"
-        if from_date or to_date:
-            date_range = f"{from_date or 'any'} to {to_date or 'any'}"
-            filter_msg += f", date {date_range}"
+        # Build filter message and echo
+        filter_msg = _build_filter_message(min_score, max_score, from_date, to_date)
         typer.echo(f"📊 Generating report ({filter_msg})...")
 
+        # Generate and save report
         exporter = MarkdownExporter(store, config)
-        report = (
-            exporter.generate_summary() if template == "summary" else exporter.generate_report()
-        )
-
-        # Write to file
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(report, encoding="utf-8")
+        output_path = _generate_and_save_report(exporter, output, template)
 
         # Display summary
         filtered_in_range = len(store.get_assessments_by_score(min_score, max_score))
-        file_size_kb = output_path.stat().st_size / 1024
-
-        typer.echo(f"✅ Exported to {output}")
-        typer.echo(f"   Filtered: {filtered_in_range}/{total} jobs")
-        typer.echo(f"   File size: {file_size_kb:.1f} KB")
-        typer.echo(f"   Template: {template}")
-
-        logger.info(f"Export complete: {filtered_in_range} jobs, {file_size_kb:.1f} KB")
+        _display_export_summary(output_path, filtered_in_range, total, template)
 
     except ValueError as e:
         typer.echo(f"❌ Invalid option: {e}", err=True)
