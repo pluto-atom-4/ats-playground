@@ -1816,6 +1816,119 @@ def view(
 # ============================================================================
 
 
+def _validate_and_parse_purge_dates(
+    before_date: Optional[str], after_date: Optional[str]
+) -> Tuple[Optional[date], Optional[date]]:
+    """Validate and parse purge date inputs.
+
+    Args:
+        before_date: Before date string (YYYY-MM-DD) or None
+        after_date: After date string (YYYY-MM-DD) or None
+
+    Returns:
+        Tuple of (before_parsed, after_parsed) dates or None
+
+    Raises:
+        typer.Exit: On validation failure or parse error
+    """
+    from src.storage.export import parse_date_str
+
+    if not before_date and not after_date:
+        typer.echo("❌ Specify at least one date filter (--before-date or --after-date)", err=True)
+        raise typer.Exit(1)
+
+    # Parse dates
+    before_parsed: Optional[date] = None
+    after_parsed: Optional[date] = None
+
+    try:
+        if before_date:
+            before_parsed = parse_date_str(before_date)
+        if after_date:
+            after_parsed = parse_date_str(after_date)
+    except ValueError as e:
+        typer.echo(f"❌ {e}", err=True)
+        raise typer.Exit(1) from e
+
+    # Validate date range
+    if before_parsed and after_parsed and after_parsed >= before_parsed:
+        typer.echo(
+            "❌ Invalid range: after_date must be before before_date",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    return before_parsed, after_parsed
+
+
+def _show_purge_preview(
+    affected_count: int, total: int, before_date: Optional[str], after_date: Optional[str]
+) -> None:
+    """Show preview of what will be purged.
+
+    Args:
+        affected_count: Number of assessments to delete
+        total: Total assessments in database
+        before_date: Before date filter string or None
+        after_date: After date filter string or None
+    """
+    typer.echo("")
+    typer.echo("🗑️  Purge Preview:")
+    typer.echo(f"   Assessments to delete: {affected_count}/{total}")
+    if before_date:
+        typer.echo(f"   Before date: {before_date}")
+    if after_date:
+        typer.echo(f"   After date: {after_date}")
+    typer.echo("")
+
+
+def _confirm_destructive_operation() -> bool:
+    """Prompt user to confirm destructive operation.
+
+    Returns:
+        True if user confirms with 'DELETE', False otherwise
+    """
+    typer.echo("⚠️  WARNING: This will permanently delete the assessments!")
+    response = typer.prompt("Type 'DELETE' to confirm")
+
+    if response != "DELETE":
+        typer.echo("❌ Purge cancelled")
+        return False
+
+    return True
+
+
+def _perform_purge_and_show_results(
+    store: AssessmentStore,
+    before_date: Optional[str],
+    after_date: Optional[str],
+    dry_run: bool,
+    total: int,
+) -> None:
+    """Perform purge operation and show results.
+
+    Args:
+        store: Assessment store instance
+        before_date: Before date filter or None
+        after_date: After date filter or None
+        dry_run: Whether to perform dry run only
+        total: Total assessments before purge
+    """
+    if dry_run:
+        typer.echo("ℹ️  Use --no-dry-run --confirm to actually delete these assessments")
+    else:
+        # Perform actual delete
+        result = store.purge_by_date(
+            before_date=before_date,
+            after_date=after_date,
+            dry_run=False,
+        )
+
+        typer.echo("")
+        typer.echo(f"✅ Purged {result['count']} assessments")
+        typer.echo(f"   Remaining: {total - result['count']} assessments")
+
+
 @app.command()
 def purge(
     before_date: Optional[str] = typer.Option(None, help="Delete assessments before date (YYYY-MM-DD)"),
@@ -1832,33 +1945,9 @@ def purge(
         # Actually delete (requires --confirm)
         uv run python -m src.cli purge --before-date 2026-04-01 --no-dry-run --confirm
     """
-    from src.storage.export import parse_date_str
-
     try:
-        if not before_date and not after_date:
-            typer.echo("❌ Specify at least one date filter (--before-date or --after-date)", err=True)
-            raise typer.Exit(1)
-
-        # Parse dates
-        before_parsed = None
-        after_parsed = None
-
-        try:
-            if before_date:
-                before_parsed = parse_date_str(before_date)
-            if after_date:
-                after_parsed = parse_date_str(after_date)
-        except ValueError as e:
-            typer.echo(f"❌ {e}", err=True)
-            raise typer.Exit(1) from e
-
-        # Validate date range
-        if before_parsed and after_parsed and after_parsed >= before_parsed:
-            typer.echo(
-                "❌ Invalid range: after_date must be before before_date",
-                err=True,
-            )
-            raise typer.Exit(1)
+        # Validate and parse dates
+        _validate_and_parse_purge_dates(before_date, after_date)
 
         # Load store
         db_path = "data/ats_playground.db"
@@ -1883,16 +1972,9 @@ def purge(
             raise typer.Exit(0)
 
         # Show preview
-        typer.echo("")
-        typer.echo("🗑️  Purge Preview:")
-        typer.echo(f"   Assessments to delete: {affected_count}/{total}")
-        if before_date:
-            typer.echo(f"   Before date: {before_date}")
-        if after_date:
-            typer.echo(f"   After date: {after_date}")
-        typer.echo("")
+        _show_purge_preview(affected_count, total, before_date, after_date)
 
-        # Safety check
+        # Safety check and perform operation
         if not dry_run:
             if not confirm:
                 typer.echo("❌ Destructive operation requires --confirm flag", err=True)
@@ -1904,25 +1986,12 @@ def purge(
                 raise typer.Exit(1)
 
             # Final confirmation
-            typer.echo("⚠️  WARNING: This will permanently delete the assessments!")
-            response = typer.prompt("Type 'DELETE' to confirm")
-
-            if response != "DELETE":
-                typer.echo("❌ Purge cancelled")
+            if not _confirm_destructive_operation():
                 raise typer.Exit(1)
 
-            # Perform actual delete
-            result = store.purge_by_date(
-                before_date=before_date,
-                after_date=after_date,
-                dry_run=False,
-            )
-
-            typer.echo("")
-            typer.echo(f"✅ Purged {result['count']} assessments")
-            typer.echo(f"   Remaining: {total - result['count']} assessments")
+            _perform_purge_and_show_results(store, before_date, after_date, dry_run, total)
         else:
-            typer.echo("ℹ️  Use --no-dry-run --confirm to actually delete these assessments")
+            _perform_purge_and_show_results(store, before_date, after_date, dry_run, total)
 
     except typer.Exit:
         raise
