@@ -136,6 +136,112 @@ app = typer.Typer(
 # ============================================================================
 
 
+def _load_crawl_config(config: Optional[str], config_dir: Optional[str]) -> dict[str, Any]:
+    """Load companies config for crawl phase.
+
+    Args:
+        config: Path to config file or None
+        config_dir: Path to config directory or None
+
+    Returns:
+        Dictionary of companies
+
+    Raises:
+        typer.Exit: If config cannot be loaded
+    """
+    try:
+        if config_dir:
+            companies = load_companies_from_directory(Path(config_dir))
+            typer.echo(f"📋 Found {len(companies)} companies from directory: {config_dir}")
+        elif config:
+            companies = load_companies_from_file(Path(config))
+            typer.echo(f"📋 Found {len(companies)} companies from file: {config}")
+        else:
+            companies = load_companies_from_file(Path("config/companies.json"))
+            typer.echo(f"📋 Found {len(companies)} companies from default config")
+        return companies
+    except (FileNotFoundError, ValueError) as e:
+        typer.echo(f"❌ {e}", err=True)
+        raise typer.Exit(1) from None
+
+
+def _validate_crawl_companies(companies: dict[str, Any]) -> dict[str, Any]:
+    """Validate and filter companies for crawl phase.
+
+    Args:
+        companies: Dictionary of companies
+
+    Returns:
+        Filtered dictionary of enabled companies
+
+    Raises:
+        typer.Exit: If no companies or no enabled companies
+    """
+    if not companies:
+        typer.echo("❌ No companies found in config", err=True)
+        raise typer.Exit(1)
+
+    enabled_companies, disabled_companies = filter_enabled_companies(companies)
+    if disabled_companies:
+        typer.echo(f"⏭️  Skipping {len(disabled_companies)} disabled companies")
+    if not enabled_companies:
+        typer.echo("❌ No enabled companies to crawl", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"✅ Processing {len(enabled_companies)} enabled companies\n")
+    return enabled_companies
+
+
+def _save_crawl_results_by_company(results: dict[str, Any]) -> None:
+    """Save crawled results to JSON files by company.
+
+    Args:
+        results: Mapping of company_name to jobs list
+    """
+    total_jobs = sum(len(jobs) for jobs in results.values())
+    typer.echo(f"\n✅ Crawl complete! Extracted {total_jobs} total jobs\n")
+
+    for company_name, jobs in results.items():
+        typer.echo(f"   • {company_name}: {len(jobs)} jobs")
+        if jobs:
+            output_file = Path("data/extracted_jobs") / f"{company_name.lower()}_jobs.json"
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            jobs_data = [job.model_dump(mode="json") for job in jobs]
+            with open(output_file, "w") as f:
+                json.dump(jobs_data, f, indent=2, default=str)
+            typer.echo(f"      Saved to: {output_file}")
+
+
+def _run_crawl_async(crawler: Crawler, enabled_companies: dict[str, Any]) -> dict[str, Any]:
+    """Execute async crawl with error handling.
+
+    Args:
+        crawler: Crawler instance
+        enabled_companies: Dictionary of companies to crawl
+
+    Returns:
+        Dictionary of crawl results
+
+    Raises:
+        typer.Exit: On crawl failure
+    """
+    import asyncio
+
+    async def run_crawl() -> dict[str, Any]:
+        try:
+            results: dict[str, Any] = await crawler.crawl_multiple(enabled_companies)
+            _save_crawl_results_by_company(results)
+            return results
+        except Exception as e:
+            logger.error(f"Crawl failed: {e}", exc_info=True)
+            typer.echo(f"\n❌ Crawl failed: {e}", err=True)
+            raise typer.Exit(1) from None
+        finally:
+            await crawler.close()
+
+    return asyncio.run(run_crawl())
+
+
 def _run_phase_crawl(
     config: Optional[str], config_dir: Optional[str], headless: bool, up_to: Optional[str]
 ) -> Tuple[Any, float]:
@@ -153,70 +259,18 @@ def _run_phase_crawl(
     Raises:
         typer.Exit on failure or when up_to == "crawl"
     """
-    import asyncio
-
     typer.echo("=" * 80)
     typer.echo("PHASE 1: CRAWL - Extract job postings from career pages")
     typer.echo("=" * 80)
 
     phase_start = time.time()
 
-    # Load companies
-    try:
-        if config_dir:
-            companies = load_companies_from_directory(Path(config_dir))
-            typer.echo(f"📋 Found {len(companies)} companies from directory: {config_dir}")
-        elif config:
-            companies = load_companies_from_file(Path(config))
-            typer.echo(f"📋 Found {len(companies)} companies from file: {config}")
-        else:
-            companies = load_companies_from_file(Path("config/companies.json"))
-            typer.echo(f"📋 Found {len(companies)} companies from default config")
-    except (FileNotFoundError, ValueError) as e:
-        typer.echo(f"❌ {e}", err=True)
-        raise typer.Exit(1) from None
+    companies = _load_crawl_config(config, config_dir)
+    enabled_companies = _validate_crawl_companies(companies)
 
-    if not companies:
-        typer.echo("❌ No companies found in config", err=True)
-        raise typer.Exit(1)
-
-    # Filter enabled
-    enabled_companies, disabled_companies = filter_enabled_companies(companies)
-    if disabled_companies:
-        typer.echo(f"⏭️  Skipping {len(disabled_companies)} disabled companies")
-    if not enabled_companies:
-        typer.echo("❌ No enabled companies to crawl", err=True)
-        raise typer.Exit(1)
-
-    typer.echo(f"✅ Processing {len(enabled_companies)} enabled companies\n")
-
-    # Crawl
     crawler = Crawler(headless=headless, timeout_ms=30000)
+    crawl_results = _run_crawl_async(crawler, enabled_companies)
 
-    async def run_crawl() -> dict[str, Any]:
-        try:
-            results: dict[str, Any] = await crawler.crawl_multiple(enabled_companies)
-            total_jobs = sum(len(jobs) for jobs in results.values())
-            typer.echo(f"\n✅ Crawl complete! Extracted {total_jobs} total jobs\n")
-
-            for company_name, jobs in results.items():
-                typer.echo(f"   • {company_name}: {len(jobs)} jobs")
-                if jobs:
-                    output_file = Path("data/extracted_jobs") / f"{company_name.lower()}_jobs.json"
-                    output_file.parent.mkdir(parents=True, exist_ok=True)
-                    jobs_data = [job.model_dump(mode="json") for job in jobs]
-                    with open(output_file, "w") as f:
-                        json.dump(jobs_data, f, indent=2, default=str)
-                    typer.echo(f"      Saved to: {output_file}")
-            return results
-        except Exception as e:
-            logger.error(f"Crawl failed: {e}", exc_info=True)
-            typer.echo(f"\n❌ Crawl failed: {e}", err=True)
-            raise typer.Exit(1) from None
-        finally:
-            await crawler.close()
-
-    crawl_results: dict[str, Any] = asyncio.run(run_crawl())
     phase_time = time.time() - phase_start
     typer.echo(f"⏱️  Phase 1 took {phase_time:.2f}s\n")
 
@@ -225,6 +279,155 @@ def _run_phase_crawl(
         raise typer.Exit(0)
 
     return crawl_results, phase_time
+
+
+def _validate_preprocess_directory() -> Path:
+    """Validate extracted jobs directory exists and has files.
+
+    Returns:
+        Path to extracted jobs directory
+
+    Raises:
+        typer.Exit: If directory not found or no files
+    """
+    extracted_dir = Path("data/extracted_jobs")
+    if not extracted_dir.exists():
+        typer.echo(f"❌ Directory not found: {extracted_dir}", err=True)
+        raise typer.Exit(1)
+
+    job_files = list(extracted_dir.glob("*_jobs.json"))
+    if not job_files:
+        typer.echo("❌ No extracted jobs found", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"📂 Processing {len(job_files)} job files...\n")
+    return extracted_dir
+
+
+def _build_preprocess_clean_text(job: dict) -> str:
+    """Build clean text from job fields.
+
+    Args:
+        job: Job dictionary
+
+    Returns:
+        Clean text combining title, location, and description
+    """
+    clean_text = str(job.get("title", ""))
+    if job.get("location"):
+        clean_text = f"{clean_text}\n{str(job.get('location', ''))}"
+    if job.get("description"):
+        clean_text = f"{clean_text}\n{str(job.get('description', ''))}"
+    return clean_text
+
+
+def _preprocess_job_for_phase(
+    job: dict, idx: int, chunker: Any, counter: Any
+) -> Tuple[Optional[dict], int, float]:
+    """Preprocess a single job.
+
+    Args:
+        job: Job dictionary
+        idx: Job index for logging
+        chunker: SemanticChunker instance
+        counter: TokenCounter instance
+
+    Returns:
+        Tuple of (preprocessed_job dict or None, token_count, estimated_cost)
+        Returns (None, 0, 0.0) on error
+    """
+    try:
+        clean_text = _build_preprocess_clean_text(job)
+        chunks = chunker.chunk(clean_text)
+        token_count = sum(counter.count_tokens(c) for c in chunks)
+        estimated_cost = counter.estimate_cost(token_count)
+
+        preprocessed_job = {
+            "job_id": job.get("id"),
+            "title": job.get("title"),
+            "company": job.get("company"),
+            "location": job.get("location"),
+            "url": job.get("url"),
+            "clean_text": clean_text,
+            "chunks": chunks,
+            "token_count": token_count,
+            "estimated_cost": estimated_cost,
+            "status": "pending_review",
+        }
+
+        if idx % 5 == 0:
+            typer.echo(f"   Job {idx}: {job.get('title', 'N/A')[:40]}...")
+            typer.echo(f"      Tokens: {token_count} | Cost: ${estimated_cost:.4f}")
+
+        return preprocessed_job, token_count, estimated_cost
+    except Exception as e:
+        logger.error(f"Failed to preprocess job {idx}: {e}", exc_info=True)
+        return None, 0, 0.0
+
+
+def _preprocess_jobs_file(
+    job_file: Path, chunker: Any, counter: Any
+) -> Tuple[list, int, int, float]:
+    """Process all jobs in a file.
+
+    Args:
+        job_file: Path to jobs JSON file
+        chunker: SemanticChunker instance
+        counter: TokenCounter instance
+
+    Returns:
+        Tuple of (preprocessed_jobs, failed_count, total_tokens, total_cost)
+    """
+    preprocessed_jobs = []
+    failed_count = 0
+    total_tokens = 0
+    total_cost = 0.0
+
+    with open(job_file) as f:
+        jobs = json.load(f)
+
+    typer.echo(f"📂 Processing {job_file.name}...")
+
+    for i, job in enumerate(jobs):
+        preprocessed_job, tokens, cost = _preprocess_job_for_phase(job, i, chunker, counter)
+        if preprocessed_job:
+            preprocessed_jobs.append(preprocessed_job)
+            total_tokens += tokens
+            total_cost += cost
+        else:
+            failed_count += 1
+
+    return preprocessed_jobs, failed_count, total_tokens, total_cost
+
+
+def _display_preprocess_summary(
+    all_preprocessed: list, failed_count: int, total_tokens: int, total_cost: float, extracted_dir: Path
+) -> None:
+    """Display preprocessing summary and save results.
+
+    Args:
+        all_preprocessed: All preprocessed jobs
+        failed_count: Count of failed jobs
+        total_tokens: Total tokens
+        total_cost: Total cost
+        extracted_dir: Path to extracted jobs directory
+    """
+    typer.echo("\n✅ Preprocessing complete!\n")
+    typer.echo("📊 Summary:")
+    typer.echo(f"   Total jobs: {len(all_preprocessed) + failed_count}")
+    typer.echo(f"   Processed: {len(all_preprocessed)}")
+    typer.echo(f"   Failed: {failed_count}")
+    typer.echo(f"   Total tokens: {total_tokens}")
+    typer.echo(f"   Total cost: ${total_cost:.4f}")
+
+    if all_preprocessed:
+        avg_tokens = total_tokens // len(all_preprocessed)
+        typer.echo(f"   Avg tokens/job: {avg_tokens}")
+
+    output_file = extracted_dir / "preprocessed_jobs.json"
+    with open(output_file, "w") as f:
+        json.dump(all_preprocessed, f, indent=2)
+    typer.echo(f"   ✓ Saved to: {output_file}")
 
 
 def _run_phase_preprocess(up_to: Optional[str]) -> Tuple[List[dict], float]:
@@ -248,94 +451,25 @@ def _run_phase_preprocess(up_to: Optional[str]) -> Tuple[List[dict], float]:
 
     phase_start = time.time()
 
-    # Validate directory
-    extracted_dir = Path("data/extracted_jobs")
-    if not extracted_dir.exists():
-        typer.echo(f"❌ Directory not found: {extracted_dir}", err=True)
-        raise typer.Exit(1)
-
-    job_files = list(extracted_dir.glob("*_jobs.json"))
-    if not job_files:
-        typer.echo("❌ No extracted jobs found", err=True)
-        raise typer.Exit(1)
-
-    typer.echo(f"📂 Processing {len(job_files)} job files...\n")
-
-    # Process jobs
-    all_preprocessed = []
-    failed_count = 0
-    total_tokens = 0
-    total_cost = 0.0
-
+    extracted_dir = _validate_preprocess_directory()
     chunker = SemanticChunker()
     counter = TokenCounter()
 
+    all_preprocessed = []
+    total_failed = 0
+    total_tokens = 0
+    total_cost = 0.0
+
+    job_files = [f for f in extracted_dir.glob("*_jobs.json") if "preprocessed" not in f.name]
+
     for job_file in job_files:
-        if "preprocessed" in job_file.name:
-            continue
-
-        with open(job_file) as f:
-            jobs = json.load(f)
-
-        typer.echo(f"📂 Processing {job_file.name}...")
-        preprocessed_jobs = []
-
-        for i, job in enumerate(jobs):
-            try:
-                clean_text = job.get("title", "")
-                if job.get("location"):
-                    clean_text = f"{clean_text}\n{job.get('location', '')}"
-                if job.get("description"):
-                    clean_text = f"{clean_text}\n{job.get('description', '')}"
-
-                chunks = chunker.chunk(clean_text)
-                token_count = sum(counter.count_tokens(c) for c in chunks)
-                estimated_cost = counter.estimate_cost(token_count)
-
-                preprocessed_job = {
-                    "job_id": job.get("id"),
-                    "title": job.get("title"),
-                    "company": job.get("company"),
-                    "location": job.get("location"),
-                    "url": job.get("url"),
-                    "clean_text": clean_text,
-                    "chunks": chunks,
-                    "token_count": token_count,
-                    "estimated_cost": estimated_cost,
-                    "status": "pending_review",
-                }
-
-                preprocessed_jobs.append(preprocessed_job)
-                total_tokens += token_count
-                total_cost += estimated_cost
-
-                if i % 5 == 0:
-                    typer.echo(f"   Job {i}: {job.get('title', 'N/A')[:40]}...")
-                    typer.echo(f"      Tokens: {token_count} | Cost: ${estimated_cost:.4f}")
-
-            except Exception as e:
-                logger.error(f"Failed to preprocess job {i}: {e}", exc_info=True)
-                failed_count += 1
-
+        preprocessed_jobs, failed, tokens, cost = _preprocess_jobs_file(job_file, chunker, counter)
         all_preprocessed.extend(preprocessed_jobs)
+        total_failed += failed
+        total_tokens += tokens
+        total_cost += cost
 
-    # Display summary
-    typer.echo("\n✅ Preprocessing complete!\n")
-    typer.echo("📊 Summary:")
-    typer.echo(f"   Total jobs: {len(all_preprocessed) + failed_count}")
-    typer.echo(f"   Processed: {len(all_preprocessed)}")
-    typer.echo(f"   Failed: {failed_count}")
-    typer.echo(f"   Total tokens: {total_tokens}")
-    typer.echo(f"   Total cost: ${total_cost:.4f}")
-
-    if len(all_preprocessed) > 0:
-        avg_tokens = total_tokens // len(all_preprocessed)
-        typer.echo(f"   Avg tokens/job: {avg_tokens}")
-
-    output_file = extracted_dir / "preprocessed_jobs.json"
-    with open(output_file, "w") as f:
-        json.dump(all_preprocessed, f, indent=2)
-    typer.echo(f"   ✓ Saved to: {output_file}")
+    _display_preprocess_summary(all_preprocessed, total_failed, total_tokens, total_cost, extracted_dir)
 
     phase_time = time.time() - phase_start
     typer.echo(f"⏱️  Phase 2 took {phase_time:.2f}s\n")
@@ -415,6 +549,225 @@ def _run_phase_review(
     return confirmed_count, phase_time
 
 
+def _load_cv_for_phase_assess(cv: str) -> str:
+    """Load CV text from file.
+
+    Args:
+        cv: Path to CV file
+
+    Returns:
+        CV text content
+
+    Raises:
+        typer.Exit: If CV not found or unreadable
+    """
+    cv_path = Path(cv)
+    if not cv_path.exists():
+        typer.echo(f"❌ CV file not found: {cv}", err=True)
+        raise typer.Exit(1)
+
+    with open(cv_path) as f:
+        if cv_path.suffix == ".json":
+            cv_data = json.load(f)
+            cv_text = cv_data.get("text") or cv_data.get("content") or json.dumps(cv_data)
+        else:
+            cv_text = f.read()
+
+    typer.echo(f"📄 Loaded CV from: {cv}\n")
+    return cv_text
+
+
+def _init_llm_provider_for_assess(model: Optional[str]) -> Any:
+    """Initialize and validate LLM provider for assessment.
+
+    Args:
+        model: Claude model ID or None
+
+    Returns:
+        Initialized LLMProvider instance
+
+    Raises:
+        typer.Exit: On initialization failure
+    """
+    from src.config.models import get_model_display_name
+    from src.llm.provider import LLMProvider
+
+    try:
+        llm_provider = LLMProvider(model_id=model)
+        model_display = get_model_display_name(llm_provider.model)
+        typer.echo(f"🤖 Using {model_display} model\n")
+        return llm_provider
+    except ValueError as e:
+        typer.echo(f"❌ LLM setup failed: {e}", err=True)
+        typer.echo("   Set ANTHROPIC_API_KEY environment variable", err=True)
+        raise typer.Exit(1) from e
+
+
+def _load_confirmed_jobs_for_assess() -> Tuple[list, list]:
+    """Load confirmed jobs from preprocessed data.
+
+    Returns:
+        Tuple of (confirmed_jobs list, jobs_data list)
+
+    Raises:
+        typer.Exit: If no confirmed jobs found
+    """
+    preprocessed_path = Path("data/extracted_jobs/preprocessed_jobs.json")
+    confirmed_jobs = []
+    jobs_data = []
+
+    if preprocessed_path.exists():
+        with open(preprocessed_path) as f:
+            jobs_data = json.load(f)
+            confirmed_jobs = [j for j in jobs_data if j.get("status") == "confirmed"]
+
+    if not confirmed_jobs:
+        typer.echo("❌ No confirmed jobs found.", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"🤖 Starting CV assessment for {len(confirmed_jobs)} confirmed jobs\n")
+    return confirmed_jobs, jobs_data
+
+
+def _assess_job_and_save(
+    job: dict,
+    idx: int,
+    total: int,
+    llm_provider: Any,
+    cv_text: str,
+    assessment_store: AssessmentStore,
+    preprocessed_map: dict,
+) -> Tuple[bool, Optional[Any], int, float]:
+    """Assess a single job and save result.
+
+    Args:
+        job: Job dictionary
+        idx: Job index (1-based)
+        total: Total jobs
+        llm_provider: LLMProvider instance
+        cv_text: CV text
+        assessment_store: AssessmentStore instance
+        preprocessed_map: Map of job_id to preprocessed data
+
+    Returns:
+        Tuple of (success: bool, assessment or None, tokens, cost)
+    """
+    title = job.get("title", "Unknown")
+    typer.echo(f"[{idx}/{total}] Assessing: {title[:50]}...", nl=False)
+
+    preprocessed = preprocessed_map.get(job["job_id"], {})
+    clean_text = preprocessed.get("clean_text", job.get("description", ""))
+    job_chunks = preprocessed.get("chunks", [clean_text])
+
+    assessment = llm_provider.assess_job(
+        job_id=job["job_id"],
+        job_chunks=job_chunks,
+        cv_text=cv_text,
+    )
+
+    assessment_store.save_assessment(
+        job_id=job["job_id"],
+        title=job.get("title", "Unknown"),
+        company=job.get("company", "Unknown"),
+        location=job.get("location", ""),
+        overall_score=assessment.overall_score,
+        tech_score=assessment.tech_score,
+        seniority_score=assessment.seniority_score,
+        location_score=assessment.location_score,
+        recommendations=assessment.recommendations,
+        summary=assessment.summary,
+        tokens_used=assessment.tokens_used,
+        actual_cost=assessment.actual_cost,
+    )
+
+    overall_score = assessment.overall_score
+    typer.echo(f" ✅ Score: {overall_score:.0f}/100")
+    return True, assessment, assessment.tokens_used, assessment.actual_cost
+
+
+def _run_phase_assess_jobs_loop(
+    confirmed_jobs: list,
+    cv_text: str,
+    llm_provider: Any,
+    assessment_store: AssessmentStore,
+    preprocessed_map: dict,
+) -> Tuple[list, int, float, int]:
+    """Process each confirmed job and track results.
+
+    Args:
+        confirmed_jobs: List of confirmed jobs
+        cv_text: CV text
+        llm_provider: LLMProvider instance
+        assessment_store: AssessmentStore instance
+        preprocessed_map: Map of job_id to preprocessed data
+
+    Returns:
+        Tuple of (assessment_list, failed_count, total_cost, total_tokens)
+    """
+    assessment_list = []
+    failed = 0
+    total_tokens = 0
+    total_cost = 0.0
+
+    for idx, job in enumerate(confirmed_jobs, 1):
+        try:
+            success, assessment, tokens, cost = _assess_job_and_save(
+                job, idx, len(confirmed_jobs), llm_provider, cv_text, assessment_store, preprocessed_map
+            )
+            if success and assessment:
+                assessment_list.append(assessment)
+                total_tokens += tokens
+                total_cost += cost
+        except Exception as e:
+            logger.error(f"Assessment failed for job {idx}: {e}", exc_info=True)
+            failed += 1
+            title = job.get("title", "Unknown")
+            typer.echo(f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n" f"   Error: {e}\n")
+
+    return assessment_list, failed, total_cost, total_tokens
+
+
+def _display_assess_phase_summary(
+    assessment_list: list,
+    failed: int,
+    total_cost: float,
+    total_tokens: int,
+    total_jobs: int,
+    confirmed_jobs: list,
+) -> None:
+    """Display assessment phase summary and results.
+
+    Args:
+        assessment_list: List of successful assessments
+        failed: Count of failed assessments
+        total_cost: Total cost in USD
+        total_tokens: Total tokens used
+        total_jobs: Total jobs processed
+        confirmed_jobs: List of all confirmed jobs
+    """
+    typer.echo("\n" + "=" * 80)
+    typer.echo("📊 Assessment Summary:")
+    typer.echo(f"   Total assessed: {len(assessment_list)}/{total_jobs}")
+    if failed > 0:
+        typer.echo(f"   Failed: {failed}")
+    if assessment_list:
+        avg_score = sum(a.overall_score for a in assessment_list) / len(assessment_list)
+        typer.echo(f"   Avg overall score: {avg_score:.1f}/100")
+    typer.echo(f"   Total cost: ${total_cost:.6f}")
+    typer.echo(f"   Total tokens: {total_tokens}")
+
+    if assessment_list:
+        top_matches = sorted(assessment_list, key=lambda a: a.overall_score, reverse=True)[:5]
+        if top_matches:
+            typer.echo("\n🏆 Top Matches:")
+            job_titles = {j.get("job_id"): j.get("title", "N/A") for j in confirmed_jobs}
+            for i, match in enumerate(top_matches, 1):
+                title = job_titles.get(match.job_id, "N/A")
+                typer.echo(f"   {i}. {title} - Overall: {match.overall_score:.0f}/100")
+
+    typer.echo("\n✅ Assessment complete!\n")
+
+
 def _run_phase_assess(
     cv: str, model: Optional[str], confirmed_only: bool, up_to: Optional[str]
 ) -> Tuple[Any, float, AssessmentStore]:
@@ -432,132 +785,26 @@ def _run_phase_assess(
     Raises:
         typer.Exit on failure or when up_to == "assess"
     """
-    from src.config.models import get_model_display_name
-    from src.llm.provider import LLMProvider
-
     typer.echo("=" * 80)
     typer.echo("PHASE 4: ASSESS - AI assessment with Claude")
     typer.echo("=" * 80)
 
     phase_start = time.time()
 
-    # Load CV
-    cv_path = Path(cv)
-    if not cv_path.exists():
-        typer.echo(f"❌ CV file not found: {cv}", err=True)
-        raise typer.Exit(1)
+    cv_text = _load_cv_for_phase_assess(cv)
+    llm_provider = _init_llm_provider_for_assess(model)
+    confirmed_jobs, jobs_data = _load_confirmed_jobs_for_assess()
 
-    with open(cv_path) as f:
-        if cv_path.suffix == ".json":
-            cv_data = json.load(f)
-            cv_text = cv_data.get("text") or cv_data.get("content") or json.dumps(cv_data)
-        else:
-            cv_text = f.read()
-
-    typer.echo(f"📄 Loaded CV from: {cv}\n")
-
-    # Initialize LLM provider
-    try:
-        llm_provider = LLMProvider(model_id=model)
-        model_display = get_model_display_name(llm_provider.model)
-        typer.echo(f"🤖 Using {model_display} model\n")
-    except ValueError as e:
-        typer.echo(f"❌ LLM setup failed: {e}", err=True)
-        typer.echo("   Set ANTHROPIC_API_KEY environment variable", err=True)
-        raise typer.Exit(1) from e
-
-    # Load confirmed jobs
-    preprocessed_path = Path("data/extracted_jobs/preprocessed_jobs.json")
-    confirmed_jobs = []
-    jobs_data = []
-
-    if preprocessed_path.exists():
-        with open(preprocessed_path) as f:
-            jobs_data = json.load(f)
-            confirmed_jobs = [j for j in jobs_data if j.get("status") == "confirmed"]
-
-    if not confirmed_jobs:
-        typer.echo("❌ No confirmed jobs found.", err=True)
-        raise typer.Exit(1)
-
-    typer.echo(f"🤖 Starting CV assessment for {len(confirmed_jobs)} confirmed jobs\n")
-
-    # Initialize assessment store
     assessment_store = AssessmentStore()
     preprocessed_map = {j["job_id"]: j for j in jobs_data} if jobs_data else {}
 
-    # Assess jobs
-    successful = 0
-    failed = 0
-    assessment_list = []
-    total_tokens = 0
-    total_cost = 0.0
+    assessment_list, failed, total_cost, total_tokens = _run_phase_assess_jobs_loop(
+        confirmed_jobs, cv_text, llm_provider, assessment_store, preprocessed_map
+    )
 
-    for idx, job in enumerate(confirmed_jobs, 1):
-        try:
-            title = job.get("title", "Unknown")
-            typer.echo(f"[{idx}/{len(confirmed_jobs)}] Assessing: {title[:50]}...", nl=False)
-
-            preprocessed = preprocessed_map.get(job["job_id"], {})
-            clean_text = preprocessed.get("clean_text", job.get("description", ""))
-            job_chunks = preprocessed.get("chunks", [clean_text])
-
-            assessment = llm_provider.assess_job(
-                job_id=job["job_id"],
-                job_chunks=job_chunks,
-                cv_text=cv_text,
-            )
-
-            assessment_store.save_assessment(
-                job_id=job["job_id"],
-                title=job.get("title", "Unknown"),
-                company=job.get("company", "Unknown"),
-                location=job.get("location", ""),
-                overall_score=assessment.overall_score,
-                tech_score=assessment.tech_score,
-                seniority_score=assessment.seniority_score,
-                location_score=assessment.location_score,
-                recommendations=assessment.recommendations,
-                summary=assessment.summary,
-                tokens_used=assessment.tokens_used,
-                actual_cost=assessment.actual_cost,
-            )
-            assessment_list.append(assessment)
-            successful += 1
-            total_tokens += assessment.tokens_used
-            total_cost += assessment.actual_cost
-
-            overall_score = assessment.overall_score
-            typer.echo(f" ✅ Score: {overall_score:.0f}/100")
-
-        except Exception as e:
-            logger.error(f"Assessment failed for job {idx}: {e}", exc_info=True)
-            failed += 1
-            title = job.get("title", "Unknown")
-            typer.echo(f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n" f"   Error: {e}\n")
-
-    # Display summary
-    typer.echo("\n" + "=" * 80)
-    typer.echo("📊 Assessment Summary:")
-    typer.echo(f"   Total assessed: {successful}/{len(confirmed_jobs)}")
-    if failed > 0:
-        typer.echo(f"   Failed: {failed}")
-    if successful > 0:
-        avg_score = sum(a.overall_score for a in assessment_list) / successful
-        typer.echo(f"   Avg overall score: {avg_score:.1f}/100")
-    typer.echo(f"   Total cost: ${total_cost:.6f}")
-    typer.echo(f"   Total tokens: {total_tokens}")
-
-    if successful > 0:
-        top_matches = sorted(assessment_list, key=lambda a: a.overall_score, reverse=True)[:5]
-        if top_matches:
-            typer.echo("\n🏆 Top Matches:")
-            job_titles = {j.get("job_id"): j.get("title", "N/A") for j in confirmed_jobs}
-            for i, match in enumerate(top_matches, 1):
-                title = job_titles.get(match.job_id, "N/A")
-                typer.echo(f"   {i}. {title} - Overall: {match.overall_score:.0f}/100")
-
-    typer.echo("\n✅ Assessment complete!\n")
+    _display_assess_phase_summary(
+        assessment_list, failed, total_cost, total_tokens, len(confirmed_jobs), confirmed_jobs
+    )
 
     phase_time = time.time() - phase_start
     typer.echo(f"⏱️  Phase 4 took {phase_time:.2f}s\n")
