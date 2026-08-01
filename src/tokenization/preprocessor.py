@@ -108,7 +108,11 @@ class Preprocessor:
 
                 # For markdown: exclude benefits/compensation sections from full-text extraction
                 # Remove sections with headers containing: Benefits, Compensation, Salary, About, Culture, etc.
-                skip_pattern = r"^#{1,3}\s+.*?(benefits|compensation|salary|pay|about|culture|company|how to apply).*?$.*?(?=^#{1,3}\s|\Z)"
+                skip_pattern = (
+                    r"^#{1,3}\s+.*?"
+                    r"(benefits|compensation|salary|pay|about|culture|company|how to apply)"
+                    r".*?$.*?(?=^#{1,3}\s|\Z)"
+                )
                 text_to_extract = re.sub(skip_pattern, "", text, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL)
                 text_to_clean = text_to_extract if text_to_extract.strip() else text
             else:
@@ -132,7 +136,8 @@ class Preprocessor:
             self._extract_from_tokens(doc, tech_keywords, skills, technologies)
 
             # Extract soft skills from text
-            # For markdown: only include soft skills that were extracted from skills sections (already in skills from _extract_entities_by_section)
+            # For markdown: only include soft skills that were extracted from
+            # skills sections (already in skills from _extract_entities_by_section)
             # For plain text: extract soft skills from full text
             soft_skills_set: set[str] = set()
             if not is_md:
@@ -660,9 +665,15 @@ class Preprocessor:
         }
 
         # Sections that should contribute to skills (explicitly named skills sections)
-        skills_section_keywords = ("skill", "technical", "core", "competency", "ability", "expertise", "proficiency")
+        skills_section_keywords = (
+            "skill", "technical", "core", "competency", "ability", "expertise",
+            "proficiency"
+        )
         # Sections that should contribute to requirements (but NOT skills)
-        req_section_keywords = ("requirement", "qualif", "needed", "essential", "must", "knowledge", "experience", "responsibility", "duty")
+        req_section_keywords = (
+            "requirement", "qualif", "needed", "essential", "must", "knowledge",
+            "experience", "responsibility", "duty"
+        )
 
         for section_name, section_content in sections.items():
             section_lower = section_name.lower().replace("_", " ")
@@ -773,7 +784,13 @@ class Preprocessor:
                 elif section_name == "responsibilities" or is_description_section:
                     # From responsibilities/descriptions: treat substantive items as skills
                     # (e.g., "Develop software systems", "Debug complex issues")
-                    if len(item_text) > 5 and not any(word in item_text.lower() for word in ("design", "architecture", "strategy")):
+                    if (
+                        len(item_text) > 5
+                        and not any(
+                            word in item_text.lower()
+                            for word in ("design", "architecture", "strategy")
+                        )
+                    ):
                         # Extract tech terms from the item
                         item_lower = item_text.lower()
                         for keyword in tech_keywords:
