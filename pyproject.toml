@@ -115,6 +115,9 @@ known-first-party = ["models", "browser", "cli", "llm", "parsers", "storage", "t
 "tests/*" = ["F401", "F403"]
 "src/llm/provider.py" = ["C901"]  # assess_job method complexity (retry logic)
 "src/cli.py" = ["C901"]  # assess_jobs command complexity (workflow orchestration)
+"src/nlp/company_parsers.py" = ["C901"]  # parse_requirements complexity (multiple sections)
+"src/nlp/ner.py" = ["C901"]  # extract/fallback methods complexity (multiple passes + domains)
+"src/tokenization/preprocessor.py" = ["C901"]  # _filter, _extract_markdown, _extract_entities complexity
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
