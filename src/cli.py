@@ -34,6 +34,7 @@ class ResultItem(TypedDict):
     llm_score: float
     entity_score: float
     cost: float
+    tokens: int
 
 
 # ============================================================================
@@ -1304,6 +1305,419 @@ def review(
 # ============================================================================
 
 
+def _load_cv_text(cv_path: str) -> str:
+    """Load and parse CV text from file.
+
+    Args:
+        cv_path: Path to CV file (JSON or text)
+
+    Returns:
+        CV text content
+
+    Raises:
+        typer.Exit: If file not found or cannot be read
+    """
+    path = Path(cv_path)
+    if not path.exists():
+        typer.echo(f"❌ CV file not found: {cv_path}", err=True)
+        raise typer.Exit(1)
+
+    with open(path) as f:
+        if path.suffix == ".json":
+            cv_data = json.load(f)
+            cv_text = cv_data.get("text") or cv_data.get("content") or json.dumps(cv_data)
+        else:
+            cv_text = f.read()
+
+    typer.echo(f"📄 Loaded CV from: {cv_path}\n")
+    return cv_text
+
+
+def _initialize_assessor_and_validate(model: Optional[str]) -> Any:
+    """Initialize Assessor and validate setup.
+
+    Args:
+        model: Claude model identifier or None for default
+
+    Returns:
+        Initialized Assessor instance
+
+    Raises:
+        typer.Exit: On validation failure or API key missing
+    """
+    from src.assessment.assessor import Assessor
+    from src.config.models import get_model_display_name
+
+    try:
+        assessor = Assessor(model=model or "claude-3-5-sonnet-20241022")
+        model_display = get_model_display_name(assessor.model)
+        typer.echo(f"🤖 Using {model_display} model\n")
+        return assessor
+    except ValueError as e:
+        typer.echo(f"❌ Assessor setup failed: {e}", err=True)
+        typer.echo("   Set ANTHROPIC_API_KEY environment variable", err=True)
+        raise typer.Exit(1) from e
+
+
+def _get_and_validate_jobs() -> List[dict]:
+    """Get confirmed jobs from database and validate.
+
+    Returns:
+        List of confirmed job dictionaries
+
+    Raises:
+        typer.Exit: If no jobs found
+    """
+    from src.verification import JobReviewer
+
+    reviewer = JobReviewer()
+    confirmed_jobs = reviewer.get_confirmed_jobs()
+
+    if not confirmed_jobs:
+        typer.echo("❌ No confirmed jobs found. Run 'review-jobs' first.", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"🤖 Starting CV assessment for {len(confirmed_jobs)} confirmed jobs\n")
+    return confirmed_jobs
+
+
+def _filter_jobs_by_mode(
+    jobs: List[dict], mode: str, assessment_store: Any
+) -> List[dict]:
+    """Apply mode filter to jobs (new-only vs all).
+
+    Args:
+        jobs: List of job dictionaries
+        mode: Filter mode ('new-only' or 'all')
+        assessment_store: AssessmentStore instance
+
+    Returns:
+        Filtered job list
+
+    Raises:
+        typer.Exit: If mode is invalid
+    """
+    if mode not in ("new-only", "all"):
+        typer.echo(f"❌ Invalid mode: {mode}. Must be 'new-only' or 'all'", err=True)
+        raise typer.Exit(1)
+
+    if mode == "new-only":
+        original_count = len(jobs)
+        jobs = [
+            j for j in jobs
+            if not assessment_store.get_assessment_by_id(j.get("job_id", ""))
+        ]
+        typer.echo(f"📊 Mode filter (new-only): {original_count} → {len(jobs)} jobs\n")
+
+    return jobs
+
+
+def _filter_jobs_by_score_threshold(
+    jobs: List[dict], score_threshold: Optional[float], assessment_store: Any
+) -> List[dict]:
+    """Apply score threshold filter to jobs.
+
+    Args:
+        jobs: List of job dictionaries
+        score_threshold: Score threshold (0-100) or None
+        assessment_store: AssessmentStore instance
+
+    Returns:
+        Filtered job list
+
+    Raises:
+        typer.Exit: If threshold invalid or no jobs match
+    """
+    if score_threshold is None:
+        return jobs
+
+    if not (0 <= score_threshold <= 100):
+        typer.echo("❌ score_threshold must be 0-100", err=True)
+        raise typer.Exit(1)
+
+    original_count = len(jobs)
+    filtered_jobs = []
+    skipped_low_score = 0
+
+    for job in jobs:
+        job_id = job.get("job_id", "")
+        if not job_id:
+            continue
+        existing_assessment = assessment_store.get_assessment_by_id(job_id)
+
+        if existing_assessment and existing_assessment.get("overall_score", 0) < score_threshold:
+            skipped_low_score += 1
+        else:
+            filtered_jobs.append(job)
+
+    jobs = filtered_jobs
+    typer.echo(
+        f"📊 Score threshold filter: {original_count} jobs → {len(jobs)} jobs\n"
+        f"   Skipped {skipped_low_score} jobs with score < {score_threshold}\n"
+    )
+
+    if not jobs:
+        typer.echo("❌ No jobs match score threshold criteria.", err=True)
+        raise typer.Exit(1)
+
+    return jobs
+
+
+def _filter_jobs_by_date(jobs: List[dict], since: Optional[str]) -> List[dict]:
+    """Apply date filter to jobs (since date).
+
+    Args:
+        jobs: List of job dictionaries
+        since: ISO format date string or None
+
+    Returns:
+        Filtered job list
+
+    Raises:
+        typer.Exit: If date format invalid or no jobs match
+    """
+    if since is None:
+        return jobs
+
+    # Validate date format
+    try:
+        from datetime import datetime
+        datetime.fromisoformat(since)
+    except ValueError as e:
+        typer.echo(
+            f"❌ Invalid since date format: {since}. Use ISO format (e.g., 2026-07-01)",
+            err=True,
+        )
+        raise typer.Exit(1) from e
+
+    original_count = len(jobs)
+    filtered_jobs = []
+
+    for job in jobs:
+        crawled_at = job.get("crawled_at")
+        if crawled_at and crawled_at >= since:
+            filtered_jobs.append(job)
+        elif not crawled_at:
+            filtered_jobs.append(job)
+
+    jobs = filtered_jobs
+    skipped_before_date = original_count - len(jobs)
+    typer.echo(
+        f"📊 Date filter (since {since}): {original_count} → {len(jobs)} jobs\n"
+        f"   Skipped {skipped_before_date} jobs crawled before {since}\n"
+    )
+
+    if not jobs:
+        typer.echo("❌ No jobs match date filter criteria.", err=True)
+        raise typer.Exit(1)
+
+    return jobs
+
+
+def _verify_assessment_cost(
+    jobs: List[dict], cv_text: str, verify_cost: bool
+) -> bool:
+    """Estimate and verify assessment cost.
+
+    Args:
+        jobs: List of jobs to assess
+        cv_text: CV text content
+        verify_cost: Whether to prompt user for confirmation
+
+    Returns:
+        True if should proceed, raises typer.Exit if user rejects
+
+    Raises:
+        typer.Exit: If user declines or cost estimation fails
+    """
+    if not verify_cost:
+        return True
+
+    typer.echo("📋 Estimating costs before proceeding...\n")
+    estimated_total = 0.0
+
+    for job in jobs:
+        job_desc = job.get("description") or job.get("title", "")
+        try:
+            from src.tokenization.counter import TokenCounter
+            counter = TokenCounter()
+            est_tokens = counter.count_tokens(cv_text + "\n" + job_desc) + 200
+            est_cost = est_tokens * 0.000003
+            estimated_total += est_cost
+        except Exception:
+            estimated_total += 0.01
+
+    typer.echo(
+        f"💰 Estimated total cost for {len(jobs)} jobs: "
+        f"${estimated_total:.6f}\n"
+    )
+    if not typer.confirm("Proceed with assessment?"):
+        typer.echo("Aborted.")
+        raise typer.Exit(0)
+
+    return True
+
+
+def _assess_single_job(
+    job: dict,
+    cv_text: str,
+    assessor: Any,
+    assessment_store: Any,
+    idx: int,
+    total: int,
+) -> Tuple[bool, Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    """Assess a single job and save result.
+
+    Args:
+        job: Job dictionary
+        cv_text: CV text
+        assessor: Assessor instance
+        assessment_store: AssessmentStore instance
+        idx: Job index (1-based) for logging
+        total: Total jobs for logging
+
+    Returns:
+        Tuple of (success: bool, result: ResultItem or None, error_info: dict or None)
+    """
+    job_id = job["job_id"]
+    title = job["title"]
+    company = job.get("company", "Unknown")
+    location = job.get("location", "Unknown")
+    job_desc = job.get("description") or job.get("title", "")
+
+    try:
+        result = assessor.assess_job(cv_text, job_desc)
+
+        assessment_store.save_assessment(
+            job_id=job_id,
+            title=title,
+            company=company,
+            location=location,
+            overall_score=result["assessment"].get("overall_score", 0),
+            tech_score=result["entity_score"].get("tech_match", 0),
+            seniority_score=result["entity_score"].get("skill_match", 0),
+            location_score=50,
+            recommendations=result["assessment"].get("reasoning", ""),
+            summary=result["assessment"].get("reasoning", ""),
+            tokens_used=result["cost_tracking"].get("actual_input", 0),
+            actual_cost=result["cost_tracking"].get("actual_cost_usd", 0.0),
+        )
+
+        overall_score = result["assessment"].get("overall_score", 0)
+        entity_score = result["entity_score"].get("overall_entity_score", 0)
+        actual_cost = result["cost_tracking"].get("actual_cost_usd", 0.0)
+        actual_tokens = result["cost_tracking"].get("actual_input", 0)
+        savings = result.get("token_savings_percent", 0)
+
+        typer.echo(
+            f"✅ [{idx}/{total}] {title} @ {company}\n"
+            f"   LLM Score: {overall_score:.0f}/100 | "
+            f"Entity Score: {entity_score:.0f}/100\n"
+            f"   Cost: ${actual_cost:.6f} | "
+            f"Tokens: {actual_tokens} | "
+            f"Savings: {savings:.1f}%\n"
+        )
+
+        logger.info(
+            f"[{idx}/{total}] Assessed {job_id}: "
+            f"score={overall_score}, entity={entity_score}, "
+            f"tokens={actual_tokens}, cost=${actual_cost:.6f}, "
+            f"savings={savings:.1f}%"
+        )
+
+        return (
+            True,
+            {
+                "job_id": job_id,
+                "title": title,
+                "llm_score": overall_score,
+                "entity_score": entity_score,
+                "cost": actual_cost,
+                "tokens": actual_tokens,
+            },
+            None,
+        )
+
+    except anthropic.RateLimitError as e:
+        typer.echo(
+            f"⏱️  [{idx}/{total}] Rate limited on {title}\n"
+            f"   Continuing with remaining jobs...\n"
+        )
+        logger.warning(f"[{idx}/{total}] Rate limited on {job_id}: {e}")
+        return False, None, {"job_id": job_id, "title": title, "reason": "rate_limited"}
+
+    except json.JSONDecodeError as e:
+        typer.echo(
+            f"⚠️  [{idx}/{total}] Failed to parse response for {title}\n"
+            f"   Skipping job...\n"
+        )
+        logger.error(f"[{idx}/{total}] Parse error for {job_id}: {e}")
+        return False, None, {"job_id": job_id, "title": title, "reason": "parse_error"}
+
+    except Exception as e:
+        typer.echo(
+            f"❌ [{idx}/{total}] {title}\n"
+            f"   Error: {type(e).__name__}: {e}\n"
+        )
+        logger.exception(f"[{idx}/{total}] Assessment failed for {job_id}")
+        return (
+            False,
+            None,
+            {"job_id": job_id, "title": title, "reason": type(e).__name__},
+        )
+
+
+def _display_assessment_summary(
+    results: List[dict[str, Any]],
+    failed_jobs: List[dict],
+    total_cost: float,
+    total_tokens: int,
+    successful: int,
+    total_jobs: int,
+) -> None:
+    """Display assessment summary and top matches.
+
+    Args:
+        results: List of successful ResultItem objects
+        failed_jobs: List of failed job info dicts
+        total_cost: Total cost in USD
+        total_tokens: Total tokens used
+        successful: Count of successful assessments
+        total_jobs: Total jobs assessed
+    """
+    typer.echo("\n" + "=" * 80)
+    typer.echo("📊 Assessment Summary:")
+    typer.echo(f"   ✅ Assessed: {successful}/{total_jobs}")
+    if failed_jobs:
+        typer.echo(f"   ❌ Failed: {len(failed_jobs)}")
+        for job in failed_jobs[:5]:
+            typer.echo(f"      • {job['title']}: {job['reason']}")
+        if len(failed_jobs) > 5:
+            typer.echo(f"      ... and {len(failed_jobs) - 5} more (see logs)")
+
+    typer.echo("\n💰 Cost Summary:")
+    if results:
+        avg_score = sum(r["llm_score"] for r in results) / len(results)
+        typer.echo(f"   Avg LLM score: {avg_score:.1f}/100")
+    typer.echo(f"   Total cost: ${total_cost:.6f}")
+    typer.echo(f"   Total tokens: {total_tokens:,}")
+    if total_tokens > 0:
+        avg_cost_per_job = total_cost / successful if successful > 0 else 0
+        typer.echo(f"   Avg cost per job: ${avg_cost_per_job:.6f}")
+
+    if results:
+        top_results = sorted(results, key=lambda x: x["llm_score"], reverse=True)[:5]
+        typer.echo(f"\n🏆 Top {len(top_results)} Matches (by LLM score):")
+        for i, result_item in enumerate(top_results, 1):
+            entity_score = result_item.get("entity_score", 0)
+            typer.echo(
+                f"   {i}. {result_item['title']} "
+                f"(LLM: {result_item['llm_score']:.0f}, Entity: {entity_score:.0f})"
+            )
+
+    typer.echo("\n✅ Assessment complete!\n")
+
+
 @app.command()
 def assess(
     cv: str = typer.Option(..., help="CV file path (json or txt)"),
@@ -1336,306 +1750,67 @@ def assess(
     ),
 ) -> None:
     """Assess CV fit for confirmed jobs using entity-based scoring."""
-    import json
-    from pathlib import Path
-
-    from src.assessment.assessor import Assessor
-    from src.config.models import get_model_display_name
     from src.storage.assessment_store import AssessmentStore
-    from src.verification import JobReviewer
 
     logger.info(f"Starting job assessment with CV: {cv}")
 
     try:
-        # Load CV
-        cv_path = Path(cv)
-        if not cv_path.exists():
-            typer.echo(f"❌ CV file not found: {cv}", err=True)
-            raise typer.Exit(1)
+        # Load CV text
+        cv_text = _load_cv_text(cv)
 
-        with open(cv_path) as f:
-            if cv_path.suffix == ".json":
-                cv_data = json.load(f)
-                cv_text = cv_data.get("text") or cv_data.get("content") or json.dumps(cv_data)
-            else:
-                cv_text = f.read()
+        # Initialize assessor
+        assessor = _initialize_assessor_and_validate(model)
 
-        typer.echo(f"📄 Loaded CV from: {cv}\n")
-
-        # Initialize Assessor
-        try:
-            assessor = Assessor(model=model or "claude-3-5-sonnet-20241022")
-            model_display = get_model_display_name(assessor.model)
-            typer.echo(f"🤖 Using {model_display} model\n")
-        except ValueError as e:
-            typer.echo(f"❌ Assessor setup failed: {e}", err=True)
-            typer.echo("   Set ANTHROPIC_API_KEY environment variable", err=True)
-            raise typer.Exit(1) from e
-
-        # Validate mode
-        if mode not in ("new-only", "all"):
-            typer.echo(f"❌ Invalid mode: {mode}. Must be 'new-only' or 'all'", err=True)
-            raise typer.Exit(1)
-
-        # Validate since date format if provided
-        if since is not None:
-            try:
-                from datetime import datetime
-                datetime.fromisoformat(since)
-            except ValueError as e:
-                typer.echo(
-                    f"❌ Invalid since date format: {since}. Use ISO format (e.g., 2026-07-01)",
-                    err=True,
-                )
-                raise typer.Exit(1) from e
-
-        # Get confirmed jobs from database
-        reviewer = JobReviewer()
-        confirmed_jobs = reviewer.get_confirmed_jobs()
-
-        if not confirmed_jobs:
-            typer.echo("❌ No confirmed jobs found. Run 'review-jobs' first.", err=True)
-            raise typer.Exit(1)
-
-        typer.echo(f"🤖 Starting CV assessment for {len(confirmed_jobs)} confirmed jobs\n")
+        # Get confirmed jobs
+        confirmed_jobs = _get_and_validate_jobs()
 
         # Initialize assessment store
         assessment_store = AssessmentStore()
 
-        # Apply mode filter (new-only vs all)
-        original_count = len(confirmed_jobs)
-        if mode == "new-only":
-            # Filter: only jobs without assessments
-            confirmed_jobs = [
-                j for j in confirmed_jobs
-                if not assessment_store.get_assessment_by_id(j.get("job_id", ""))
-            ]
-            typer.echo(f"📊 Mode filter (new-only): {original_count} → {len(confirmed_jobs)} jobs\n")
+        # Apply filters in sequence
+        confirmed_jobs = _filter_jobs_by_mode(confirmed_jobs, mode, assessment_store)
+        confirmed_jobs = _filter_jobs_by_score_threshold(
+            confirmed_jobs, score_threshold, assessment_store
+        )
+        confirmed_jobs = _filter_jobs_by_date(confirmed_jobs, since)
 
-        # Apply score threshold filter if specified
-        if score_threshold is not None:
-            if not (0 <= score_threshold <= 100):
-                typer.echo("❌ score_threshold must be 0-100", err=True)
-                raise typer.Exit(1)
-
-            # Filter jobs: skip those with prior assessment score < threshold
-            original_count = len(confirmed_jobs)
-            filtered_jobs = []
-            skipped_low_score = 0
-
-            for job in confirmed_jobs:
-                job_id = job.get("job_id", "")
-                if not job_id:
-                    continue
-                existing_assessment = assessment_store.get_assessment_by_id(job_id)
-
-                if existing_assessment and existing_assessment.get("overall_score", 0) < score_threshold:
-                    skipped_low_score += 1
-                else:
-                    filtered_jobs.append(job)
-
-            confirmed_jobs = filtered_jobs
-            typer.echo(
-                f"📊 Score threshold filter: {original_count} jobs → {len(confirmed_jobs)} jobs\n"
-                f"   Skipped {skipped_low_score} jobs with score < {score_threshold}\n"
-            )
-
-            if not confirmed_jobs:
-                typer.echo("❌ No jobs match score threshold criteria.", err=True)
-                raise typer.Exit(1)
-
-        # Apply since (date) filter if specified
-        if since is not None:
-            original_count = len(confirmed_jobs)
-            filtered_jobs = []
-
-            for job in confirmed_jobs:
-                job_id = job.get("job_id", "")
-                crawled_at = job.get("crawled_at")
-
-                if crawled_at and crawled_at >= since:
-                    filtered_jobs.append(job)
-                elif not crawled_at:
-                    # If crawled_at is missing, include job to be safe
-                    filtered_jobs.append(job)
-
-            confirmed_jobs = filtered_jobs
-            skipped_before_date = original_count - len(confirmed_jobs)
-            typer.echo(
-                f"📊 Date filter (since {since}): {original_count} → {len(confirmed_jobs)} jobs\n"
-                f"   Skipped {skipped_before_date} jobs crawled before {since}\n"
-            )
-
-            if not confirmed_jobs:
-                typer.echo("❌ No jobs match date filter criteria.", err=True)
-                raise typer.Exit(1)
-
-        # Apply job limit if specified
+        # Apply job limit
         if limit:
             confirmed_jobs = confirmed_jobs[:limit]
             typer.echo(f"📊 Applied job limit: assessing {len(confirmed_jobs)} jobs\n")
 
-        # Cost pre-flight check
-        if verify_cost:
-            typer.echo("📋 Estimating costs before proceeding...\n")
-            estimated_total = 0.0
-            for job in confirmed_jobs:
-                job_desc = job.get("description") or job.get("title", "")
-                try:
-                    # Simple token estimate: CV + job description
-                    from src.tokenization.counter import TokenCounter
-                    counter = TokenCounter()
-                    est_tokens = counter.count_tokens(cv_text + "\n" + job_desc) + 200
-                    est_cost = est_tokens * 0.000003  # Sonnet input rate
-                    estimated_total += est_cost
-                except Exception:
-                    estimated_total += 0.01  # Fallback: $0.01 per job
-
-            typer.echo(
-                f"💰 Estimated total cost for {len(confirmed_jobs)} jobs: "
-                f"${estimated_total:.6f}\n"
-            )
-            if not typer.confirm("Proceed with assessment?"):
-                typer.echo("Aborted.")
-                raise typer.Exit(0)
+        # Verify cost
+        _verify_assessment_cost(confirmed_jobs, cv_text, verify_cost)
 
         # Assess each job
         successful = 0
-        failed = 0
+        failed_jobs: list[dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         total_cost = 0.0
         total_tokens = 0
-        failed_jobs: list[dict[str, Any]] = []
-        results: list[ResultItem] = []
 
         for idx, confirmed_job in enumerate(confirmed_jobs, 1):
-            job_id = confirmed_job["job_id"]
-            title = confirmed_job["title"]
-            company = confirmed_job.get("company", "Unknown")
-            location = confirmed_job.get("location", "Unknown")
-            job_desc = confirmed_job.get("description") or confirmed_job.get("title", "")
+            success, result, error = _assess_single_job(
+                confirmed_job, cv_text, assessor, assessment_store, idx, len(confirmed_jobs)
+            )
 
-            try:
-                # Use Assessor for entity-based scoring
-                result = assessor.assess_job(cv_text, job_desc)
-
-                # Save assessment
-                assessment_store.save_assessment(
-                    job_id=job_id,
-                    title=title,
-                    company=company,
-                    location=location,
-                    overall_score=result["assessment"].get("overall_score", 0),
-                    tech_score=result["entity_score"].get("tech_match", 0),
-                    seniority_score=result["entity_score"].get("skill_match", 0),
-                    location_score=50,  # Not provided by entity scorer
-                    recommendations=result["assessment"].get("reasoning", ""),
-                    summary=result["assessment"].get("reasoning", ""),
-                    tokens_used=result["cost_tracking"].get("actual_input", 0),
-                    actual_cost=result["cost_tracking"].get("actual_cost_usd", 0.0),
-                )
-
-                # Display progress
-                overall_score = result["assessment"].get("overall_score", 0)
-                entity_score = result["entity_score"].get("overall_entity_score", 0)
-                actual_cost = result["cost_tracking"].get("actual_cost_usd", 0.0)
-                actual_tokens = result["cost_tracking"].get("actual_input", 0)
-                savings = result.get("token_savings_percent", 0)
-
-                typer.echo(
-                    f"✅ [{idx}/{len(confirmed_jobs)}] {title} @ {company}\n"
-                    f"   LLM Score: {overall_score:.0f}/100 | "
-                    f"Entity Score: {entity_score:.0f}/100\n"
-                    f"   Cost: ${actual_cost:.6f} | "
-                    f"Tokens: {actual_tokens} | "
-                    f"Savings: {savings:.1f}%\n"
-                )
-
+            if success and result:
                 successful += 1
-                total_cost += actual_cost
-                total_tokens += actual_tokens
-                results.append({
-                    "job_id": job_id,
-                    "title": title,
-                    "llm_score": overall_score,
-                    "entity_score": entity_score,
-                    "cost": actual_cost,
-                })
-
-                logger.info(
-                    f"[{idx}/{len(confirmed_jobs)}] Assessed {job_id}: "
-                    f"score={overall_score}, entity={entity_score}, "
-                    f"tokens={actual_tokens}, cost=${actual_cost:.6f}, "
-                    f"savings={savings:.1f}%"
-                )
-
-            except anthropic.RateLimitError as e:
-                typer.echo(
-                    f"⏱️  [{idx}/{len(confirmed_jobs)}] Rate limited on {title}\n"
-                    f"   Continuing with remaining jobs...\n"
-                )
-                failed += 1
-                failed_jobs.append({"job_id": job_id, "title": title, "reason": "rate_limited"})
-                logger.warning(f"[{idx}/{len(confirmed_jobs)}] Rate limited on {job_id}: {e}")
-
-            except json.JSONDecodeError as e:
-                typer.echo(
-                    f"⚠️  [{idx}/{len(confirmed_jobs)}] Failed to parse response for {title}\n"
-                    f"   Skipping job...\n"
-                )
-                failed += 1
-                failed_jobs.append({"job_id": job_id, "title": title, "reason": "parse_error"})
-                logger.error(f"[{idx}/{len(confirmed_jobs)}] Parse error for {job_id}: {e}")
-
-            except Exception as e:
-                typer.echo(
-                    f"❌ [{idx}/{len(confirmed_jobs)}] {title}\n"
-                    f"   Error: {type(e).__name__}: {e}\n"
-                )
-                failed += 1
-                failed_jobs.append({
-                    "job_id": job_id,
-                    "title": title,
-                    "reason": type(e).__name__,
-                })
-                logger.exception(f"[{idx}/{len(confirmed_jobs)}] Assessment failed for {job_id}")
+                total_cost += result["cost"]
+                results.append(result)
+                total_tokens += result.get("tokens", 0)
+            else:
+                if error:
+                    failed_jobs.append(error)
 
         # Display summary
-        typer.echo("\n" + "=" * 80)
-        typer.echo("📊 Assessment Summary:")
-        typer.echo(f"   ✅ Assessed: {successful}/{len(confirmed_jobs)}")
-        if failed_jobs:
-            typer.echo(f"   ❌ Failed: {failed}")
-            for job in failed_jobs[:5]:  # Show first 5 failures
-                typer.echo(f"      • {job['title']}: {job['reason']}")
-            if len(failed_jobs) > 5:
-                typer.echo(f"      ... and {len(failed_jobs) - 5} more (see logs)")
-
-        typer.echo("\n💰 Cost Summary:")
-        if results:
-            avg_score = sum(r["llm_score"] for r in results) / len(results)
-            typer.echo(f"   Avg LLM score: {avg_score:.1f}/100")
-        typer.echo(f"   Total cost: ${total_cost:.6f}")
-        typer.echo(f"   Total tokens: {total_tokens:,}")
-        if total_tokens > 0:
-            avg_cost_per_job = total_cost / successful if successful > 0 else 0
-            typer.echo(f"   Avg cost per job: ${avg_cost_per_job:.6f}")
-
-        # Show top matches by LLM score
-        if results:
-            top_results = sorted(results, key=lambda x: x["llm_score"], reverse=True)[:5]
-            typer.echo(f"\n🏆 Top {len(top_results)} Matches (by LLM score):")
-            for i, result_item in enumerate(top_results, 1):
-                entity_score = result_item.get("entity_score", 0)
-                typer.echo(
-                    f"   {i}. {result_item['title']} "
-                    f"(LLM: {result_item['llm_score']:.0f}, Entity: {entity_score:.0f})"
-                )
-
-        typer.echo("\n✅ Assessment complete!\n")
+        _display_assessment_summary(
+            results, failed_jobs, total_cost, total_tokens, successful, len(confirmed_jobs)
+        )
 
         logger.info(
             f"Assessment complete: {successful} successful, "
-            f"{failed} failed, ${total_cost:.6f} total cost, "
+            f"{len(failed_jobs)} failed, ${total_cost:.6f} total cost, "
             f"{total_tokens:,} tokens"
         )
 
