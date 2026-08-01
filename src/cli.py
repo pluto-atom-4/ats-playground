@@ -993,6 +993,113 @@ def preprocess(
 COST_THRESHOLD = 0.10
 
 
+def _resolve_extracted_files(
+    merge_all: bool, extracted: Optional[str], extracted_dir: Path
+) -> list[Path]:
+    """Resolve extracted job file paths based on merge_all flag.
+
+    Args:
+        merge_all: If True, auto-discover all extracted company files.
+        extracted: Path to extracted file (used if merge_all is False).
+        extracted_dir: Directory containing extracted files.
+
+    Returns:
+        List of Path objects for extracted job files.
+
+    Raises:
+        typer.Exit: If no files found or invalid configuration.
+    """
+    if merge_all:
+        # Auto-discover all company files
+        extracted_files = sorted(extracted_dir.glob("*_jobs.json"))
+        extracted_files = [f for f in extracted_files if "preprocessed" not in f.name]
+        if not extracted_files:
+            typer.echo("❌ No extracted job files found in data/extracted_jobs/", err=True)
+            raise typer.Exit(1)
+        logger.info(
+            f"Processing {len(extracted_files)} extracted files: {[f.name for f in extracted_files]}"
+        )
+        return extracted_files
+
+    # Legacy mode: use provided path or hardcoded default
+    if extracted is None:
+        extracted = "data/extracted_jobs/carbonrobotics_jobs.json"
+        logger.warning(
+            "⚠️  Using hardcoded default for review. "
+            "For multi-company workflows, use: review --merge-all"
+        )
+    return [Path(extracted)]
+
+
+def _recalculate_costs_for_model(
+    model: str, preprocessed: str, stats: Any
+) -> float:
+    """Recalculate LLM costs for a specific model using preprocessed jobs.
+
+    Args:
+        model: Claude model identifier (haiku/sonnet/opus or full ID).
+        preprocessed: Path to preprocessed jobs JSON file.
+        stats: Original review stats object with total_cost attribute.
+
+    Returns:
+        Recalculated total cost in USD.
+
+    Side Effects:
+        Logs warnings if recalculation fails.
+        Echoes user-friendly messages about cost changes.
+    """
+    from src.config.models import get_model_display_name, resolve_model_alias
+    from src.tokenization.counter import TokenCounter
+
+    resolved_model = resolve_model_alias(model)
+    model_display = get_model_display_name(resolved_model)
+    typer.echo(f"\n💰 Recalculating costs for {model_display} model...")
+
+    # Create counter with specified model to recalculate costs
+    counter = TokenCounter(model=resolved_model)
+    recalc_cost = 0.0
+
+    try:
+        with open(preprocessed) as f:
+            preprocessed_jobs = json.load(f)
+
+        for job in preprocessed_jobs:
+            # Only recalculate for confirmed jobs
+            if job.get("status") == "confirmed":
+                tokens = job.get("token_count", 0)
+                # Use default output_tokens (300) for recalculation
+                job_cost = counter.estimate_cost(tokens, output_tokens=300)
+                recalc_cost += job_cost
+
+        typer.echo(
+            f"✅ Recalculated costs using {model_display}:\n"
+            f"   Original estimate: ${stats.total_cost:.6f}\n"
+            f"   {model_display} estimate: ${recalc_cost:.6f}"
+        )
+        return recalc_cost
+    except Exception as e:
+        logger.warning(f"Failed to recalculate costs: {e}")
+        typer.echo(f"⚠️  Could not recalculate costs: {e}")
+        return float(stats.total_cost)
+
+
+def _check_cost_threshold(total_cost: float, cost_limit: Optional[float]) -> None:
+    """Check if total cost exceeds threshold and warn user if needed.
+
+    Args:
+        total_cost: Estimated LLM cost in USD.
+        cost_limit: User-specified cost limit (uses default if None).
+    """
+    threshold = cost_limit if cost_limit is not None else COST_THRESHOLD
+    if total_cost > threshold:
+        typer.echo(
+            f"\n⚠️  WARNING: Estimated LLM cost (${total_cost:.6f}) exceeds "
+            f"threshold (${threshold:.6f})\n"
+            f"   To proceed with assessment, use: assess --model <model> --cv <cv_file>\n"
+            f"   To adjust threshold: review --cost-limit {total_cost + 0.01}"
+        )
+
+
 @app.command()
 def review(
     extracted: Optional[str] = typer.Option(
@@ -1038,33 +1145,13 @@ def review(
     ),
 ) -> None:
     """Interactively review extracted jobs before LLM assessment."""
-    from src.config.models import get_model_display_name, resolve_model_alias
     from src.verification import JobReviewer
 
     logger.info("Starting job review")
 
     try:
         extracted_dir = Path("data/extracted_jobs")
-
-        if merge_all:
-            # Auto-discover all company files
-            extracted_files = sorted(extracted_dir.glob("*_jobs.json"))
-            extracted_files = [f for f in extracted_files if "preprocessed" not in f.name]
-            if not extracted_files:
-                typer.echo("❌ No extracted job files found in data/extracted_jobs/", err=True)
-                raise typer.Exit(1)
-            logger.info(
-                f"Processing {len(extracted_files)} extracted files: {[f.name for f in extracted_files]}"
-            )
-        else:
-            # Legacy mode: use provided path or hardcoded default
-            if extracted is None:
-                extracted = "data/extracted_jobs/carbonrobotics_jobs.json"
-                logger.warning(
-                    "⚠️  Using hardcoded default for review. "
-                    "For multi-company workflows, use: review --merge-all"
-                )
-            extracted_files = [Path(extracted)]
+        extracted_files = _resolve_extracted_files(merge_all, extracted, extracted_dir)
 
         reviewer = JobReviewer()
 
@@ -1093,50 +1180,10 @@ def review(
 
         # Recalculate costs if model specified
         if model:
-            from src.tokenization.counter import TokenCounter
-
-            resolved_model = resolve_model_alias(model)
-            model_display = get_model_display_name(resolved_model)
-            typer.echo(f"\n💰 Recalculating costs for {model_display} model...")
-
-            # Create counter with specified model to recalculate costs
-            counter = TokenCounter(model=resolved_model)
-            recalc_cost = 0.0
-
-            # Load preprocessed jobs and recalculate their costs
-            try:
-                import json
-
-                with open(preprocessed) as f:
-                    preprocessed_jobs = json.load(f)
-
-                for job in preprocessed_jobs:
-                    # Only recalculate for confirmed jobs
-                    if job.get("status") == "confirmed":
-                        tokens = job.get("token_count", 0)
-                        # Use default output_tokens (300) for recalculation
-                        job_cost = counter.estimate_cost(tokens, output_tokens=300)
-                        recalc_cost += job_cost
-
-                typer.echo(
-                    f"✅ Recalculated costs using {model_display}:\n"
-                    f"   Original estimate: ${stats.total_cost:.6f}\n"
-                    f"   {model_display} estimate: ${recalc_cost:.6f}"
-                )
-                stats.total_cost = recalc_cost
-            except Exception as e:
-                logger.warning(f"Failed to recalculate costs: {e}")
-                typer.echo(f"⚠️  Could not recalculate costs: {e}")
+            stats.total_cost = _recalculate_costs_for_model(model, preprocessed, stats)
 
         # Check cost limit warning
-        threshold = cost_limit if cost_limit is not None else COST_THRESHOLD
-        if stats.total_cost > threshold:
-            typer.echo(
-                f"\n⚠️  WARNING: Estimated LLM cost (${stats.total_cost:.6f}) exceeds "
-                f"threshold (${threshold:.6f})\n"
-                f"   To proceed with assessment, use: assess --model <model> --cv <cv_file>\n"
-                f"   To adjust threshold: review --cost-limit {stats.total_cost + 0.01}"
-            )
+        _check_cost_threshold(stats.total_cost, cost_limit)
 
     except Exception as e:
         logger.error(f"Review failed: {e}", exc_info=True)
