@@ -388,6 +388,167 @@ class Preprocessor:
         logger.debug(f"Removed boilerplate: {len(text)} → {len(cleaned)} chars")
         return cleaned
 
+    def _should_skip_entity_common(
+        self, entity_clean: str, entity_lower: str, entity_type: str, boilerplate_keywords: Set[str]
+    ) -> bool:
+        """Check if entity should be skipped due to common validation rules.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            entity_type: Type of entity (skills, technologies, requirements)
+            boilerplate_keywords: Set of boilerplate keywords to filter
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Length validation (Phase 1: conservative)
+        # Requirements can be longer phrases (100 chars), skills/tech shorter (70 chars)
+        max_length = 100 if entity_type == "requirements" else 70
+        if len(entity_clean) < 2 or len(entity_clean) > max_length:
+            return True
+
+        # Skip boilerplate keywords
+        if any(kw in entity_lower for kw in boilerplate_keywords):
+            return True
+
+        # Skip if contains excessive formatting artifacts (but allow parentheses in some contexts)
+        if entity_clean.count("\xa0") > 1 or entity_clean.count("(") > 2:
+            return True
+
+        return False
+
+    def _should_skip_requirement(
+        self, entity_clean: str, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if requirement entity should be skipped.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip pure numbers or numbers with decimals
+        if re.match(r"^\d+(\.\d+)?$", entity_clean):
+            return True
+
+        # Skip salary/cost ranges with $ or commas
+        if "$" in entity_clean or ("range" in entity_lower and ":" in entity_clean):
+            return True
+
+        # Skip items ending with colon (artifacts)
+        if entity_clean.rstrip().endswith(":"):
+            return True
+
+        # Skip possessive forms (Blue Origin's, Carbon Robotics', Blue's)
+        if entity_clean.endswith("'s") or entity_clean.endswith("'"):
+            return True
+
+        # Skip articles at start (the, a, an)
+        if words and words[0] in ("the", "a", "an"):
+            return True
+
+        # Skip single-word fragments
+        if len(words) == 1:
+            if entity_lower in ("one", "review", "oversees"):
+                return True
+
+        # Skip incomplete phrases
+        if entity_clean in ("s of Service", "Oversees"):
+            return True
+
+        # Skip generic phrases
+        if entity_clean in ("each year", "U.S. National"):
+            return True
+
+        # Skip job titles and generic categories
+        job_titles = {
+            "design and verification engineer", "software lead",
+            "technical leadership", "technical oversight and authority of a range of software solutions"
+        }
+        if entity_lower in job_titles:
+            return True
+
+        generic_categories = {
+            "software engineering", "software architecture and design",
+            "software configuration management", "software life cycle management",
+            "college of arts", "college of arts and sciences",
+            "computer science"
+        }
+        if entity_lower in generic_categories:
+            return True
+
+        # Skip policy/benefit/regulation keywords
+        policy_patterns = {
+            "alcohol", "commercial motor", "federal motor carrier",
+            "pre-ipo", "pre-IPO", "stock option", "regulation"
+        }
+        if any(pattern in entity_lower for pattern in policy_patterns):
+            return True
+
+        # Skip responsibility phrases (action verbs)
+        if len(words) >= 2:
+            action_verbs = {"optimize", "prepare", "manage", "oversee"}
+            if words[0] in action_verbs:
+                return True
+
+        # Skip location/proper nouns
+        location_nouns = {"seattle", "rocky", "road test"}
+        if entity_lower in location_nouns:
+            return True
+
+        # Skip unclear abbreviations
+        if entity_lower in ("hdhp", "blue's"):
+            return True
+
+        return False
+
+    def _should_skip_skill(
+        self, entity_clean: str, entity_lower: str, words: list[str], generic_skills: Set[str],
+        company_names: Set[str]
+    ) -> bool:
+        """Check if skill entity should be skipped.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+            generic_skills: Set of generic skill words to filter
+            company_names: Set of company names to filter
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip numbers and percentages
+        if re.match(r"^\d+[\d\.,\-]*%?$|^\$[\d,]+", entity_clean):
+            return True
+
+        # Skip items containing percentages or large numbers (e.g., "5–50 %", "% Carbon Robotics", "90,000")
+        if "%" in entity_clean or re.search(r"\d+[\–-]\d+\s*%?|\d{3,}", entity_clean):
+            return True
+
+        # Skip very generic single-word skills
+        if len(words) == 1 and entity_lower in generic_skills:
+            return True
+
+        # Skip company names
+        if entity_lower in company_names:
+            return True
+
+        # Skip if contains company name
+        if any(company in entity_lower for company in company_names):
+            return True
+
+        # Skip nonsense phrases (articles + generic words)
+        if entity_lower.startswith(("an ", "a ", "the ")):
+            if len(words) <= 3 and any(word in generic_skills for word in words[1:]):
+                return True
+
+        return False
+
     def _filter_entities(self, entities: list[str], entity_type: str = "skills") -> list[str]:
         """Filter extracted entities to remove noise and short fragments.
 
@@ -398,7 +559,7 @@ class Preprocessor:
         - For requirements: Skip numbers, possessives, job titles, policies, etc.
         - For skills: Skip generic words, numbers, company names, publications
         """
-        boilerplate_keywords = {
+        boilerplate_keywords: Set[str] = {
             "affirmative",
             "action",
             "equal",
@@ -421,7 +582,7 @@ class Preprocessor:
         }
 
         # Generic/low-signal skills that are too broad
-        generic_skills = {
+        generic_skills: Set[str] = {
             "company", "data", "time", "level", "market", "process", "industry",
             "role", "work", "job", "experience", "position", "area", "field",
             "range", "option", "form", "base", "suite", "tech", "able",
@@ -432,7 +593,7 @@ class Preprocessor:
         }
 
         # Company names, publications, brands (should go to requirements/technologies)
-        company_names = {
+        company_names: Set[str] = {
             "google", "forbes", "wsj", "carbon", "robotics", "john deere", "deere",
             "blue origin", "origin", "boeing", "uw", "university",
         }
@@ -440,124 +601,20 @@ class Preprocessor:
         filtered: set[str] = set()
         for entity in entities:
             entity_clean = entity.strip()
-
-            # Length validation (Phase 1: conservative)
-            # Requirements can be longer phrases (100 chars), skills/tech shorter (70 chars)
-            max_length = 100 if entity_type == "requirements" else 70
-            if len(entity_clean) < 2 or len(entity_clean) > max_length:
-                continue
-
-            # Skip boilerplate keywords
             entity_lower = entity_clean.lower()
             words = entity_lower.split()
-            if any(kw in entity_lower for kw in boilerplate_keywords):
+
+            # Check common validation rules
+            if self._should_skip_entity_common(entity_clean, entity_lower, entity_type, boilerplate_keywords):
                 continue
 
-            # Skip if contains excessive formatting artifacts (but allow parentheses in some contexts)
-            if entity_clean.count("\xa0") > 1 or entity_clean.count("(") > 2:
-                continue
-
-            # Phase 12: Requirement-specific filtering
+            # Entity-type specific filtering
             if entity_type == "requirements":
-                # Skip pure numbers or numbers with decimals
-                if __import__("re").match(r"^\d+(\.\d+)?$", entity_clean):
+                if self._should_skip_requirement(entity_clean, entity_lower, words):
                     continue
-
-                # Skip salary/cost ranges with $ or commas
-                if "$" in entity_clean or ("range" in entity_lower and ":" in entity_clean):
-                    continue
-
-                # Skip items ending with colon (artifacts)
-                if entity_clean.rstrip().endswith(":"):
-                    continue
-
-                # Skip possessive forms (Blue Origin's, Carbon Robotics', Blue's)
-                if entity_clean.endswith("'s") or entity_clean.endswith("'"):
-                    continue
-
-                # Skip articles at start (the, a, an)
-                if words and words[0] in ("the", "a", "an"):
-                    continue
-
-                # Skip single-word fragments
-                if len(words) == 1:
-                    if entity_lower in ("one", "review", "oversees"):
-                        continue
-
-                # Skip incomplete phrases
-                if entity_clean in ("s of Service", "Oversees"):
-                    continue
-
-                # Skip generic phrases
-                if entity_clean in ("each year", "U.S. National"):
-                    continue
-
-                # Skip job titles and generic categories
-                job_titles = {
-                    "design and verification engineer", "software lead",
-                    "technical leadership", "technical oversight and authority of a range of software solutions"
-                }
-                if entity_lower in job_titles:
-                    continue
-
-                generic_categories = {
-                    "software engineering", "software architecture and design",
-                    "software configuration management", "software life cycle management",
-                    "college of arts", "college of arts and sciences",
-                    "computer science"
-                }
-                if entity_lower in generic_categories:
-                    continue
-
-                # Skip policy/benefit/regulation keywords
-                policy_patterns = {
-                    "alcohol", "commercial motor", "federal motor carrier",
-                    "pre-ipo", "pre-IPO", "stock option", "regulation"
-                }
-                if any(pattern in entity_lower for pattern in policy_patterns):
-                    continue
-
-                # Skip responsibility phrases (action verbs)
-                if len(words) >= 2:
-                    action_verbs = {"optimize", "prepare", "manage", "oversee"}
-                    if words[0] in action_verbs:
-                        continue
-
-                # Skip location/proper nouns
-                location_nouns = {"seattle", "rocky", "road test"}
-                if entity_lower in location_nouns:
-                    continue
-
-                # Skip unclear abbreviations
-                if entity_lower in ("hdhp", "blue's"):
-                    continue
-
-            # Skills-specific filtering
             elif entity_type == "skills":
-                # Skip numbers and percentages
-                if __import__("re").match(r"^\d+[\d\.,\-]*%?$|^\$[\d,]+", entity_clean):
+                if self._should_skip_skill(entity_clean, entity_lower, words, generic_skills, company_names):
                     continue
-
-                # Skip items containing percentages or large numbers (e.g., "5–50 %", "% Carbon Robotics", "90,000")
-                if "%" in entity_clean or __import__("re").search(r"\d+[\–-]\d+\s*%?|\d{3,}", entity_clean):
-                    continue
-
-                # Skip very generic single-word skills
-                if len(words) == 1 and entity_lower in generic_skills:
-                    continue
-
-                # Skip company names
-                if entity_lower in company_names:
-                    continue
-
-                # Skip if contains company name
-                if any(company in entity_lower for company in company_names):
-                    continue
-
-                # Skip nonsense phrases (articles + generic words)
-                if entity_lower.startswith(("an ", "a ", "the ")):
-                    if len(words) <= 3 and any(word in generic_skills for word in words[1:]):
-                        continue
 
             filtered.add(entity_clean)
 
