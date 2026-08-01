@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple, Union
 
 import spacy
 from spacy.language import Language
@@ -920,6 +920,78 @@ class Preprocessor:
                     technologies.add(token.text)
 
     @staticmethod
+    def _normalize_list_item(item: Union[str, Tuple[str, str]]) -> str:
+        """Extract text from tuple or string, return normalized item text.
+
+        Args:
+            item: String or tuple (from re.findall) to normalize
+
+        Returns:
+            Normalized (stripped) item text
+        """
+        if isinstance(item, tuple):
+            item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
+        else:
+            item_text = str(item)
+        return item_text.strip()
+
+    @staticmethod
+    def _should_skip_list_item(item_text: str) -> bool:
+        """Check if item should be skipped based on validation rules.
+
+        Args:
+            item_text: Normalized item text
+
+        Returns:
+            True if item should be skipped, False otherwise
+        """
+        if not item_text or len(item_text) < 3:
+            return True
+        if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
+            return True
+        return False
+
+    @staticmethod
+    def _route_list_item_by_section(
+        item_text: str,
+        section_name: str,
+        is_skills_section: bool,
+        is_req_section: bool,
+        is_description_section: bool,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        requirements: Set[str],
+    ) -> None:
+        """Route item to appropriate set based on section type.
+
+        Args:
+            item_text: Normalized item text
+            section_name: Name of the section
+            is_skills_section: Whether section is skills-focused
+            is_req_section: Whether section is requirements-focused
+            is_description_section: Whether section is description-focused
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill items to
+            technologies: Set to add technology items to
+            requirements: Set to add requirement items to
+        """
+        if is_skills_section:
+            if len(item_text) > 3:
+                skills.add(item_text)
+        elif is_req_section:
+            if len(item_text) > 3:
+                requirements.add(item_text)
+        elif section_name == "responsibilities" or is_description_section:
+            exclude_words = ("design", "architecture", "strategy")
+            item_lower = item_text.lower()
+            has_excluded = any(word in item_lower for word in exclude_words)
+            if len(item_text) > 5 and not has_excluded:
+                for keyword in tech_keywords:
+                    if keyword in item_lower:
+                        technologies.add(keyword)
+
+    @staticmethod
     def _extract_list_items(
         list_items: List[Tuple[str, str]],
         section_name: str,
@@ -945,32 +1017,20 @@ class Preprocessor:
             requirements: Set to add requirement items to
         """
         for item in list_items:
-            if isinstance(item, tuple):
-                item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
-            else:
-                item_text = str(item)
-
-            item_text = item_text.strip()
-            if not item_text or len(item_text) < 3:
+            item_text = Preprocessor._normalize_list_item(item)
+            if Preprocessor._should_skip_list_item(item_text):
                 continue
-
-            if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
-                continue
-
-            if is_skills_section:
-                if len(item_text) > 3:
-                    skills.add(item_text)
-            elif is_req_section:
-                if len(item_text) > 3:
-                    requirements.add(item_text)
-            elif section_name == "responsibilities" or is_description_section:
-                exclude_words = ("design", "architecture", "strategy")
-                item_lower = item_text.lower()
-                has_excluded = any(word in item_lower for word in exclude_words)
-                if len(item_text) > 5 and not has_excluded:
-                    for keyword in tech_keywords:
-                        if keyword in item_lower:
-                            technologies.add(keyword)
+            Preprocessor._route_list_item_by_section(
+                item_text,
+                section_name,
+                is_skills_section,
+                is_req_section,
+                is_description_section,
+                tech_keywords,
+                skills,
+                technologies,
+                requirements,
+            )
 
     def _extract_entities_by_section(self, text: str) -> Tuple[Set[str], Set[str], Set[str]]:
         """Extract entities intelligently from markdown sections using NER (Phase 11).
