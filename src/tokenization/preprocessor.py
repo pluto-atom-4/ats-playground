@@ -7,6 +7,7 @@ from typing import Any, List, Optional, Set, Tuple, Union
 import spacy
 from spacy.language import Language
 
+from src.tokenization.company_names import get_company_keywords, is_company_keyword
 from src.tokenization.keywords import get_all_keywords
 from src.tokenization.soft_skills import get_all_soft_skills
 from src.tokenization.technical_compounds import is_technical_compound
@@ -597,6 +598,30 @@ class Preprocessor:
 
         return False
 
+    def _is_company_name(self, entity_lower: str) -> bool:
+        """Check if entity is a company name using word-boundary matching (Issue #194 Phase 7).
+
+        Uses centralized company names taxonomy for consistent filtering.
+        Checks both exact matches and partial matches within compound entities.
+
+        Args:
+            entity_lower: Lowercase entity text
+
+        Returns:
+            True if entity is a company name, False otherwise
+        """
+        # Check if exact match (word-boundary matching)
+        if is_company_keyword(entity_lower, word_boundary=True):
+            return True
+
+        # Check if contains company name as substring (for compound entities)
+        # Example: "% Carbon Robotics" contains "carbon robotics"
+        company_keywords = get_company_keywords()
+        if any(company in entity_lower for company in company_keywords):
+            return True
+
+        return False
+
     def _should_skip_requirement(
         self, entity_clean: str, entity_lower: str, words: list[str]
     ) -> bool:
@@ -631,7 +656,7 @@ class Preprocessor:
             entity_lower: Lowercase entity text
             words: List of lowercased words in entity
             generic_skills: Set of generic skill words to filter
-            company_names: Set of company names to filter
+            company_names: Set of company names to filter (deprecated: use _is_company_name)
             pos_tag: POS tag of entity (from pre-computed extraction, avoids re-parsing)
 
         Returns:
@@ -657,12 +682,8 @@ class Preprocessor:
             if entity_lower not in soft_skills:
                 return True
 
-        # Skip company names
-        if entity_lower in company_names:
-            return True
-
-        # Skip if contains company name
-        if any(company in entity_lower for company in company_names):
+        # Issue #194 Phase 7: Skip company names using centralized taxonomy with word-boundary matching
+        if self._is_company_name(entity_lower):
             return True
 
         # Skip nonsense phrases (articles + generic words)
@@ -853,11 +874,9 @@ class Preprocessor:
             "state", "location", "place", "site", "office", "center",
         }
 
-        # Company names, publications, brands (should go to requirements/technologies)
-        company_names: Set[str] = {
-            "google", "forbes", "wsj", "carbon", "robotics", "john deere", "deere",
-            "blue origin", "origin", "boeing", "uw", "university",
-        }
+        # Company names, publications, brands (Issue #194 Phase 7: use expanded taxonomy)
+        # Get company names from centralized module for consistency
+        company_names: Set[str] = get_company_keywords()
 
         filtered: set[str] = set()
         for entity in entities:
