@@ -132,8 +132,9 @@ class Preprocessor:
             # Extract from NER (named entities) - always do this for comprehensive extraction
             self._extract_from_ner(doc, tech_keywords, technologies, requirements)
 
-            # Extract from POS tags and noun compounds
-            self._extract_from_tokens(doc, tech_keywords, skills, technologies)
+            # Extract from POS tags and noun compounds, capturing POS info for optimization
+            entity_pos_tags: dict[str, str] = {}
+            self._extract_from_tokens(doc, tech_keywords, skills, technologies, entity_pos_tags)
 
             # Extract soft skills from text
             # For markdown: include soft skills from skills sections (_extract_entities_by_section)
@@ -153,9 +154,16 @@ class Preprocessor:
                     reclassified_skills.append(skill)
 
             # 5. Filter entities (remove noise, duplicates, short fragments)
-            skills = set(self._filter_entities(reclassified_skills, entity_type="skills"))
-            technologies = set(self._filter_entities(list(technologies), entity_type="technologies"))
-            requirements = set(self._filter_entities(list(requirements), entity_type="requirements"))
+            # Pass pre-computed POS tags to avoid double NLP processing (Phase 3 optimization)
+            skills = set(self._filter_entities(
+                reclassified_skills, entity_type="skills", entity_pos_tags=entity_pos_tags
+            ))
+            technologies = set(self._filter_entities(
+                list(technologies), entity_type="technologies", entity_pos_tags=entity_pos_tags
+            ))
+            requirements = set(self._filter_entities(
+                list(requirements), entity_type="requirements", entity_pos_tags=entity_pos_tags
+            ))
 
             logger.debug(
                 f"Extracted {len(skills)} skills, "
@@ -201,9 +209,21 @@ class Preprocessor:
 
     @staticmethod
     def _extract_from_tokens(
-        doc: Any, tech_keywords: Set[str], skills: Set[str], technologies: Set[str]
+        doc: Any, tech_keywords: Set[str], skills: Set[str], technologies: Set[str],
+        entity_pos_tags: Optional[dict[str, str]] = None
     ) -> None:
-        """Extract skills and tech from tokens."""
+        """Extract skills and tech from tokens (Phase 3: POS tag optimization).
+
+        Args:
+            doc: spaCy Doc object with processed tokens
+            tech_keywords: Set of technology keywords to match
+            skills: Set to add extracted skills to
+            technologies: Set to add extracted technologies to
+            entity_pos_tags: Optional dict to store entity -> POS tag mapping for later filtering
+        """
+        if entity_pos_tags is None:
+            entity_pos_tags = {}
+
         exclude_skills = {"senior", "junior", "required", "optional", "available"}
 
         for token in doc:
@@ -214,8 +234,10 @@ class Preprocessor:
             # Check if token matches tech keywords
             if token_text.lower() in tech_keywords:
                 technologies.add(token_text)
+                entity_pos_tags[token_text] = token.pos_
             elif token.lemma_.lower() in tech_keywords:
                 technologies.add(token.text)
+                entity_pos_tags[token.text] = token.pos_
 
             # Extract noun compounds as skills
             if (
@@ -232,11 +254,14 @@ class Preprocessor:
                     )
                     if len(phrase) > 3 and "job" not in phrase.lower():
                         skills.add(phrase)
+                        # Store POS tag of first meaningful token in phrase
+                        entity_pos_tags[phrase] = "NOUN"
 
-            # Extract adjectives
+            # Extract adjectives (with POS tag for later filtering)
             if token.pos_ == "ADJ" and len(token_text) > 4:
                 if token_text.lower() not in exclude_skills:
                     skills.add(token_text)
+                    entity_pos_tags[token_text] = "ADJ"
 
     def remove_stopwords(self, text: str) -> str:
         """Remove common English stopwords while preserving important terms.
@@ -592,9 +617,9 @@ class Preprocessor:
 
     def _should_skip_skill(
         self, entity_clean: str, entity_lower: str, words: list[str], generic_skills: Set[str],
-        company_names: Set[str]
+        company_names: Set[str], pos_tag: Optional[str] = None
     ) -> bool:
-        """Check if skill entity should be skipped.
+        """Check if skill entity should be skipped (Phase 3: POS-aware filtering).
 
         Args:
             entity_clean: Cleaned entity text
@@ -602,6 +627,7 @@ class Preprocessor:
             words: List of lowercased words in entity
             generic_skills: Set of generic skill words to filter
             company_names: Set of company names to filter
+            pos_tag: POS tag of entity (from pre-computed extraction, avoids re-parsing)
 
         Returns:
             True if entity should be skipped, False otherwise
@@ -618,6 +644,14 @@ class Preprocessor:
         if len(words) == 1 and entity_lower in generic_skills:
             return True
 
+        # Phase 3 optimization: Filter single adjectives not in soft_skills (Phase 1 taxonomy)
+        # Only filter if we have POS tag info available to avoid false positives
+        soft_skills = get_all_soft_skills()
+        if pos_tag == "ADJ" and len(words) == 1:
+            # Single adjective: only keep if it's in soft skills vocabulary
+            if entity_lower not in soft_skills:
+                return True
+
         # Skip company names
         if entity_lower in company_names:
             return True
@@ -633,8 +667,11 @@ class Preprocessor:
 
         return False
 
-    def _filter_entities(self, entities: list[str], entity_type: str = "skills") -> list[str]:
-        """Filter extracted entities to remove noise and short fragments.
+    def _filter_entities(
+        self, entities: list[str], entity_type: str = "skills",
+        entity_pos_tags: Optional[dict[str, str]] = None
+    ) -> list[str]:
+        """Filter extracted entities to remove noise and short fragments (Phase 3: POS optimization).
 
         Validation rules (Phase 12 with requirement-specific filtering):
         - Reject if: len < 2 or len > 70
@@ -642,7 +679,15 @@ class Preprocessor:
         - Reject if: Duplicate
         - For requirements: Skip numbers, possessives, job titles, policies, etc.
         - For skills: Skip generic words, numbers, company names, publications
+        - For skills with POS tags: Filter single adjectives not in soft_skills
+
+        Args:
+            entities: List of entity strings to filter
+            entity_type: Type of entity (skills, technologies, requirements)
+            entity_pos_tags: Optional dict mapping entity text to POS tag (avoids re-parsing)
         """
+        if entity_pos_tags is None:
+            entity_pos_tags = {}
         boilerplate_keywords: Set[str] = {
             "affirmative",
             "action",
@@ -697,7 +742,11 @@ class Preprocessor:
                 if self._should_skip_requirement(entity_clean, entity_lower, words):
                     continue
             elif entity_type == "skills":
-                if self._should_skip_skill(entity_clean, entity_lower, words, generic_skills, company_names):
+                # Get pre-computed POS tag for this entity (Phase 3 optimization)
+                pos_tag = entity_pos_tags.get(entity_clean, None)
+                if self._should_skip_skill(
+                    entity_clean, entity_lower, words, generic_skills, company_names, pos_tag=pos_tag
+                ):
                     continue
 
             filtered.add(entity_clean)
