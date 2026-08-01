@@ -118,7 +118,7 @@ known-first-party = ["models", "browser", "cli", "llm", "parsers", "storage", "t
 ".claude/prototypes/*" = ["E402", "E501", "C401", "F841", "B905", "C901"]  # Debug/test utilities
 ".claude/scripts/*" = ["C901", "B007"]  # Analysis/debug scripts
 "src/nlp/ner.py" = ["C901"]  # TODO: reduce complexity in extract/fallback methods
-"src/tokenization/preprocessor.py" = ["C901"]  # TODO: reduce complexity in filter/extract methods
+"src/tokenization/preprocessor.py" = ["C901"]  # TODO: reduce complexity in _extract_list_items and _extract_from_tokens
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

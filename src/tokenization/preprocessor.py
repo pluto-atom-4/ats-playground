@@ -418,18 +418,15 @@ class Preprocessor:
 
         return False
 
-    def _should_skip_requirement(
-        self, entity_clean: str, entity_lower: str, words: list[str]
-    ) -> bool:
-        """Check if requirement entity should be skipped.
+    def _is_numeric_or_cost(self, entity_clean: str, entity_lower: str) -> bool:
+        """Check if entity is purely numeric or a cost/salary range.
 
         Args:
             entity_clean: Cleaned entity text
             entity_lower: Lowercase entity text
-            words: List of lowercased words in entity
 
         Returns:
-            True if entity should be skipped, False otherwise
+            True if entity is numeric or cost-related, False otherwise
         """
         # Skip pure numbers or numbers with decimals
         if re.match(r"^\d+(\.\d+)?$", entity_clean):
@@ -439,6 +436,20 @@ class Preprocessor:
         if "$" in entity_clean or ("range" in entity_lower and ":" in entity_clean):
             return True
 
+        return False
+
+    def _is_possessive_or_article(
+        self, entity_clean: str, words: list[str]
+    ) -> bool:
+        """Check if entity is a possessive form, article, or artifact colon.
+
+        Args:
+            entity_clean: Cleaned entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
         # Skip items ending with colon (artifacts)
         if entity_clean.rstrip().endswith(":"):
             return True
@@ -451,6 +462,21 @@ class Preprocessor:
         if words and words[0] in ("the", "a", "an"):
             return True
 
+        return False
+
+    def _is_generic_or_incomplete_phrase(
+        self, entity_clean: str, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if entity is a fragment, incomplete phrase, or generic phrase.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
         # Skip single-word fragments
         if len(words) == 1:
             if entity_lower in ("one", "review", "oversees"):
@@ -464,7 +490,17 @@ class Preprocessor:
         if entity_clean in ("each year", "U.S. National"):
             return True
 
-        # Skip job titles and generic categories
+        return False
+
+    def _is_job_title_or_category(self, entity_lower: str) -> bool:
+        """Check if entity is a job title or generic category.
+
+        Args:
+            entity_lower: Lowercase entity text
+
+        Returns:
+            True if entity is a job title or category, False otherwise
+        """
         job_titles = {
             "design and verification engineer", "software lead",
             "technical leadership", "technical oversight and authority of a range of software solutions"
@@ -481,6 +517,20 @@ class Preprocessor:
         if entity_lower in generic_categories:
             return True
 
+        return False
+
+    def _is_policy_or_responsibility(
+        self, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if entity is a policy keyword or responsibility phrase.
+
+        Args:
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
         # Skip policy/benefit/regulation keywords
         policy_patterns = {
             "alcohol", "commercial motor", "federal motor carrier",
@@ -495,6 +545,17 @@ class Preprocessor:
             if words[0] in action_verbs:
                 return True
 
+        return False
+
+    def _is_location_or_abbreviation(self, entity_lower: str) -> bool:
+        """Check if entity is a location noun or unclear abbreviation.
+
+        Args:
+            entity_lower: Lowercase entity text
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
         # Skip location/proper nouns
         location_nouns = {"seattle", "rocky", "road test"}
         if entity_lower in location_nouns:
@@ -505,6 +566,29 @@ class Preprocessor:
             return True
 
         return False
+
+    def _should_skip_requirement(
+        self, entity_clean: str, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if requirement entity should be skipped.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Check each category in sequence
+        return (
+            self._is_numeric_or_cost(entity_clean, entity_lower)
+            or self._is_possessive_or_article(entity_clean, words)
+            or self._is_generic_or_incomplete_phrase(entity_clean, entity_lower, words)
+            or self._is_job_title_or_category(entity_lower)
+            or self._is_policy_or_responsibility(entity_lower, words)
+            or self._is_location_or_abbreviation(entity_lower)
+        )
 
     def _should_skip_skill(
         self, entity_clean: str, entity_lower: str, words: list[str], generic_skills: Set[str],
