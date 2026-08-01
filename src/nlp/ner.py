@@ -316,78 +316,89 @@ class JobNERExtractor:
 
         return requirements_with_conf
 
-    def _extract_requirements_fallback(self, text: str) -> Set[str]:
-        """Generic requirement extraction fallback."""
-        requirements = set()
+    def _extract_years_from_section(self, text: str, section_label: str) -> Set[str]:
+        """Extract years of experience from a section."""
+        years_reqs: Set[str] = set()
+        min_qual_match = re.search(
+            rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not min_qual_match:
+            return years_reqs
 
-        # 1. Years of experience (from basic/minimum qualifications section)
-        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills"]:
-            min_qual_match = re.search(
-                rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
-                text,
-                re.IGNORECASE | re.DOTALL,
-            )
-            if min_qual_match:
-                min_qual_section = min_qual_match.group(1)
+        min_qual_section = min_qual_match.group(1)
+        years_pattern = (
+            r"(\d+)\+?\s+years\s+(?:of\s+)?experience"
+            r"(?:\s+(?:in|with|focused\s+on|involving|related\s+to|using|with)\s+([^\.\n]+))?"
+        )
+        for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
+            years = match.group(1)
+            domain = match.group(2)
 
-                # Extract years from this section
-                years_pattern = (
-                    r"(\d+)\+?\s+years\s+(?:of\s+)?experience"
-                    r"(?:\s+(?:in|with|focused\s+on|involving|related\s+to|using|with)\s+([^\.\n]+))?"
-                )
-                for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
-                    years = match.group(1)
-                    domain = match.group(2)
+            if domain:
+                domain = domain.strip()
+                domain = re.sub(r"[\.,;]*$", "", domain)
+                # Normalize specific domains
+                if "autonomy" in domain.lower() and "aerospace" in domain.lower():
+                    domain = "autonomy or aerospace autonomy/GNC"
+                elif "autonomy" in domain.lower():
+                    domain = "autonomy"
+                years_reqs.add(f"{years}+ years of experience {domain}")
+            else:
+                years_reqs.add(f"{years}+ years of experience")
 
-                    if domain:
-                        domain = domain.strip()
-                        domain = re.sub(r"[\.,;]*$", "", domain)
-                        # Normalize specific domains
-                        if "autonomy" in domain.lower() and "aerospace" in domain.lower():
-                            domain = "autonomy or aerospace autonomy/GNC"
-                        elif "autonomy" in domain.lower():
-                            domain = "autonomy"
-                        requirements.add(f"{years}+ years of experience {domain}")
-                    else:
-                        requirements.add(f"{years}+ years of experience")
+        return years_reqs
 
-        # 2. Extract other bullets from Basic/Minimum Qualifications section
-        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills/experience"]:
-            min_qual_match = re.search(
-                rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
-                text,
-                re.IGNORECASE | re.DOTALL,
-            )
-            if min_qual_match:
-                qual_text = min_qual_match.group(1)
-                bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", qual_text)
-                for bullet in bullets:
-                    bullet = bullet.strip()
-                    # Keep requirement bullets (10-150 chars, not starting with years)
-                    if 10 < len(bullet) < 150 and not re.match(r"^\d+\+", bullet):
-                        # Don't duplicate years of experience
-                        if "years of experience" not in bullet.lower():
-                            requirements.add(bullet)
+    def _extract_qualification_bullets(self, text: str, section_label: str) -> Set[str]:
+        """Extract bullet points from a qualifications section."""
+        bullets_reqs: Set[str] = set()
+        min_qual_match = re.search(
+            rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not min_qual_match:
+            return bullets_reqs
 
-        # 3. Extract from "Preferred Qualifications" section
+        qual_text = min_qual_match.group(1)
+        bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", qual_text)
+        for bullet in bullets:
+            bullet = bullet.strip()
+            # Keep requirement bullets (10-150 chars, not starting with years)
+            if 10 < len(bullet) < 150 and not re.match(r"^\d+\+", bullet):
+                # Don’t duplicate years of experience
+                if "years of experience" not in bullet.lower():
+                    bullets_reqs.add(bullet)
+
+        return bullets_reqs
+
+    def _extract_preferred_qualifications(self, text: str) -> Set[str]:
+        """Extract from Preferred Qualifications section."""
+        pref_reqs: Set[str] = set()
         pref_match = re.search(
             r"(?:##\s+)?(?:preferred|desired)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Background|---|\Z)",
             text,
             re.IGNORECASE | re.DOTALL,
         )
-        if pref_match:
-            pref_text = pref_match.group(1)
-            pref_bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", pref_text)
-            for bullet in pref_bullets:
-                bullet = bullet.strip()
-                if 10 < len(bullet) < 150:
-                    # Add (Preferred) tag if not already there
-                    if "(Preferred)" not in bullet:
-                        bullet = f"{bullet} (Preferred)"
-                    requirements.add(bullet)
+        if not pref_match:
+            return pref_reqs
 
-        # 4. Look for specific requirement patterns in text
-        # Advanced degree pattern
+        pref_text = pref_match.group(1)
+        pref_bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", pref_text)
+        for bullet in pref_bullets:
+            bullet = bullet.strip()
+            if 10 < len(bullet) < 150:
+                # Add (Preferred) tag if not already there
+                if "(Preferred)" not in bullet:
+                    bullet = f"{bullet} (Preferred)"
+                pref_reqs.add(bullet)
+
+        return pref_reqs
+
+    def _extract_advanced_degree(self, text: str) -> Set[str]:
+        """Extract advanced degree requirements."""
+        degree_reqs = set()
         advanced_degree_match = re.search(
             r"(?:M\.S\.|MS|Master|PhD|Ph\.D\.)\s+(?:or|\/)\s+(?:PhD|Ph\.D\.)",
             text,
@@ -397,35 +408,83 @@ class JobNERExtractor:
             # Check if marked as preferred
             context = text[max(0, advanced_degree_match.start() - 100):advanced_degree_match.end() + 100]
             if "preferred" in context.lower():
-                requirements.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)")
+                degree_reqs.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)")
             else:
-                # If in preferred section, don't add duplicate
-                if not any("Advanced degree" in req for req in requirements):
-                    requirements.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field")
+                # If in preferred section, don’t add duplicate
+                if not any("Advanced degree" in req for req in degree_reqs):
+                    degree_reqs.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field")
 
-        # 5. Citizenship/export control
+        return degree_reqs
+
+    def _extract_citizenship_requirement(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract citizenship/export control requirements."""
+        citizen_reqs = set()
         if re.search(r"U\.S\.\s+(?:citizen|national)|permanent\s+resident", text, re.IGNORECASE):
-            if not any("U.S. citizen" in req for req in requirements):
-                requirements.add("U.S. citizen, national, permanent resident, refugee, or asylee status")
+            if not any("U.S. citizen" in req for req in existing_reqs):
+                citizen_reqs.add("U.S. citizen, national, permanent resident, refugee, or asylee status")
 
-        # 6. Background check & drug test
+        return citizen_reqs
+
+    def _extract_background_check(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract background check and drug test requirements."""
+        bg_reqs = set()
         if re.search(r"background\s+check", text, re.IGNORECASE):
-            if not any("Background Check" in req for req in requirements):
-                requirements.add("Blue's Standard Background Check")
+            if not any("Background Check" in req for req in existing_reqs):
+                bg_reqs.add("Blue’s Standard Background Check")
 
         if re.search(r"drug", text, re.IGNORECASE):
-            if not any("drug" in req.lower() for req in requirements):
-                requirements.add("Passing a post-offer drug test")
+            if not any("drug" in req.lower() for req in existing_reqs):
+                bg_reqs.add("Passing a post-offer drug test")
 
-        # 7. Coding assessments & challenges
+        return bg_reqs
+
+    def _extract_coding_assessment(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract coding assessment requirements."""
+        coding_reqs = set()
         if re.search(r"CodeVue|coding\s+challenge|technical.*assessment", text, re.IGNORECASE):
-            if not any("codevue" in req.lower() or "coding" in req.lower() for req in requirements):
-                requirements.add("Completion of the CodeVue Coding Challenge during the selection process")
+            if not any("codevue" in req.lower() or "coding" in req.lower() for req in existing_reqs):
+                coding_reqs.add("Completion of the CodeVue Coding Challenge during the selection process")
 
-        # 8. Bachelor’s/Degree requirement
+        return coding_reqs
+
+    def _extract_bachelors_degree(self, text: str, existing_reqs: Set[str]) -> Set[str]:
+        """Extract Bachelor’s degree requirements."""
+        bs_reqs = set()
         if re.search(r"Bachelor[‘’s]*\s+(?:Degree|of\s+Science)", text, re.IGNORECASE):
-            if not any("Bachelor" in req or "Degree" in req for req in requirements):
-                requirements.add("Bachelor’s Degree")
+            if not any("Bachelor" in req or "Degree" in req for req in existing_reqs):
+                bs_reqs.add("Bachelor’s Degree")
+
+        return bs_reqs
+
+    def _extract_requirements_fallback(self, text: str) -> Set[str]:
+        """Generic requirement extraction fallback."""
+        requirements = set()
+
+        # 1. Years of experience (from basic/minimum qualifications section)
+        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills"]:
+            requirements.update(self._extract_years_from_section(text, section_label))
+
+        # 2. Extract other bullets from Basic/Minimum Qualifications section
+        for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications", r"required\s+skills/experience"]:
+            requirements.update(self._extract_qualification_bullets(text, section_label))
+
+        # 3. Extract from "Preferred Qualifications" section
+        requirements.update(self._extract_preferred_qualifications(text))
+
+        # 4. Extract advanced degree requirements
+        requirements.update(self._extract_advanced_degree(text))
+
+        # 5. Extract citizenship/export control
+        requirements.update(self._extract_citizenship_requirement(text, requirements))
+
+        # 6. Extract background check & drug test
+        requirements.update(self._extract_background_check(text, requirements))
+
+        # 7. Extract coding assessments & challenges
+        requirements.update(self._extract_coding_assessment(text, requirements))
+
+        # 8. Extract Bachelor’s degree requirement
+        requirements.update(self._extract_bachelors_degree(text, requirements))
 
         return requirements
 
