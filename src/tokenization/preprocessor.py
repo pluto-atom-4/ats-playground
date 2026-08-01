@@ -247,15 +247,20 @@ class Preprocessor:
             ):
                 parent = token.head
                 if parent.pos_ in ("NOUN", "PROPN"):
-                    phrase = " ".join(
+                    # Collect only meaningful tokens (not punctuation or conjunctions)
+                    phrase_tokens = [
                         child.text
                         for child in doc
-                        if child.head == parent or child == parent
-                    )
-                    if len(phrase) > 3 and "job" not in phrase.lower():
-                        skills.add(phrase)
-                        # Store POS tag of first meaningful token in phrase
-                        entity_pos_tags[phrase] = "NOUN"
+                        if (child.head == parent or child == parent)
+                        and not child.is_punct
+                        and child.text.lower() not in ("and", "or", ",")
+                    ]
+                    if phrase_tokens:
+                        phrase = " ".join(phrase_tokens)
+                        if len(phrase) > 3 and "job" not in phrase.lower():
+                            skills.add(phrase)
+                            # Store POS tag of first meaningful token in phrase
+                            entity_pos_tags[phrase] = "NOUN"
 
             # Extract adjectives (with POS tag for later filtering)
             if token.pos_ == "ADJ" and len(token_text) > 4:
@@ -783,9 +788,14 @@ class Preprocessor:
                 return True
 
         # Check for oddly spaced words (e.g., "science and years" with separators)
-        if len(words) >= 3 and any(w.lower() in ("and", "or", ",") for w in words):
-            # Multi-word with conjunctions/commas suspicious
-            return True
+        # Only flag if we have 4+ words with separator in the middle (real oddity)
+        # Skip extraction artifacts like "software development , Python" (3 words with comma)
+        if len(words) >= 4:
+            # Check for internal conjunctions/commas between real words
+            for w in words[1:-1]:  # Skip first and last
+                if w.lower() in ("and", "or", ","):
+                    # Real oddity: conjunction between real words
+                    return True
 
         return False
 
