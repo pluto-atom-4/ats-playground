@@ -148,7 +148,7 @@ result = extractor.extract_all_with_confidence(job_description)
 
 ---
 
-**Status**: All 6 phases complete. 
+**Status**: All 6 phases complete.
 - Exact F1: 0.49 average (requirements bottleneck)
 - Semantic F1: 0.70 average (with fuzzy matching)
 - Production-ready for single-company deployments with semantic evaluation

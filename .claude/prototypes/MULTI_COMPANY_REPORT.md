@@ -102,7 +102,7 @@ Comprehensive testing of the NER pipeline across 4 companies and 7 job descripti
 
 **Issue**: Defense domain jobs use narrative prose without structured "Requirements" sections.
 
-**Solution**: 
+**Solution**:
 1. Implement narrative requirement extraction (implemented in Phase 6)
 2. Test narrative extractor on job descriptions
 3. Add defense-domain-specific patterns
@@ -114,7 +114,7 @@ Comprehensive testing of the NER pipeline across 4 companies and 7 job descripti
 
 **Issue**: Only 1 usable job (AI Agent Builder had empty description).
 
-**Solution**: 
+**Solution**:
 1. Validate data source (preprocessing issue?)
 2. Obtain complete job descriptions
 3. Test on full dataset
@@ -199,9 +199,9 @@ Entities per 100 characters of job description:
 
 ## Conclusion
 
-The NER pipeline is **production-ready for Boeing, Blue Origin, and UW**. 
+The NER pipeline is **production-ready for Boeing, Blue Origin, and UW**.
 
-**Carbonrobotics requires narrative requirement extraction** before production deployment. 
+**Carbonrobotics requires narrative requirement extraction** before production deployment.
 
 **Overall extraction quality is strong** (0.92 tech confidence, 0.60+ skill confidence), with clear confidence calibration between structured and narrative extraction methods.
 

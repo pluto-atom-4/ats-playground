@@ -190,5 +190,5 @@ uv run .claude/prototypes/test_first_job.py      # Job 0 (ASIC)
 
 ---
 
-**Last Updated:** 2026-07-29  
+**Last Updated:** 2026-07-29
 **Status:** Prototype proven across 2 roles; ready for Phase 1 (keyphrase expansion)
