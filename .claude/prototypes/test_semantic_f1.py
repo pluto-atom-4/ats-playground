@@ -4,6 +4,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -12,14 +13,14 @@ from src.nlp.ner import JobNERExtractor
 from src.nlp.requirement_normalizer import RequirementNormalizer
 
 
-def load_job(company: str, job_idx: int) -> dict:
+def load_job(company: str, job_idx: int) -> Any:
     jobs_file = project_root / f"data/extracted_jobs/{company.lower()}_jobs.json"
     with open(jobs_file) as f:
         jobs = json.load(f)
     return jobs[job_idx]
 
 
-def load_expected(file_name: str) -> dict:
+def load_expected(file_name: str) -> Any:
     expected_file = project_root / f"data/extracted_jobs/{file_name}"
     with open(expected_file) as f:
         return json.load(f)
@@ -101,7 +102,7 @@ def main():
     print(f"Semantic Match: F1={semantic_result['f1']:.2f} (P={semantic_result['precision']:.2f}, R={semantic_result['recall']:.2f})")
     print(f"Improvement: +{(semantic_result['f1'] - f1_exact):.2f} F1 ({(semantic_result['correct'] - len(correct_exact))} more matched)")
 
-    print(f"\nSemantic Matches:")
+    print("\nSemantic Matches:")
     for exp, ext in semantic_result["matched_pairs"][:5]:
         print(f"  ✓ Expected: {exp[:60]}")
         print(f"    Extracted: {ext[:60]}")

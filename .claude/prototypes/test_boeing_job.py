@@ -4,7 +4,7 @@
 import json
 import sys
 from pathlib import Path
-from difflib import SequenceMatcher
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 from src.nlp.ner import JobNERExtractor
 
 
-def load_job_data(company: str, job_idx: int = 1) -> dict:
+def load_job_data(company: str, job_idx: int = 1) -> Any:
     """Load job from extracted_jobs JSON."""
     jobs_file = project_root / f"data/extracted_jobs/{company.lower()}_jobs.json"
     with open(jobs_file) as f:
@@ -20,14 +20,14 @@ def load_job_data(company: str, job_idx: int = 1) -> dict:
     return jobs[job_idx]
 
 
-def load_expected(file_name: str) -> dict:
+def load_expected(file_name: str) -> Any:
     """Load expected extractions."""
     expected_file = project_root / f"data/extracted_jobs/{file_name}"
     with open(expected_file) as f:
         return json.load(f)
 
 
-def compare_extractions(extracted: dict, expected: dict) -> dict:
+def compare_extractions(extracted: dict, expected: dict) -> Any:
     """Compare extracted vs expected and report precision/recall."""
     results = {}
 

@@ -3,24 +3,25 @@
 
 import json
 import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.nlp.ner import JobNERExtractor
 from src.nlp.domains import detect_domain
+from src.nlp.ner import JobNERExtractor
 
 
-def load_jobs(company: str) -> list:
+def load_jobs(company: str) -> Any:
     """Load all jobs from company."""
     jobs_file = project_root / f"data/extracted_jobs/{company}_jobs.json"
     with open(jobs_file) as f:
         return json.load(f)
 
 
-def calculate_metrics(extracted: set, expected: set) -> dict:
+def calculate_metrics(extracted: set, expected: set) -> Any:
     """Calculate precision, recall, F1."""
     correct = extracted & expected
     precision = len(correct) / len(extracted) if extracted else 0
