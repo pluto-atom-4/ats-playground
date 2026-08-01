@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-07-31",
+  "companies": {
+    "carbonrobotics": {
+      "total": 0,
+      "avg_per_job": 0.0,
+      "high_conf": 0,
+      "medium_conf": 0,
+      "low_conf": 0
+    },
+    "uw": {
+      "total": 2,
+      "avg_per_job": 2.0,
+      "high_conf": 1,
+      "medium_conf": 0,
+      "low_conf": 1
+    },
+    "blue origin": {
+      "total": 16,
+      "avg_per_job": 8.0,
+      "high_conf": 11,
+      "medium_conf": 0,
+      "low_conf": 5
+    },
+    "boeing": {
+      "total": 26,
+      "avg_per_job": 13.0,
+      "high_conf": 21,
+      "medium_conf": 0,
+      "low_conf": 5
+    }
+  }
+}

@@ -1,12 +1,15 @@
 """NLP preprocessing for job postings using spaCy."""
 
 import logging
-from typing import Any, List, Optional, Set, Tuple
+import re
+from typing import Any, List, Optional, Set, Tuple, Union
 
 import spacy
 from spacy.language import Language
 
 from src.tokenization.keywords import get_all_keywords
+from src.tokenization.soft_skills import get_all_soft_skills
+from src.tokenization.technical_compounds import is_technical_compound
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +95,32 @@ class Preprocessor:
         requirements: set[str] = set()
 
         try:
-            # Phase 1: Smart filtering pipeline
-            # 1. Extract job section (ignore boilerplate sections)
-            # Fallback to original text if no job section found
-            job_section = self._extract_job_section(text)
-            text_to_clean = job_section if job_section.strip() else text
+            # Phase 10: Check if text is markdown
+            is_md = self._is_markdown(text)
+
+            if is_md:
+                logger.debug("Text is markdown format, using entity-aware section extraction")
+                # Use section-based method for intelligent extraction
+                md_skills, md_technologies, md_requirements = self._extract_entities_by_section(text)
+                skills.update(md_skills)
+                technologies.update(md_technologies)
+                requirements.update(md_requirements)
+
+                # For markdown: exclude benefits/compensation sections from full-text extraction
+                # Remove sections with headers containing: Benefits, Compensation, Salary, About, Culture, etc.
+                skip_pattern_str = (
+                    r"^#{1,3}\s+.*?"
+                    r"(benefits|compensation|salary|pay|about|culture|company|how to apply)"
+                    r".*?$.*?(?=^#{1,3}\s|\Z)"
+                )
+                text_to_extract = re.sub(skip_pattern_str, "", text, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL)
+                text_to_clean = text_to_extract if text_to_extract.strip() else text
+            else:
+                # Phase 1: Smart filtering pipeline
+                # 1. Extract job section (ignore boilerplate sections)
+                # Fallback to original text if no job section found
+                job_section = self._extract_job_section(text)
+                text_to_clean = job_section if job_section.strip() else text
 
             # 2. Remove boilerplate (salary, legal, location metadata)
             cleaned_text = self._remove_boilerplate(text_to_clean)
@@ -105,16 +129,33 @@ class Preprocessor:
             doc = self.nlp(cleaned_text)
             tech_keywords = self._get_tech_keywords()
 
-            # Extract from NER (named entities)
+            # Extract from NER (named entities) - always do this for comprehensive extraction
             self._extract_from_ner(doc, tech_keywords, technologies, requirements)
 
             # Extract from POS tags and noun compounds
             self._extract_from_tokens(doc, tech_keywords, skills, technologies)
 
-            # 4. Filter entities (remove noise, duplicates, short fragments)
-            skills = set(self._filter_entities(list(skills)))
-            technologies = set(self._filter_entities(list(technologies)))
-            requirements = set(self._filter_entities(list(requirements)))
+            # Extract soft skills from text
+            # For markdown: include soft skills from skills sections (_extract_entities_by_section)
+            # For plain text: extract soft skills from full text
+            soft_skills_set: set[str] = set()
+            if not is_md:
+                self._extract_soft_skills(doc, soft_skills_set)
+
+            # Reclassify technical compounds (Phase 4)
+            # Move compound phrases from skills to technologies
+            skills_list = list(skills) + list(soft_skills_set)
+            reclassified_skills: list[str] = []
+            for skill in skills_list:
+                if is_technical_compound(skill):
+                    technologies.add(skill)
+                else:
+                    reclassified_skills.append(skill)
+
+            # 5. Filter entities (remove noise, duplicates, short fragments)
+            skills = set(self._filter_entities(reclassified_skills, entity_type="skills"))
+            technologies = set(self._filter_entities(list(technologies), entity_type="technologies"))
+            requirements = set(self._filter_entities(list(requirements), entity_type="requirements"))
 
             logger.debug(
                 f"Extracted {len(skills)} skills, "
@@ -347,15 +388,262 @@ class Preprocessor:
         logger.debug(f"Removed boilerplate: {len(text)} → {len(cleaned)} chars")
         return cleaned
 
-    def _filter_entities(self, entities: list[str]) -> list[str]:
+    def _should_skip_entity_common(
+        self, entity_clean: str, entity_lower: str, entity_type: str, boilerplate_keywords: Set[str]
+    ) -> bool:
+        """Check if entity should be skipped due to common validation rules.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            entity_type: Type of entity (skills, technologies, requirements)
+            boilerplate_keywords: Set of boilerplate keywords to filter
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Length validation (Phase 1: conservative)
+        # Requirements can be longer phrases (100 chars), skills/tech shorter (70 chars)
+        max_length = 100 if entity_type == "requirements" else 70
+        if len(entity_clean) < 2 or len(entity_clean) > max_length:
+            return True
+
+        # Skip boilerplate keywords
+        if any(kw in entity_lower for kw in boilerplate_keywords):
+            return True
+
+        # Skip if contains excessive formatting artifacts (but allow parentheses in some contexts)
+        if entity_clean.count("\xa0") > 1 or entity_clean.count("(") > 2:
+            return True
+
+        return False
+
+    def _is_numeric_or_cost(self, entity_clean: str, entity_lower: str) -> bool:
+        """Check if entity is purely numeric or a cost/salary range.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+
+        Returns:
+            True if entity is numeric or cost-related, False otherwise
+        """
+        # Skip pure numbers or numbers with decimals
+        if re.match(r"^\d+(\.\d+)?$", entity_clean):
+            return True
+
+        # Skip salary/cost ranges with $ or commas
+        if "$" in entity_clean or ("range" in entity_lower and ":" in entity_clean):
+            return True
+
+        return False
+
+    def _is_possessive_or_article(
+        self, entity_clean: str, words: list[str]
+    ) -> bool:
+        """Check if entity is a possessive form, article, or artifact colon.
+
+        Args:
+            entity_clean: Cleaned entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip items ending with colon (artifacts)
+        if entity_clean.rstrip().endswith(":"):
+            return True
+
+        # Skip possessive forms (Blue Origin's, Carbon Robotics', Blue's)
+        if entity_clean.endswith("'s") or entity_clean.endswith("'"):
+            return True
+
+        # Skip articles at start (the, a, an)
+        if words and words[0] in ("the", "a", "an"):
+            return True
+
+        return False
+
+    def _is_generic_or_incomplete_phrase(
+        self, entity_clean: str, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if entity is a fragment, incomplete phrase, or generic phrase.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip single-word fragments
+        if len(words) == 1:
+            if entity_lower in ("one", "review", "oversees"):
+                return True
+
+        # Skip incomplete phrases
+        if entity_clean in ("s of Service", "Oversees"):
+            return True
+
+        # Skip generic phrases
+        if entity_clean in ("each year", "U.S. National"):
+            return True
+
+        return False
+
+    def _is_job_title_or_category(self, entity_lower: str) -> bool:
+        """Check if entity is a job title or generic category.
+
+        Args:
+            entity_lower: Lowercase entity text
+
+        Returns:
+            True if entity is a job title or category, False otherwise
+        """
+        job_titles = {
+            "design and verification engineer", "software lead",
+            "technical leadership", "technical oversight and authority of a range of software solutions"
+        }
+        if entity_lower in job_titles:
+            return True
+
+        generic_categories = {
+            "software engineering", "software architecture and design",
+            "software configuration management", "software life cycle management",
+            "college of arts", "college of arts and sciences",
+            "computer science"
+        }
+        if entity_lower in generic_categories:
+            return True
+
+        return False
+
+    def _is_policy_or_responsibility(
+        self, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if entity is a policy keyword or responsibility phrase.
+
+        Args:
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip policy/benefit/regulation keywords
+        policy_patterns = {
+            "alcohol", "commercial motor", "federal motor carrier",
+            "pre-ipo", "pre-IPO", "stock option", "regulation"
+        }
+        if any(pattern in entity_lower for pattern in policy_patterns):
+            return True
+
+        # Skip responsibility phrases (action verbs)
+        if len(words) >= 2:
+            action_verbs = {"optimize", "prepare", "manage", "oversee"}
+            if words[0] in action_verbs:
+                return True
+
+        return False
+
+    def _is_location_or_abbreviation(self, entity_lower: str) -> bool:
+        """Check if entity is a location noun or unclear abbreviation.
+
+        Args:
+            entity_lower: Lowercase entity text
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip location/proper nouns
+        location_nouns = {"seattle", "rocky", "road test"}
+        if entity_lower in location_nouns:
+            return True
+
+        # Skip unclear abbreviations
+        if entity_lower in ("hdhp", "blue's"):
+            return True
+
+        return False
+
+    def _should_skip_requirement(
+        self, entity_clean: str, entity_lower: str, words: list[str]
+    ) -> bool:
+        """Check if requirement entity should be skipped.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Check each category in sequence
+        return (
+            self._is_numeric_or_cost(entity_clean, entity_lower)
+            or self._is_possessive_or_article(entity_clean, words)
+            or self._is_generic_or_incomplete_phrase(entity_clean, entity_lower, words)
+            or self._is_job_title_or_category(entity_lower)
+            or self._is_policy_or_responsibility(entity_lower, words)
+            or self._is_location_or_abbreviation(entity_lower)
+        )
+
+    def _should_skip_skill(
+        self, entity_clean: str, entity_lower: str, words: list[str], generic_skills: Set[str],
+        company_names: Set[str]
+    ) -> bool:
+        """Check if skill entity should be skipped.
+
+        Args:
+            entity_clean: Cleaned entity text
+            entity_lower: Lowercase entity text
+            words: List of lowercased words in entity
+            generic_skills: Set of generic skill words to filter
+            company_names: Set of company names to filter
+
+        Returns:
+            True if entity should be skipped, False otherwise
+        """
+        # Skip numbers and percentages
+        if re.match(r"^\d+[\d\.,\-]*%?$|^\$[\d,]+", entity_clean):
+            return True
+
+        # Skip items containing percentages or large numbers (e.g., "5–50 %", "% Carbon Robotics", "90,000")
+        if "%" in entity_clean or re.search(r"\d+[\–-]\d+\s*%?|\d{3,}", entity_clean):
+            return True
+
+        # Skip very generic single-word skills
+        if len(words) == 1 and entity_lower in generic_skills:
+            return True
+
+        # Skip company names
+        if entity_lower in company_names:
+            return True
+
+        # Skip if contains company name
+        if any(company in entity_lower for company in company_names):
+            return True
+
+        # Skip nonsense phrases (articles + generic words)
+        if entity_lower.startswith(("an ", "a ", "the ")):
+            if len(words) <= 3 and any(word in generic_skills for word in words[1:]):
+                return True
+
+        return False
+
+    def _filter_entities(self, entities: list[str], entity_type: str = "skills") -> list[str]:
         """Filter extracted entities to remove noise and short fragments.
 
-        Validation rules (Phase 1 - Conservative):
+        Validation rules (Phase 12 with requirement-specific filtering):
         - Reject if: len < 2 or len > 70
         - Reject if: Matches boilerplate keywords
         - Reject if: Duplicate
+        - For requirements: Skip numbers, possessives, job titles, policies, etc.
+        - For skills: Skip generic words, numbers, company names, publications
         """
-        boilerplate_keywords = {
+        boilerplate_keywords: Set[str] = {
             "affirmative",
             "action",
             "equal",
@@ -377,24 +665,496 @@ class Preprocessor:
             "remote",
         }
 
+        # Generic/low-signal skills that are too broad
+        generic_skills: Set[str] = {
+            "company", "data", "time", "level", "market", "process", "industry",
+            "role", "work", "job", "experience", "position", "area", "field",
+            "range", "option", "form", "base", "suite", "tech", "able",
+            "available", "dollar", "pay", "year", "cost", "product", "service",
+            "employee", "employees", "culture", "team", "person", "people",
+            "value", "values", "benefit", "benefits", "compensation", "salary",
+            "state", "location", "place", "site", "office", "center",
+        }
+
+        # Company names, publications, brands (should go to requirements/technologies)
+        company_names: Set[str] = {
+            "google", "forbes", "wsj", "carbon", "robotics", "john deere", "deere",
+            "blue origin", "origin", "boeing", "uw", "university",
+        }
+
         filtered: set[str] = set()
         for entity in entities:
             entity_clean = entity.strip()
-
-            # Length validation (Phase 1: conservative)
-            if len(entity_clean) < 2 or len(entity_clean) > 70:
-                continue
-
-            # Skip boilerplate keywords
             entity_lower = entity_clean.lower()
-            if any(kw in entity_lower for kw in boilerplate_keywords):
+            words = entity_lower.split()
+
+            # Check common validation rules
+            if self._should_skip_entity_common(entity_clean, entity_lower, entity_type, boilerplate_keywords):
                 continue
 
-            # Skip if contains excessive formatting artifacts (but allow parentheses in some contexts)
-            if entity_clean.count("\xa0") > 1 or entity_clean.count("(") > 2:
-                continue
+            # Entity-type specific filtering
+            if entity_type == "requirements":
+                if self._should_skip_requirement(entity_clean, entity_lower, words):
+                    continue
+            elif entity_type == "skills":
+                if self._should_skip_skill(entity_clean, entity_lower, words, generic_skills, company_names):
+                    continue
 
             filtered.add(entity_clean)
 
         logger.debug(f"Filtered entities: {len(entities)} → {len(filtered)} after validation")
         return sorted(filtered)
+
+    def _is_markdown(self, text: str) -> bool:
+        """Detect if text is markdown format (Phase 9).
+
+        Checks for markdown indicators: headers, lists, bold, code blocks.
+        Prioritizes markdown headers (## Section) as strongest indicator.
+        """
+        if not text:
+            return False
+
+        # Strong indicator: Markdown section headers
+        if re.search(r"^##\s+", text, re.MULTILINE):
+            return True
+
+        markdown_indicators = [
+            r"^#+\s+",  # Headers (# ## ###)
+            r"^[\*\-\+]\s+",  # Unordered lists
+            r"^\d+\.\s+",  # Ordered lists
+            r"\*\*.*?\*\*",  # Bold
+            r"__.*?__",  # Bold (underscore)
+            r"`.*?`",  # Inline code
+            r"```.*?```",  # Code blocks
+        ]
+
+        for pattern in markdown_indicators:
+            if re.search(pattern, text, re.MULTILINE):
+                return True
+
+        return False
+
+    @staticmethod
+    def _classify_section_from_header(header_text: str) -> str:
+        """Classify section type from markdown header text.
+
+        Args:
+            header_text: Normalized (lowercase) header text
+
+        Returns:
+            Section name (qualifications, skills, knowledge, responsibilities, or default)
+        """
+        if any(kw in header_text for kw in ("qualif", "requirement", "essential")):
+            return "qualifications"
+        if any(kw in header_text for kw in ("skill", "technical", "core")):
+            return "skills"
+        if any(kw in header_text for kw in ("knowledge", "experience")):
+            return "knowledge"
+        if any(kw in header_text for kw in ("respons", "duty", "what you")):
+            return "responsibilities"
+        return header_text.replace(" ", "_")
+
+    def _extract_markdown_sections(self, text: str) -> dict[str, str]:
+        """Extract sections from structured markdown with divider awareness (Phase 10)."""
+        if not text:
+            return {}
+
+        sections: dict[str, str] = {}
+        current_section = "description"
+        current_content: list[str] = []
+
+        lines = text.split("\n")
+        for line in lines:
+            if line.strip() == "---":
+                if current_content:
+                    sections[current_section] = "\n".join(current_content).strip()
+                    current_content = []
+                continue
+
+            header_match = re.match(r"^#+\s+(.+)$", line)
+            if header_match:
+                if current_content:
+                    sections[current_section] = "\n".join(current_content).strip()
+                    current_content = []
+
+                header_text = header_match.group(1).strip().lower()
+                current_section = self._classify_section_from_header(header_text)
+            else:
+                if line.strip():
+                    current_content.append(line)
+
+        if current_content:
+            sections[current_section] = "\n".join(current_content).strip()
+
+        return sections
+
+    @staticmethod
+    def _filter_boilerplate_content(section_content: str) -> str:
+        """Remove boilerplate phrases from section content.
+
+        Filters out compensation/benefits paragraphs mixed into other sections.
+
+        Args:
+            section_content: Raw section text
+
+        Returns:
+            Cleaned section text with boilerplate lines removed
+        """
+        boilerplate_phrases = {
+            "carbon robotics follows equitable",
+            "offers additional compensation",
+            "base pay",
+            "pay ranges",
+            "pay equity",
+            "individual base",
+            "pre-ipo stock",
+            "target earning",
+            "commissions",
+            "offers compensation",
+            "benefits premiums",
+            "on target earning",
+        }
+        content_lines = []
+        for line in section_content.split('\n'):
+            line_lower = line.lower()
+            if not any(phrase in line_lower for phrase in boilerplate_phrases):
+                content_lines.append(line)
+        return '\n'.join(content_lines)
+
+    @staticmethod
+    def _determine_section_type(
+        section_name: str,
+        skills_section_keywords: Tuple[str, ...],
+        req_section_keywords: Tuple[str, ...],
+    ) -> Tuple[bool, bool, bool]:
+        """Determine section type based on name keywords.
+
+        Args:
+            section_name: Name of the section
+            skills_section_keywords: Keywords that indicate skills sections
+            req_section_keywords: Keywords that indicate requirements sections
+
+        Returns:
+            Tuple of (is_skills_section, is_req_section, is_description_section)
+        """
+        section_lower = section_name.lower()
+        is_skills_section = any(kw in section_lower for kw in skills_section_keywords)
+        is_req_section = any(kw in section_lower for kw in req_section_keywords)
+        is_description_section = any(
+            kw in section_lower for kw in ("description", "overview", "summary", "about")
+        )
+        return is_skills_section, is_req_section, is_description_section
+
+    @staticmethod
+    def _route_entity_by_section(
+        entity_text: str,
+        ent_label: str,
+        is_skills_section: bool,
+        is_req_section: bool,
+        is_description_section: bool,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        requirements: Set[str],
+        skip_ent_types: Set[str],
+    ) -> None:
+        """Route a single entity to appropriate set based on section type.
+
+        Args:
+            entity_text: The entity text to route
+            ent_label: spaCy entity label
+            is_skills_section: Whether section is skills-focused
+            is_req_section: Whether section is requirements-focused
+            is_description_section: Whether section is description-focused
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill entities to
+            technologies: Set to add technology entities to
+            requirements: Set to add requirement entities to
+            skip_ent_types: Entity types to skip
+        """
+        if not entity_text or len(entity_text) < 2 or ent_label in skip_ent_types:
+            return
+
+        if is_skills_section:
+            if any(kw in entity_text.lower() for kw in tech_keywords):
+                technologies.add(entity_text)
+            else:
+                skills.add(entity_text)
+        elif is_req_section:
+            requirements.add(entity_text)
+        elif is_description_section:
+            if any(kw in entity_text.lower() for kw in tech_keywords):
+                technologies.add(entity_text)
+
+    @staticmethod
+    def _extract_noun_compounds(
+        doc: Any,
+        is_skills_section: bool,
+        is_description_section: bool,
+        section_name: str,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+    ) -> None:
+        """Extract noun compounds and tokens from parsed doc.
+
+        Args:
+            doc: spaCy Doc object
+            is_skills_section: Whether section is skills-focused
+            is_description_section: Whether section is description-focused
+            section_name: Name of the section
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill tokens to
+            technologies: Set to add technology tokens to
+        """
+        if is_skills_section:
+            for token in doc:
+                if token.pos_ in ("NOUN", "PROPN") and len(token.text) > 2:
+                    if token.text.lower() in tech_keywords:
+                        technologies.add(token.text)
+                    elif token.text not in skills:
+                        skills.add(token.text)
+        elif is_description_section or section_name == "responsibilities":
+            for token in doc:
+                if token.text.lower() in tech_keywords and len(token.text) > 2:
+                    technologies.add(token.text)
+
+    @staticmethod
+    def _normalize_list_item(item: Union[str, Tuple[str, str]]) -> str:
+        """Extract text from tuple or string, return normalized item text.
+
+        Args:
+            item: String or tuple (from re.findall) to normalize
+
+        Returns:
+            Normalized (stripped) item text
+        """
+        if isinstance(item, tuple):
+            item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
+        else:
+            item_text = str(item)
+        return item_text.strip()
+
+    @staticmethod
+    def _should_skip_list_item(item_text: str) -> bool:
+        """Check if item should be skipped based on validation rules.
+
+        Args:
+            item_text: Normalized item text
+
+        Returns:
+            True if item should be skipped, False otherwise
+        """
+        if not item_text or len(item_text) < 3:
+            return True
+        if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
+            return True
+        return False
+
+    @staticmethod
+    def _route_list_item_by_section(
+        item_text: str,
+        section_name: str,
+        is_skills_section: bool,
+        is_req_section: bool,
+        is_description_section: bool,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        requirements: Set[str],
+    ) -> None:
+        """Route item to appropriate set based on section type.
+
+        Args:
+            item_text: Normalized item text
+            section_name: Name of the section
+            is_skills_section: Whether section is skills-focused
+            is_req_section: Whether section is requirements-focused
+            is_description_section: Whether section is description-focused
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill items to
+            technologies: Set to add technology items to
+            requirements: Set to add requirement items to
+        """
+        if is_skills_section:
+            if len(item_text) > 3:
+                skills.add(item_text)
+        elif is_req_section:
+            if len(item_text) > 3:
+                requirements.add(item_text)
+        elif section_name == "responsibilities" or is_description_section:
+            exclude_words = ("design", "architecture", "strategy")
+            item_lower = item_text.lower()
+            has_excluded = any(word in item_lower for word in exclude_words)
+            if len(item_text) > 5 and not has_excluded:
+                for keyword in tech_keywords:
+                    if keyword in item_lower:
+                        technologies.add(keyword)
+
+    @staticmethod
+    def _extract_list_items(
+        list_items: List[Tuple[str, str]],
+        section_name: str,
+        is_skills_section: bool,
+        is_req_section: bool,
+        is_description_section: bool,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        requirements: Set[str],
+    ) -> None:
+        """Extract and route list items based on section type.
+
+        Args:
+            list_items: List of regex-matched items (tuples from re.findall)
+            section_name: Name of the section
+            is_skills_section: Whether section is skills-focused
+            is_req_section: Whether section is requirements-focused
+            is_description_section: Whether section is description-focused
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill items to
+            technologies: Set to add technology items to
+            requirements: Set to add requirement items to
+        """
+        for item in list_items:
+            item_text = Preprocessor._normalize_list_item(item)
+            if Preprocessor._should_skip_list_item(item_text):
+                continue
+            Preprocessor._route_list_item_by_section(
+                item_text,
+                section_name,
+                is_skills_section,
+                is_req_section,
+                is_description_section,
+                tech_keywords,
+                skills,
+                technologies,
+                requirements,
+            )
+
+    def _extract_entities_by_section(self, text: str) -> Tuple[Set[str], Set[str], Set[str]]:
+        """Extract entities intelligently from markdown sections using NER (Phase 11).
+
+        Routes entities to skills, technologies, or requirements based on section type.
+        Skips: Benefits, How to Apply, About, Company Culture, Legal content.
+        """
+        if not self.nlp or not text:
+            return set(), set(), set()
+
+        skills: Set[str] = set()
+        technologies: Set[str] = set()
+        requirements: Set[str] = set()
+
+        sections = self._extract_markdown_sections(text)
+        tech_keywords = self._get_tech_keywords()
+
+        skip_sections = {
+            "benefits", "compensation", "salary", "pay range", "401", "retirement",
+            "insurance", "health", "dental", "vision", "pto", "vacation",
+            "about", "company", "culture", "commitment", "team", "our",
+            "equal opportunity", "eoe", "affirmative action", "disability",
+            "background check", "export control", "security clearance", "visa",
+            "apply", "posting date", "posted", "application close", "codevue",
+            "shift", "location", "work location", "travel", "working condition",
+            "fte", "temporary", "education:", "hiring practice"
+        }
+
+        skills_section_keywords = (
+            "skill", "technical", "core", "competency", "ability", "expertise", "proficiency"
+        )
+        req_section_keywords = (
+            "requirement", "qualif", "needed", "essential", "must", "knowledge",
+            "experience", "responsibility", "duty"
+        )
+
+        skip_ent_types = {"ORG", "PRODUCT", "QUANTITY", "CARDINAL", "DATE", "TIME", "MONEY"}
+
+        for section_name, section_content in sections.items():
+            section_lower = section_name.lower().replace("_", " ")
+            if any(skip_kw in section_lower for skip_kw in skip_sections):
+                continue
+            if not section_content.strip():
+                continue
+
+            section_content = self._filter_boilerplate_content(section_content)
+            if not section_content.strip():
+                continue
+
+            try:
+                doc = self.nlp(section_content)
+            except Exception:
+                continue
+
+            list_items = re.findall(r"^[\*\-\+]\s+(.+)$|^\d+\.\s+(.+)$", section_content, re.MULTILINE)
+
+            is_skills_section, is_req_section, is_description_section = self._determine_section_type(
+                section_name, skills_section_keywords, req_section_keywords
+            )
+
+            for ent in doc.ents:
+                self._route_entity_by_section(
+                    ent.text.strip(),
+                    ent.label_,
+                    is_skills_section,
+                    is_req_section,
+                    is_description_section,
+                    tech_keywords,
+                    skills,
+                    technologies,
+                    requirements,
+                    skip_ent_types,
+                )
+
+            self._extract_noun_compounds(
+                doc,
+                is_skills_section,
+                is_description_section,
+                section_name,
+                tech_keywords,
+                skills,
+                technologies,
+            )
+
+            self._extract_list_items(
+                list_items,
+                section_name,
+                is_skills_section,
+                is_req_section,
+                is_description_section,
+                tech_keywords,
+                skills,
+                technologies,
+                requirements,
+            )
+
+        logger.debug(
+            f"Entity extraction by section: {len(skills)} skills, "
+            f"{len(technologies)} technologies, {len(requirements)} requirements"
+        )
+        return skills, technologies, requirements
+
+    @staticmethod
+    def _extract_soft_skills(doc: Any, soft_skills: Set[str]) -> None:
+        """Extract soft skills from tokens."""
+        soft_skills_list = get_all_soft_skills()
+        tokens_list = list(doc)
+
+        for token in tokens_list:
+            token_text = token.text.strip()
+            if not token_text or len(token_text) < 3:
+                continue
+
+            if token_text.lower() in soft_skills_list:
+                soft_skills.add(token_text)
+            elif token.lemma_.lower() in soft_skills_list:
+                soft_skills.add(token.text)
+
+            if token.pos_ in ("ADJ", "NOUN"):
+                parent = token.head
+                if parent.pos_ in ("NOUN", "ADJ") and parent != token:
+                    phrase = " ".join(
+                        child.text for child in tokens_list
+                        if child.head == parent or child == parent
+                    )
+                    if 3 < len(phrase) < 50 and phrase.lower() in soft_skills_list:
+                        soft_skills.add(phrase)

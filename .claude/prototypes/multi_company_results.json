@@ -1,0 +1,100 @@
+{
+  "timestamp": "2026-07-30",
+  "companies_tested": [
+    "carbonrobotics",
+    "uw",
+    "blue origin",
+    "boeing"
+  ],
+  "jobs_tested": 8,
+  "results_by_company": {
+    "carbonrobotics": [
+      {
+        "title": "Deep Learning Engineer",
+        "domain": "defense",
+        "skills_count": 14,
+        "tech_count": 2,
+        "req_count": 0,
+        "avg_skill_conf": 0.6,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.0
+      },
+      {
+        "title": "Deep Learning Quality Specialist",
+        "domain": "defense",
+        "skills_count": 6,
+        "tech_count": 2,
+        "req_count": 0,
+        "avg_skill_conf": 0.57,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.0
+      }
+    ],
+    "uw": [
+      {
+        "title": "Operations Engineer - Infrastructure, College of Arts and Sc",
+        "domain": "software",
+        "skills_count": 12,
+        "tech_count": 5,
+        "req_count": 2,
+        "avg_skill_conf": 0.58,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.82
+      },
+      {
+        "title": "AI Agent Builder",
+        "domain": "general",
+        "skills_count": 0,
+        "tech_count": 0,
+        "req_count": 0,
+        "avg_skill_conf": 0.0,
+        "avg_tech_conf": 0.0,
+        "avg_req_conf": 0.0
+      }
+    ],
+    "blue origin": [
+      {
+        "title": "Principal ASIC Design Engineer - Terawave",
+        "domain": "hardware",
+        "skills_count": 16,
+        "tech_count": 5,
+        "req_count": 6,
+        "avg_skill_conf": 0.67,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.86
+      },
+      {
+        "title": "Director of Vehicle G&C \u2013 New Glenn",
+        "domain": "aerospace",
+        "skills_count": 24,
+        "tech_count": 8,
+        "req_count": 10,
+        "avg_skill_conf": 0.71,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.79
+      }
+    ],
+    "boeing": [
+      {
+        "title": "Senior Software Engineer",
+        "domain": "software",
+        "skills_count": 25,
+        "tech_count": 10,
+        "req_count": 13,
+        "avg_skill_conf": 0.7,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.9
+      },
+      {
+        "title": "Senior Software Engineer | Rocky Program",
+        "domain": "defense",
+        "skills_count": 20,
+        "tech_count": 16,
+        "req_count": 13,
+        "avg_skill_conf": 0.62,
+        "avg_tech_conf": 0.92,
+        "avg_req_conf": 0.82
+      }
+    ]
+  }
+}
