@@ -8,9 +8,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.nlp.ner import JobNERExtractor
 from src.nlp.domains import detect_domain
-from src.nlp.requirement_normalizer import RequirementNormalizer
+from src.nlp.ner import JobNERExtractor
 
 
 def load_jobs(company: str) -> list:

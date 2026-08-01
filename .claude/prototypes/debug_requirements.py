@@ -19,7 +19,6 @@ extractor = JobNERExtractor()
 
 # Extract just requirements (no normalization)
 import re
-from src.nlp.patterns import extract_technologies
 
 requirements = set()
 
@@ -59,7 +58,7 @@ print(f"\nExtracted requirements (so far): {requirements}")
 
 # Now extract all via extractor
 full_reqs = extractor.extract_requirements(desc)
-print(f"\n=== FULL EXTRACTION (with normalization) ===")
+print("\n=== FULL EXTRACTION (with normalization) ===")
 for req in sorted(full_reqs):
     print(f"  - {req}")
 
@@ -67,6 +66,6 @@ for req in sorted(full_reqs):
 with open(project_root / "data/extracted_jobs/expected_extractions.json") as f:
     expected = json.load(f)
 
-print(f"\n=== EXPECTED ===")
+print("\n=== EXPECTED ===")
 for req in expected["requirements"]:
     print(f"  - {req}")

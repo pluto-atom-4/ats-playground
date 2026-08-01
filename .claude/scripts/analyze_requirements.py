@@ -3,8 +3,8 @@
 
 import json
 import re
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 
 def categorize_requirement(req: str) -> str:
@@ -84,7 +84,7 @@ def main():
             category = categorize_requirement(req)
             categories[category].append(req)
 
-    print(f"📊 SUMMARY")
+    print("📊 SUMMARY")
     print("-" * 100)
     print(f"Total requirements: {len(all_reqs)}")
     print()
