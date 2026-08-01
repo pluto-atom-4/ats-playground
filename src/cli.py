@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional, Tuple, TypedDict
+from typing import Any, List, Optional, Tuple, TypedDict
 
 import anthropic
 import typer
@@ -2199,6 +2199,101 @@ def check(
         raise typer.Exit(1) from None
 
 
+# ============================================================================
+# INTEGRITY PURGE HELPERS
+# ============================================================================
+
+
+def _map_issue_type_to_purger_method(
+    purger: DataPurger, issue_type: str, dry_run: bool
+) -> Tuple[int, List[str]]:
+    """Map issue type to purger method and execute.
+
+    Args:
+        purger: DataPurger instance
+        issue_type: Type of issue to purge
+        dry_run: Whether to do a dry run
+
+    Returns:
+        Tuple of (count, affected_ids)
+
+    Raises:
+        typer.Exit: If issue_type is unknown
+    """
+    method_map: dict[str, Any] = {
+        "orphaned_assessments": purger.purge_orphaned_assessments,
+        "orphaned_preprocessed": purger.purge_orphaned_preprocessed,
+        "orphaned_job_reviews": purger.purge_orphaned_job_reviews,
+        "invalid_scores": purger.purge_invalid_scores,
+        "malformed_recommendations": purger.purge_malformed_recommendations,
+        "fts_orphans": purger.purge_fts_orphans,
+    }
+
+    if issue_type not in method_map:
+        typer.echo(f"❌ Unknown issue type: {issue_type}", err=True)
+        raise typer.Exit(1)
+
+    method = method_map[issue_type]
+    result: Tuple[int, List[str]] = method(dry_run=dry_run)
+    return result
+
+
+def _show_integrity_dry_run_result(
+    issue_type: str, count: int, affected_ids: List[str]
+) -> None:
+    """Show dry run preview of records to be deleted.
+
+    Args:
+        issue_type: Type of issue being previewed
+        count: Number of records to delete
+        affected_ids: List of record IDs to delete
+    """
+    typer.echo(f"🗑️  [DRY RUN] Would delete {count} records")
+    if affected_ids:
+        typer.echo(f"   Records: {', '.join(affected_ids[:5])}")
+        if len(affected_ids) > 5:
+            typer.echo(f"            ... and {len(affected_ids) - 5} more")
+    typer.echo("")
+    typer.echo("💡 Use --no-dry-run --force to actually delete")
+
+
+def _perform_integrity_purge(
+    issue_type: str,
+    count: int,
+    affected_ids: List[str],
+    force: bool,
+    backup_dir: Optional[str],
+) -> None:
+    """Perform actual purge with backup and confirmation.
+
+    Args:
+        issue_type: Type of issue being purged
+        count: Number of records to delete
+        affected_ids: List of record IDs to delete
+        force: Whether force flag was set
+        backup_dir: Optional backup directory path
+
+    Raises:
+        typer.Exit: If force flag not set
+    """
+    if not force:
+        typer.echo("❌ Actual deletion requires --force flag", err=True)
+        raise typer.Exit(1)
+
+    # Backup if requested
+    if backup_dir:
+        backup_path = Path(backup_dir) / f"integrity_backup_{issue_type}"
+        backup_path.mkdir(parents=True, exist_ok=True)
+
+        # Create a simple CSV backup of the deleted IDs
+        backup_file = backup_path / f"{issue_type}.txt"
+        backup_file.write_text("\n".join(affected_ids), encoding="utf-8")
+        typer.echo(f"✅ Backed up {count} records to {backup_file}")
+
+    typer.echo(f"✅ Deleted {count} {issue_type} records")
+    logger.info(f"Purged {count} {issue_type} records")
+
+
 @integrity_app.command(name="purge")
 def purge_integrity(
     issue_type: Optional[str] = typer.Option(
@@ -2255,57 +2350,18 @@ def purge_integrity(
             raise typer.Exit(1)
 
         purger = DataPurger(db_path)
-        count = 0
-        affected_ids = []
-
-        # Map issue types to purger methods
-        if issue_type == "orphaned_assessments":
-            count, affected_ids = purger.purge_orphaned_assessments(dry_run=dry_run)
-        elif issue_type == "orphaned_preprocessed":
-            count, affected_ids = purger.purge_orphaned_preprocessed(dry_run=dry_run)
-        elif issue_type == "orphaned_job_reviews":
-            count, affected_ids = purger.purge_orphaned_job_reviews(dry_run=dry_run)
-        elif issue_type == "invalid_scores":
-            count, affected_ids = purger.purge_invalid_scores(dry_run=dry_run)
-        elif issue_type == "malformed_recommendations":
-            count, affected_ids = purger.purge_malformed_recommendations(dry_run=dry_run)
-        elif issue_type == "fts_orphans":
-            count, affected_ids = purger.purge_fts_orphans(dry_run=dry_run)
-        else:
-            typer.echo(f"❌ Unknown issue type: {issue_type}", err=True)
-            raise typer.Exit(1)
+        count, affected_ids = _map_issue_type_to_purger_method(
+            purger, issue_type, dry_run
+        )
 
         if count == 0:
             typer.echo(f"ℹ️  No {issue_type} records found")
             raise typer.Exit(0)
 
-        # Show result
         if dry_run:
-            typer.echo(f"🗑️  [DRY RUN] Would delete {count} records")
-            if affected_ids:
-                typer.echo(f"   Records: {', '.join(affected_ids[:5])}")
-                if len(affected_ids) > 5:
-                    typer.echo(f"            ... and {len(affected_ids) - 5} more")
-            typer.echo("")
-            typer.echo("💡 Use --no-dry-run --force to actually delete")
+            _show_integrity_dry_run_result(issue_type, count, affected_ids)
         else:
-            # Actual delete - require confirmation
-            if not force:
-                typer.echo("❌ Actual deletion requires --force flag", err=True)
-                raise typer.Exit(1)
-
-            # Backup if requested
-            if backup_dir:
-                backup_path = Path(backup_dir) / f"integrity_backup_{issue_type}"
-                backup_path.mkdir(parents=True, exist_ok=True)
-
-                # Create a simple CSV backup of the deleted IDs
-                backup_file = backup_path / f"{issue_type}.txt"
-                backup_file.write_text("\n".join(affected_ids), encoding="utf-8")
-                typer.echo(f"✅ Backed up {count} records to {backup_file}")
-
-            typer.echo(f"✅ Deleted {count} {issue_type} records")
-            logger.info(f"Purged {count} {issue_type} records")
+            _perform_integrity_purge(issue_type, count, affected_ids, force, backup_dir)
 
     except typer.Exit:
         raise
