@@ -252,6 +252,77 @@ class JobNERExtractor:
         """Extract degree/certification requirements from narrative."""
         return self.narrative_extractor.extract_qualification_requirements(text)
 
+    def _extract_structured_requirements(self, text: str) -> Dict[str, tuple]:
+        """Extract structured requirements from company parser.
+
+        Args:
+            text: Job description text
+
+        Returns:
+            Dict mapping requirement -> (requirement, confidence, method)
+        """
+        requirements_with_conf: Dict[str, tuple] = {}
+        if not self.parser:
+            return requirements_with_conf
+        reqs = self.parser.parse_requirements(text)
+
+        # Structured bullet requirements from company parser = high confidence
+        for req in reqs:
+            if req not in requirements_with_conf:
+                # Determine if this is from a structured section or pattern
+                is_structured = any(
+                    pattern in req.lower()
+                    for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
+                ) and len(req) > 20
+
+                if is_structured:
+                    method = ExtractionMethod.STRUCTURED_BULLET
+                    conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET)
+                else:
+                    method = ExtractionMethod.PATTERN_MATCH
+                    conf = get_confidence(ExtractionMethod.PATTERN_MATCH)
+                requirements_with_conf[req] = (req, conf, method)
+
+        return requirements_with_conf
+
+    def _extract_narrative_and_merge(self, text: str, requirements_with_conf: Dict[str, tuple]) -> None:
+        """Extract narrative requirements and merge into requirements dict.
+
+        Args:
+            text: Job description text
+            requirements_with_conf: Dict to merge narrative requirements into (mutated in place)
+        """
+        narrative_reqs = self.extract_narrative_requirements(text)
+
+        for req in narrative_reqs:
+            # Only add if not already covered by structured extraction
+            # Use word boundary check instead of substring to avoid false positives
+            # (e.g., 'C' != 'C++', 'Python' != 'Python3')
+            if self._is_duplicate_requirement(req, requirements_with_conf):
+                continue
+
+            # Lower confidence for narrative to account for possible false positives
+            requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
+
+    def _is_duplicate_requirement(self, req: str, requirements_with_conf: Dict[str, tuple]) -> bool:
+        """Check if requirement is already in the dict after normalization.
+
+        Args:
+            req: Requirement to check
+            requirements_with_conf: Existing requirements dict
+
+        Returns:
+            True if duplicate found, False otherwise
+        """
+        req_lower = req.lower()
+        for existing in requirements_with_conf:
+            existing_lower = existing.lower()
+            # Check if they're very similar (word boundary or 80%+ match)
+            # For now, just check exact match after normalization
+            if req_lower == existing_lower:
+                return True
+        return False
+
     def extract_requirements_with_confidence(self, text: str, include_narrative: bool = True) -> Dict[str, tuple]:
         """Extract requirements with confidence scores.
 
@@ -262,59 +333,37 @@ class JobNERExtractor:
         Returns:
             Dict mapping requirement -> (requirement, confidence, method)
         """
-        requirements_with_conf = {}
-
         # Use company-specific parser if available
         if self.parser:
-            reqs = self.parser.parse_requirements(text)
-            # Structured bullet requirements from company parser = high confidence
-            for req in reqs:
-                if req not in requirements_with_conf:
-                    # Determine if this is from a structured section or pattern
-                    is_structured = any(
-                        pattern in req.lower()
-                        for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
-                    ) and len(req) > 20
-
-                    if is_structured:
-                        method = ExtractionMethod.STRUCTURED_BULLET
-                        conf = get_confidence(ExtractionMethod.STRUCTURED_BULLET)
-                    else:
-                        method = ExtractionMethod.PATTERN_MATCH
-                        conf = get_confidence(ExtractionMethod.PATTERN_MATCH)
-                    requirements_with_conf[req] = (req, conf, method)
+            requirements_with_conf = self._extract_structured_requirements(text)
 
             # Add narrative requirements from prose (medium confidence)
             if include_narrative:
-                narrative_reqs = self.extract_narrative_requirements(text)
-                for req in narrative_reqs:
-                    # Only add if not already covered by structured extraction
-                    # Use word boundary check instead of substring to avoid false positives
-                    # (e.g., 'C' != 'C++', 'Python' != 'Python3')
-                    is_duplicate = False
-                    req_lower = req.lower()
-                    for existing in requirements_with_conf:
-                        existing_lower = existing.lower()
-                        # Check if they're very similar (word boundary or 80%+ match)
-                        # For now, just check exact match after normalization
-                        if req_lower == existing_lower:
-                            is_duplicate = True
-                            break
-
-                    if not is_duplicate:
-                        # Lower confidence for narrative to account for possible false positives
-                        requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
+                self._extract_narrative_and_merge(text, requirements_with_conf)
 
             return requirements_with_conf
 
         # Fallback to generic extraction (lower confidence)
-        requirements = self._extract_requirements_fallback(text)
-        for req in requirements:
-            if req not in requirements_with_conf:
-                conf = get_confidence(ExtractionMethod.FALLBACK)
-                requirements_with_conf[req] = (req, conf, ExtractionMethod.FALLBACK)
+        fallback_requirements = self._extract_requirements_fallback(text)
+        requirements_with_conf = self._build_fallback_requirements(fallback_requirements)
 
         return requirements_with_conf
+
+    def _build_fallback_requirements(self, requirements: Set[str]) -> Dict[str, tuple]:
+        """Build requirements dict from fallback extraction.
+
+        Args:
+            requirements: Set of requirements to build dict from
+
+        Returns:
+            Dict mapping requirement -> (requirement, confidence, method)
+        """
+        result: Dict[str, tuple] = {}
+        for req in requirements:
+            if req not in result:
+                conf = get_confidence(ExtractionMethod.FALLBACK)
+                result[req] = (req, conf, ExtractionMethod.FALLBACK)
+        return result
 
     def _extract_years_from_section(self, text: str, section_label: str) -> Set[str]:
         """Extract years of experience from a section."""
