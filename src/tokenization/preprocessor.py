@@ -650,6 +650,26 @@ class Preprocessor:
 
         return False
 
+    @staticmethod
+    def _classify_section_from_header(header_text: str) -> str:
+        """Classify section type from markdown header text.
+
+        Args:
+            header_text: Normalized (lowercase) header text
+
+        Returns:
+            Section name (qualifications, skills, knowledge, responsibilities, or default)
+        """
+        if any(kw in header_text for kw in ("qualif", "requirement", "essential")):
+            return "qualifications"
+        if any(kw in header_text for kw in ("skill", "technical", "core")):
+            return "skills"
+        if any(kw in header_text for kw in ("knowledge", "experience")):
+            return "knowledge"
+        if any(kw in header_text for kw in ("respons", "duty", "what you")):
+            return "responsibilities"
+        return header_text.replace(" ", "_")
+
     def _extract_markdown_sections(self, text: str) -> dict[str, str]:
         """Extract sections from structured markdown with divider awareness (Phase 10)."""
         if not text:
@@ -674,16 +694,7 @@ class Preprocessor:
                     current_content = []
 
                 header_text = header_match.group(1).strip().lower()
-                if any(kw in header_text for kw in ("qualif", "requirement", "essential")):
-                    current_section = "qualifications"
-                elif any(kw in header_text for kw in ("skill", "technical", "core")):
-                    current_section = "skills"
-                elif any(kw in header_text for kw in ("knowledge", "experience")):
-                    current_section = "knowledge"
-                elif any(kw in header_text for kw in ("respons", "duty", "what you")):
-                    current_section = "responsibilities"
-                else:
-                    current_section = header_text.replace(" ", "_")
+                current_section = self._classify_section_from_header(header_text)
             else:
                 if line.strip():
                     current_content.append(line)
