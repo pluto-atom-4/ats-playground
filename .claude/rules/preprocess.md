@@ -49,6 +49,54 @@ Show user estimate before assessment. Track actual vs estimated in cost_tracking
 - **Cost estimates are pre-API**: tiktoken estimates. Actual Claude tokens may differ slightly (special tokens, prompt overhead).
 - **Fallback HTML parsing**: If MarkItDown fails, BeautifulSoup is automatic. Check logs if content missing.
 
+## Phase 5: Technology Keywords Expansion (Issue #192)
+
+**Keyword Coverage:** 161 keywords across 10 categories (expanded from 128 in Issue #185).
+
+### New Keywords Added (33 total)
+
+**Engineering Tools (9):** ANSYS, Nastran, OptiStruct, Creo, SolidWorks, CATIA, Windchill, Simulink, COMSOL
+- Focus: FEA/CAD tools critical for aerospace/defense/manufacturing
+- Impact: Improves recognition of design & simulation tools
+
+**Signal Processing (4):** FFT, IFFT, CORDIC, MAC
+- Focus: DSP operations in hardware design
+- Impact: Better extraction for embedded systems & ASIC roles
+
+**Cloud/DevOps (5):** ArgoCD, Flux, GitOps, Harbor, Quay
+- Focus: Modern GitOps and container registries
+- Impact: Captures infrastructure-as-code trend
+
+**Data Tools (6):** TimescaleDB, ClickHouse, DVC, Pydantic, SQLAlchemy, Celery
+- Focus: Time-series databases, ORMs, and data validation
+- Impact: Better data pipeline recognition
+
+**IoT/Protocols (4):** MQTT, AMQP, WebSocket, CoAP
+- Focus: Real-time communication protocols
+- Impact: Improves IoT and edge computing job matching
+
+**Manufacturing (5):** CAM, CNC, PLM, ERP, MRP
+- Focus: Manufacturing systems & lifecycle management
+- Impact: Supports aerospace/defense manufacturing domain
+
+### Expected Impact
+
+- **Before Phase 5:** 69.3% tech keyword match rate on aerospace/defense jobs
+- **Expected After:** 80-90% match rate (especially for CAD/simulation/manufacturing tools)
+- **Key Domains Improved:**
+  - Aerospace/Defense: +ANSYS, Nastran, OptiStruct, CATIA (Boeing, Lockheed Martin, Blue Origin)
+  - Manufacturing: +CAM, CNC, PLM, ERP (Raytheon, Northrop Grumman)
+  - DevOps: +ArgoCD, Flux, GitOps (modern deployment)
+
+### Integration with Extraction
+
+Keywords are used in `src/tokenization/keywords.py` and integrated into:
+- `_extract_entities_by_section()` – Tech keyword extraction
+- Preprocessor token counting – Cost estimation
+- Database FTS queries – Keyword-based search
+
+No changes needed to extraction logic; just expanded keyword set improves recall.
+
 ## Verification Commands
 
 ```bash
