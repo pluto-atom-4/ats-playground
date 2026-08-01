@@ -713,23 +713,24 @@ def all(
 # ============================================================================
 
 
-@app.command()
-def crawl(
-    config: Optional[str] = typer.Option(None, help="Companies config file"),
-    config_dir: Optional[str] = typer.Option(None, help="Directory with JSON config files"),
-    headless: bool = typer.Option(True, help="Headless browser mode"),
-    timeout: int = typer.Option(30000, help="Browser timeout (ms)"),
-    mock: bool = typer.Option(False, help="Mock crawling without browser"),
-) -> None:
-    """Crawl job postings from company career pages.
+def _load_and_validate_config(
+    config: Optional[str], config_dir: Optional[str]
+) -> dict[str, Any]:
+    """Load and validate companies config from file or directory.
 
-    Use either --config <file> for a single config file,
-    or --config-dir <directory> for multiple config files.
+    Tries config_dir → config → default with fallbacks.
+    Validates that companies were found.
+
+    Args:
+        config: Path to single config file
+        config_dir: Path to config directory
+
+    Returns:
+        Dictionary of companies
+
+    Raises:
+        typer.Exit on file not found or no companies loaded
     """
-    logger.info("Crawling companies from config")
-    typer.echo("🌐 Crawling in progress...\n")
-
-    # Load companies from config file or directory
     try:
         if config_dir:
             companies = load_companies_from_directory(Path(config_dir))
@@ -748,7 +749,21 @@ def crawl(
         typer.echo("❌ No companies found in config", err=True)
         raise typer.Exit(1)
 
-    # Filter by enabled flag
+    return companies
+
+
+def _prepare_enabled_companies(companies: dict[str, Any]) -> dict[str, Any]:
+    """Filter companies by enabled flag and validate.
+
+    Args:
+        companies: Dictionary of companies from config
+
+    Returns:
+        Dictionary of enabled companies only
+
+    Raises:
+        typer.Exit if no enabled companies found
+    """
     enabled_companies, disabled_companies = filter_enabled_companies(companies)
 
     if disabled_companies:
@@ -759,28 +774,59 @@ def crawl(
         raise typer.Exit(1)
 
     typer.echo(f"✅ Processing {len(enabled_companies)} enabled companies\n")
+    return enabled_companies
+
+
+def _save_crawled_results(results: dict[str, Any]) -> None:
+    """Save crawled job results to JSON files.
+
+    Args:
+        results: Dictionary mapping company_name → list of jobs
+    """
+    total_jobs = sum(len(jobs) for jobs in results.values())
+    typer.echo(f"\n✅ Crawl complete! Extracted {total_jobs} total jobs\n")
+
+    for company_name, jobs in results.items():
+        typer.echo(f"   • {company_name}: {len(jobs)} jobs")
+
+        if jobs:
+            output_file = Path("data/extracted_jobs") / f"{company_name.lower()}_jobs.json"
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            jobs_data = [job.model_dump(mode="json") for job in jobs]
+            with open(output_file, "w") as f:
+                json.dump(jobs_data, f, indent=2, default=str)
+            typer.echo(f"      Saved to: {output_file}")
+
+
+@app.command()
+def crawl(
+    config: Optional[str] = typer.Option(None, help="Companies config file"),
+    config_dir: Optional[str] = typer.Option(None, help="Directory with JSON config files"),
+    headless: bool = typer.Option(True, help="Headless browser mode"),
+    timeout: int = typer.Option(30000, help="Browser timeout (ms)"),
+    mock: bool = typer.Option(False, help="Mock crawling without browser"),
+) -> None:
+    """Crawl job postings from company career pages.
+
+    Use either --config <file> for a single config file,
+    or --config-dir <directory> for multiple config files.
+    """
+    logger.info("Crawling companies from config")
+    typer.echo("🌐 Crawling in progress...\n")
+
+    # Load and validate config
+    companies = _load_and_validate_config(config, config_dir)
+
+    # Filter enabled companies
+    enabled_companies = _prepare_enabled_companies(companies)
 
     crawler = Crawler(headless=headless, timeout_ms=timeout)
 
     async def run_crawl() -> Any:
         try:
             results = await crawler.crawl_multiple(enabled_companies)
-
-            total_jobs = sum(len(jobs) for jobs in results.values())
-            typer.echo(f"\n✅ Crawl complete! Extracted {total_jobs} total jobs\n")
-
-            for company_name, jobs in results.items():
-                typer.echo(f"   • {company_name}: {len(jobs)} jobs")
-
-                if jobs:
-                    output_file = Path("data/extracted_jobs") / f"{company_name.lower()}_jobs.json"
-                    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-                    jobs_data = [job.model_dump(mode="json") for job in jobs]
-                    with open(output_file, "w") as f:
-                        json.dump(jobs_data, f, indent=2, default=str)
-                    typer.echo(f"      Saved to: {output_file}")
-
+            _save_crawled_results(results)
             return results
 
         except Exception as e:
