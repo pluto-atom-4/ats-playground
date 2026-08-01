@@ -636,6 +636,190 @@ class Preprocessor:
 
         return sections
 
+    @staticmethod
+    def _filter_boilerplate_content(section_content: str) -> str:
+        """Remove boilerplate phrases from section content.
+
+        Filters out compensation/benefits paragraphs mixed into other sections.
+
+        Args:
+            section_content: Raw section text
+
+        Returns:
+            Cleaned section text with boilerplate lines removed
+        """
+        boilerplate_phrases = {
+            "carbon robotics follows equitable",
+            "offers additional compensation",
+            "base pay",
+            "pay ranges",
+            "pay equity",
+            "individual base",
+            "pre-ipo stock",
+            "target earning",
+            "commissions",
+            "offers compensation",
+            "benefits premiums",
+            "on target earning",
+        }
+        content_lines = []
+        for line in section_content.split('\n'):
+            line_lower = line.lower()
+            if not any(phrase in line_lower for phrase in boilerplate_phrases):
+                content_lines.append(line)
+        return '\n'.join(content_lines)
+
+    @staticmethod
+    def _determine_section_type(
+        section_name: str,
+        skills_section_keywords: Tuple[str, ...],
+        req_section_keywords: Tuple[str, ...],
+    ) -> Tuple[bool, bool, bool]:
+        """Determine section type based on name keywords.
+
+        Args:
+            section_name: Name of the section
+            skills_section_keywords: Keywords that indicate skills sections
+            req_section_keywords: Keywords that indicate requirements sections
+
+        Returns:
+            Tuple of (is_skills_section, is_req_section, is_description_section)
+        """
+        section_lower = section_name.lower()
+        is_skills_section = any(kw in section_lower for kw in skills_section_keywords)
+        is_req_section = any(kw in section_lower for kw in req_section_keywords)
+        is_description_section = any(
+            kw in section_lower for kw in ("description", "overview", "summary", "about")
+        )
+        return is_skills_section, is_req_section, is_description_section
+
+    @staticmethod
+    def _route_entity_by_section(
+        entity_text: str,
+        ent_label: str,
+        is_skills_section: bool,
+        is_req_section: bool,
+        is_description_section: bool,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        requirements: Set[str],
+        skip_ent_types: Set[str],
+    ) -> None:
+        """Route a single entity to appropriate set based on section type.
+
+        Args:
+            entity_text: The entity text to route
+            ent_label: spaCy entity label
+            is_skills_section: Whether section is skills-focused
+            is_req_section: Whether section is requirements-focused
+            is_description_section: Whether section is description-focused
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill entities to
+            technologies: Set to add technology entities to
+            requirements: Set to add requirement entities to
+            skip_ent_types: Entity types to skip
+        """
+        if not entity_text or len(entity_text) < 2 or ent_label in skip_ent_types:
+            return
+
+        if is_skills_section:
+            if any(kw in entity_text.lower() for kw in tech_keywords):
+                technologies.add(entity_text)
+            else:
+                skills.add(entity_text)
+        elif is_req_section:
+            requirements.add(entity_text)
+        elif is_description_section:
+            if any(kw in entity_text.lower() for kw in tech_keywords):
+                technologies.add(entity_text)
+
+    @staticmethod
+    def _extract_noun_compounds(
+        doc: Any,
+        is_skills_section: bool,
+        is_description_section: bool,
+        section_name: str,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+    ) -> None:
+        """Extract noun compounds and tokens from parsed doc.
+
+        Args:
+            doc: spaCy Doc object
+            is_skills_section: Whether section is skills-focused
+            is_description_section: Whether section is description-focused
+            section_name: Name of the section
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill tokens to
+            technologies: Set to add technology tokens to
+        """
+        if is_skills_section:
+            for token in doc:
+                if token.pos_ in ("NOUN", "PROPN") and len(token.text) > 2:
+                    if token.text.lower() in tech_keywords:
+                        technologies.add(token.text)
+                    elif token.text not in skills:
+                        skills.add(token.text)
+        elif is_description_section or section_name == "responsibilities":
+            for token in doc:
+                if token.text.lower() in tech_keywords and len(token.text) > 2:
+                    technologies.add(token.text)
+
+    @staticmethod
+    def _extract_list_items(
+        list_items: List[Tuple[str, str]],
+        section_name: str,
+        is_skills_section: bool,
+        is_req_section: bool,
+        is_description_section: bool,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        requirements: Set[str],
+    ) -> None:
+        """Extract and route list items based on section type.
+
+        Args:
+            list_items: List of regex-matched items (tuples from re.findall)
+            section_name: Name of the section
+            is_skills_section: Whether section is skills-focused
+            is_req_section: Whether section is requirements-focused
+            is_description_section: Whether section is description-focused
+            tech_keywords: Set of technology keywords
+            skills: Set to add skill items to
+            technologies: Set to add technology items to
+            requirements: Set to add requirement items to
+        """
+        for item in list_items:
+            if isinstance(item, tuple):
+                item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
+            else:
+                item_text = str(item)
+
+            item_text = item_text.strip()
+            if not item_text or len(item_text) < 3:
+                continue
+
+            if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
+                continue
+
+            if is_skills_section:
+                if len(item_text) > 3:
+                    skills.add(item_text)
+            elif is_req_section:
+                if len(item_text) > 3:
+                    requirements.add(item_text)
+            elif section_name == "responsibilities" or is_description_section:
+                exclude_words = ("design", "architecture", "strategy")
+                item_lower = item_text.lower()
+                has_excluded = any(word in item_lower for word in exclude_words)
+                if len(item_text) > 5 and not has_excluded:
+                    for keyword in tech_keywords:
+                        if keyword in item_lower:
+                            technologies.add(keyword)
+
     def _extract_entities_by_section(self, text: str) -> Tuple[Set[str], Set[str], Set[str]]:
         """Extract entities intelligently from markdown sections using NER (Phase 11).
 
@@ -663,15 +847,15 @@ class Preprocessor:
             "fte", "temporary", "education:", "hiring practice"
         }
 
-        # Sections that should contribute to skills (explicitly named skills sections)
         skills_section_keywords = (
             "skill", "technical", "core", "competency", "ability", "expertise", "proficiency"
         )
-        # Sections that should contribute to requirements (but NOT skills)
         req_section_keywords = (
             "requirement", "qualif", "needed", "essential", "must", "knowledge",
             "experience", "responsibility", "duty"
         )
+
+        skip_ent_types = {"ORG", "PRODUCT", "QUANTITY", "CARDINAL", "DATE", "TIME", "MONEY"}
 
         for section_name, section_content in sections.items():
             section_lower = section_name.lower().replace("_", " ")
@@ -680,28 +864,7 @@ class Preprocessor:
             if not section_content.strip():
                 continue
 
-            # Remove boilerplate from section content (compensation/benefits paragraphs mixed in)
-            boilerplate_phrases = {
-                "carbon robotics follows equitable",
-                "offers additional compensation",
-                "base pay",
-                "pay ranges",
-                "pay equity",
-                "individual base",
-                "pre-ipo stock",
-                "target earning",
-                "commissions",
-                "offers compensation",
-                "benefits premiums",
-                "on target earning",
-            }
-            content_lines = []
-            for line in section_content.split('\n'):
-                line_lower = line.lower()
-                if not any(phrase in line_lower for phrase in boilerplate_phrases):
-                    content_lines.append(line)
-            section_content = '\n'.join(content_lines)
-
+            section_content = self._filter_boilerplate_content(section_content)
             if not section_content.strip():
                 continue
 
@@ -710,86 +873,47 @@ class Preprocessor:
             except Exception:
                 continue
 
-            section_lower = section_name.lower()
             list_items = re.findall(r"^[\*\-\+]\s+(.+)$|^\d+\.\s+(.+)$", section_content, re.MULTILINE)
 
-            # Determine section type
-            is_skills_section = any(kw in section_lower for kw in skills_section_keywords)
-            is_req_section = any(kw in section_lower for kw in req_section_keywords)
-            is_description_section = any(kw in section_lower for kw in ("description", "overview", "summary", "about"))
-
-            # Extract entities based on section type
-            # Skip ORG/PRODUCT/QUANTITY entities - focus on PERSON, WORK_OF_ART, etc.
-            skip_ent_types = {"ORG", "PRODUCT", "QUANTITY", "CARDINAL", "DATE", "TIME", "MONEY"}
+            is_skills_section, is_req_section, is_description_section = self._determine_section_type(
+                section_name, skills_section_keywords, req_section_keywords
+            )
 
             for ent in doc.ents:
-                entity_text = ent.text.strip()
-                if not entity_text or len(entity_text) < 2 or ent.label_ in skip_ent_types:
-                    continue
+                self._route_entity_by_section(
+                    ent.text.strip(),
+                    ent.label_,
+                    is_skills_section,
+                    is_req_section,
+                    is_description_section,
+                    tech_keywords,
+                    skills,
+                    technologies,
+                    requirements,
+                    skip_ent_types,
+                )
 
-                if is_skills_section:
-                    # Skills section: route to skills or technologies
-                    if any(kw in entity_text.lower() for kw in tech_keywords):
-                        technologies.add(entity_text)
-                    else:
-                        skills.add(entity_text)
-                elif is_req_section:
-                    # Requirements/Qualifications section: route to requirements
-                    requirements.add(entity_text)
-                elif is_description_section:
-                    # Description section: only extract clear tech/product terms
-                    if any(kw in entity_text.lower() for kw in tech_keywords):
-                        technologies.add(entity_text)
+            self._extract_noun_compounds(
+                doc,
+                is_skills_section,
+                is_description_section,
+                section_name,
+                tech_keywords,
+                skills,
+                technologies,
+            )
 
-            # Extract noun compounds from skills sections (and tech from other sections)
-            if is_skills_section:
-                for token in doc:
-                    if token.pos_ in ("NOUN", "PROPN") and len(token.text) > 2:
-                        if token.text.lower() in tech_keywords:
-                            technologies.add(token.text)
-                        elif token.text not in skills:
-                            skills.add(token.text)
-            elif is_description_section or section_name == "responsibilities":
-                # From other sections, only extract clear tech keywords
-                for token in doc:
-                    if token.text.lower() in tech_keywords and len(token.text) > 2:
-                        technologies.add(token.text)
-
-            # Extract list items: route based on section type
-            for item in list_items:
-                if isinstance(item, tuple):
-                    item_text = item[0] if item[0] else (item[1] if len(item) > 1 else "")
-                else:
-                    item_text = str(item)
-
-                item_text = item_text.strip()
-                if not item_text or len(item_text) < 3:
-                    continue
-
-                # Skip only pure year ranges (2020-2025) not experience requirements (10+ years)
-                if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
-                    continue
-
-                # Route based on section type
-                if is_skills_section:
-                    # Allow commas for skill phrases (C++, Python; Communication, Teamwork)
-                    if len(item_text) > 3:
-                        skills.add(item_text)
-                elif is_req_section:
-                    # Allow commas for requirements (BS, MS; Must know X, Y)
-                    if len(item_text) > 3:
-                        requirements.add(item_text)
-                elif section_name == "responsibilities" or is_description_section:
-                    # From responsibilities/descriptions: treat substantive items as skills
-                    # (e.g., "Develop software systems", "Debug complex issues")
-                    exclude_words = ("design", "architecture", "strategy")
-                    item_lower = item_text.lower()
-                    has_excluded = any(word in item_lower for word in exclude_words)
-                    if len(item_text) > 5 and not has_excluded:
-                        # Extract tech terms from the item
-                        for keyword in tech_keywords:
-                            if keyword in item_lower:
-                                technologies.add(keyword)
+            self._extract_list_items(
+                list_items,
+                section_name,
+                is_skills_section,
+                is_req_section,
+                is_description_section,
+                tech_keywords,
+                skills,
+                technologies,
+                requirements,
+            )
 
         logger.debug(
             f"Entity extraction by section: {len(skills)} skills, "
