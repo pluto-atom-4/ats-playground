@@ -73,69 +73,72 @@ class BoeingParser(CompanyParser):
 
     company_name = "boeing"
 
+    def _extract_section_bullets(self, section: str) -> Set[str]:
+        """Extract bullet points from a section."""
+        bullets = set()
+        matches = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", section)
+        for bullet in matches:
+            bullet = bullet.strip()
+            is_only_years = re.match(r"^\d+\+?\s+years\s+of\s+experience\s*$", bullet, re.IGNORECASE)
+            if 10 < len(bullet) < 150 and not is_only_years:
+                bullets.add(bullet)
+        return bullets
+
+    def _extract_years_experience(self, text: str) -> Set[str]:
+        """Extract years of experience requirements."""
+        years_reqs = set()
+        pattern = r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|using|focused\s+on)\s+([^\.\n]+))?"
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            if match.group(2):
+                domain = match.group(2).strip().rstrip(".,;")
+                years_reqs.add(f"{match.group(1)}+ years of experience {domain}")
+        return years_reqs
+
+    def _extract_standard_requirements(self, text: str) -> Set[str]:
+        """Extract standard requirements (degree, clearance, etc.)."""
+        standard = set()
+        if re.search(r"Bachelor[''s]*\s+(?:Degree|of\s+Science)", text, re.IGNORECASE):
+            standard.add("Bachelor's Degree")
+        if re.search(r"Top\s+Secret", text, re.IGNORECASE):
+            standard.add("Ability to obtain a U.S. Security Clearance (requires U.S. Citizenship)")
+        if re.search(r"U\.S\.\s+Person|export\s+control", text, re.IGNORECASE):
+            standard.add("U.S. Person status as defined by 22 C.F.R. §120.62 for export control compliance")
+        if re.search(r"CodeVue|coding\s+challenge", text, re.IGNORECASE):
+            standard.add("Completion of the CodeVue Coding Challenge during the selection process")
+        if re.search(r"drug", text, re.IGNORECASE):
+            standard.add("Passing a post-offer drug test")
+        return standard
+
+    def _extract_preferred_bullets(self, section: str) -> Set[str]:
+        """Extract preferred qualifications."""
+        preferred = set()
+        matches = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", section)
+        for bullet in matches:
+            bullet = bullet.strip()
+            if 10 < len(bullet) < 150:
+                preferred.add(f"{bullet} (Preferred)")
+        return preferred
+
     def parse_requirements(self, text: str) -> Set[str]:
         """Parse Boeing's mixed structured/narrative format."""
         requirements = set()
 
-        # Extract basic qualifications section (handle ### h3 and ## h2 headers)
         basic_qual = self.extract_section(
             text,
             r"(?:#{2,3}\s+)?(?:basic|minimum|required)\s+(?:qualifications?|skills/experience)[\s\n:]*(.+?)(?=\n#{2,3}|Preferred|Travel|---|\Z)"
         )
-
         if basic_qual:
-            bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", basic_qual)
-            for bullet in bullets:
-                bullet = bullet.strip()
-                # Keep bullets unless they're ONLY about years (no domain context)
-                is_only_years = re.match(r"^\d+\+?\s+years\s+of\s+experience\s*$", bullet, re.IGNORECASE)
-                if 10 < len(bullet) < 150 and not is_only_years:
-                    requirements.add(bullet)
+            requirements.update(self._extract_section_bullets(basic_qual))
 
-        # Years of experience with language specification (only add if domain specified)
-        for match in re.finditer(
-            r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|using|focused\s+on)\s+([^\.\n]+))?",
-            text,
-            re.IGNORECASE
-        ):
-            years = match.group(1)
-            domain = match.group(2)
-            if domain:
-                domain = domain.strip().rstrip(".,;")
-                requirements.add(f"{years}+ years of experience {domain}")
+        requirements.update(self._extract_years_experience(text))
+        requirements.update(self._extract_standard_requirements(text))
 
-        # Bachelor's degree
-        if re.search(r"Bachelor[''s]*\s+(?:Degree|of\s+Science)", text, re.IGNORECASE):
-            requirements.add("Bachelor's Degree")
-
-        # Security clearance (Boeing: Top Secret for defense)
-        if re.search(r"Top\s+Secret", text, re.IGNORECASE):
-            requirements.add("Ability to obtain a U.S. Security Clearance (requires U.S. Citizenship)")
-
-        # U.S. Person status
-        if re.search(r"U\.S\.\s+Person|export\s+control", text, re.IGNORECASE):
-            requirements.add("U.S. Person status as defined by 22 C.F.R. §120.62 for export control compliance")
-
-        # Coding assessment
-        if re.search(r"CodeVue|coding\s+challenge", text, re.IGNORECASE):
-            requirements.add("Completion of the CodeVue Coding Challenge during the selection process")
-
-        # Drug test
-        if re.search(r"drug", text, re.IGNORECASE):
-            requirements.add("Passing a post-offer drug test")
-
-        # Extract from preferred section (marked as Preferred)
         pref_qual = self.extract_section(
             text,
             r"(?:#{2,3}\s+)?(?:preferred|desired)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n#{2,3}|Travel|Background|---|\Z)"
         )
-
         if pref_qual:
-            bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", pref_qual)
-            for bullet in bullets:
-                bullet = bullet.strip()
-                if 10 < len(bullet) < 150:
-                    requirements.add(f"{bullet} (Preferred)")
+            requirements.update(self._extract_preferred_bullets(pref_qual))
 
         return requirements
 
