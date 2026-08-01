@@ -3,13 +3,14 @@
 import re
 from typing import Set
 
+from spacy.language import Language
 from spacy.tokens import Span
 
 
 class NarrativeRequirementExtractor:
     """Extract requirements from narrative/prose text using NLP."""
 
-    def __init__(self, nlp_model):
+    def __init__(self, nlp_model: Language) -> None:
         """Initialize with spaCy NLP model."""
         self.nlp = nlp_model
 
