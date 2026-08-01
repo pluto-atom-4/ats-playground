@@ -175,3 +175,81 @@ class TestHTMLParsingBaseline:
         if total_count == 0:
             return 100.0
         return ((total_count - suspicious_count) / total_count) * 100
+
+
+class TestEnhancedFragmentDetection:
+    """Test enhanced fragment detection for Phase 3."""
+
+    @pytest.fixture
+    def preprocessor(self, monkeypatch):
+        """Initialize Preprocessor with real spaCy model."""
+        preprocessor = Preprocessor(model="en_core_web_md")
+        return preprocessor
+
+    def test_excessive_case_transitions(self, preprocessor):
+        """Detect multi-word with excessive MixedCase transitions."""
+        # Should detect: 3+ transitions
+        assert preprocessor._has_excessive_case_transitions("may differCulture StatementDon't")
+        assert preprocessor._has_excessive_case_transitions("RequiredQualificationsTo")
+
+        # Should not detect: <3 transitions
+        assert not preprocessor._has_excessive_case_transitions("machine Learning")
+        assert not preprocessor._has_excessive_case_transitions("Python")
+
+    def test_unclosed_punctuation(self, preprocessor):
+        """Detect entities with mismatched punctuation."""
+        assert preprocessor._has_unclosed_punctuation("(incomplete")
+        assert preprocessor._has_unclosed_punctuation("test [without closing")
+        assert preprocessor._has_unclosed_punctuation("{brace mismatch")
+
+        assert not preprocessor._has_unclosed_punctuation("test(content)")
+        assert not preprocessor._has_unclosed_punctuation("normal text")
+
+    def test_html_entity_artifacts(self, preprocessor):
+        """Detect HTML entity artifacts in text."""
+        assert preprocessor._has_html_entity_artifacts("Requirements&nbsp;Details")
+        assert preprocessor._has_html_entity_artifacts("text&amp;more")
+        assert preprocessor._has_html_entity_artifacts("&#36;100")
+
+        assert not preprocessor._has_html_entity_artifacts("normal text")
+
+    def test_suspicious_multi_word_fragment(self, preprocessor):
+        """Detect suspicious multi-word fragments."""
+        # Section header artifacts
+        assert preprocessor._is_suspicious_multi_word_fragment("Required QualificationsTo")
+        assert preprocessor._is_suspicious_multi_word_fragment("RequiredQualificationsTo")
+
+        # Article + proper noun pattern
+        assert preprocessor._is_suspicious_multi_word_fragment("the Hiring Manager")
+
+        # Oddly spaced keywords
+        assert preprocessor._is_suspicious_multi_word_fragment("computer science and years")
+
+        # MixedCase patterns
+        assert preprocessor._is_suspicious_multi_word_fragment("may differCulture Statement")
+
+        # Single words should not be flagged
+        assert not preprocessor._is_suspicious_multi_word_fragment("Python")
+        assert not preprocessor._is_suspicious_multi_word_fragment("Developer")
+
+        # Normal multi-word should not be flagged
+        assert not preprocessor._is_suspicious_multi_word_fragment("machine learning engineer")
+        assert not preprocessor._is_suspicious_multi_word_fragment("cloud computing")
+
+    def test_fragment_filtering_integration(self, preprocessor):
+        """Test that fragments are filtered during extraction."""
+        # Text with problematic fragments
+        text = (
+            "Requires Python developer. "
+            "may differCulture StatementDon't settle. "
+            "Core CompetenciesRequired Qualifications"
+        )
+
+        skills, tech, reqs = preprocessor.extract_entities(text)
+
+        # Fragments should be filtered out
+        all_entities = skills + tech + reqs
+        for entity in all_entities:
+            # Verify no obvious fragments are in results
+            assert not preprocessor._is_suspicious_multi_word_fragment(entity), \
+                f"Fragment detected in results: {entity}"

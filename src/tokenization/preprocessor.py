@@ -667,6 +667,128 @@ class Preprocessor:
 
         return False
 
+    @staticmethod
+    def _has_excessive_case_transitions(entity: str) -> bool:
+        """Detect multi-word fragments with excessive case transitions (MixedCase).
+
+        Examples:
+        - "may differCulture StatementDon't" -> 3+ transitions (true)
+        - "machine Learning" -> 1 transition (false)
+
+        Args:
+            entity: Text to check
+
+        Returns:
+            True if entity has 3+ case transitions indicating fragment, False otherwise
+        """
+        case_transitions = 0
+        for i in range(1, len(entity)):
+            if entity[i].isupper() != entity[i - 1].isupper():
+                case_transitions += 1
+
+        # 3+ transitions typically indicates MixedCase fragment
+        return case_transitions >= 3
+
+    @staticmethod
+    def _has_unclosed_punctuation(entity: str) -> bool:
+        """Check if entity has mismatched or unclosed punctuation.
+
+        Examples:
+        - "(incomplete" -> True
+        - "test(content)" -> False
+
+        Args:
+            entity: Text to check
+
+        Returns:
+            True if entity has unclosed punctuation, False otherwise
+        """
+        unclosed = False
+        if entity.count("(") != entity.count(")"):
+            unclosed = True
+        if entity.count("[") != entity.count("]"):
+            unclosed = True
+        if entity.count("{") != entity.count("}"):
+            unclosed = True
+
+        return unclosed
+
+    @staticmethod
+    def _has_html_entity_artifacts(entity: str) -> bool:
+        """Check if entity contains HTML entity artifacts.
+
+        Examples:
+        - "Requirements&nbsp;Details" -> True
+        - "Java developer" -> False
+
+        Args:
+            entity: Text to check
+
+        Returns:
+            True if entity contains HTML artifacts, False otherwise
+        """
+        html_entity_patterns = [
+            r"&\w+;",  # &nbsp; &amp; etc.
+            r"&#\d+;",  # Numeric entities
+            r"<.*?>",  # HTML tags
+        ]
+
+        for pattern in html_entity_patterns:
+            if re.search(pattern, entity):
+                return True
+
+        return False
+
+    @staticmethod
+    def _is_suspicious_multi_word_fragment(entity: str) -> bool:
+        """Detect suspicious multi-word fragments from HTML parsing issues.
+
+        Multi-word entities with odd spacing, mismatched case, or artifacts.
+
+        Examples:
+        - "Required QualificationsTo" -> True (section header artifact)
+        - "computer science and years" -> True (oddly split)
+        - "the Hiring Manager" -> True (article + proper noun)
+        - "RequiredQualificationsTo" -> True (camelCase section header)
+
+        Args:
+            entity: Text to check
+
+        Returns:
+            True if entity is a suspicious fragment, False otherwise
+        """
+        words = entity.split()
+
+        # Check for excessive case transitions (handles both spaced and camelCase)
+        if Preprocessor._has_excessive_case_transitions(entity):
+            return True
+
+        # Check for unclosed punctuation
+        if Preprocessor._has_unclosed_punctuation(entity):
+            return True
+
+        # Check for HTML artifacts
+        if Preprocessor._has_html_entity_artifacts(entity):
+            return True
+
+        # Single word: check for camelCase fragment patterns
+        if len(words) <= 1:
+            # Already checked case transitions above, so if we get here, it's normal
+            return False
+
+        # Check for articles at start with capitalized second word (fragment pattern)
+        if len(words) >= 2 and words[0].lower() in ("the", "a", "an"):
+            if words[1][0].isupper() and len(words) <= 3:
+                # "the Hiring Manager" pattern - likely fragment
+                return True
+
+        # Check for oddly spaced words (e.g., "science and years" with separators)
+        if len(words) >= 3 and any(w.lower() in ("and", "or", ",") for w in words):
+            # Multi-word with conjunctions/commas suspicious
+            return True
+
+        return False
+
     def _filter_entities(
         self, entities: list[str], entity_type: str = "skills",
         entity_pos_tags: Optional[dict[str, str]] = None
@@ -732,6 +854,12 @@ class Preprocessor:
             entity_clean = entity.strip()
             entity_lower = entity_clean.lower()
             words = entity_lower.split()
+
+            # Phase 6: Enhanced fragment detection (Issue #193 Phase 3)
+            # Detect multi-word fragments from HTML parsing issues
+            if self._is_suspicious_multi_word_fragment(entity_clean):
+                logger.debug(f"Filtered suspicious fragment: {entity_clean}")
+                continue
 
             # Check common validation rules
             if self._should_skip_entity_common(entity_clean, entity_lower, entity_type, boilerplate_keywords):
