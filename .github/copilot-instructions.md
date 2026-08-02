@@ -118,5 +118,5 @@ See [AGENTS.md](../AGENTS.md) for details.
 
 ---
 
-**Last Updated:** 2026-07-25
+**Last Updated:** 2026-08-01
 **Status:** Enhanced with path-scoped rules & tool matrix
