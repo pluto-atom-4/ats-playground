@@ -1296,6 +1296,12 @@ class Preprocessor:
             is_skills_section, is_req_section, is_description_section = self._determine_section_type(
                 section_name, skills_section_keywords, req_section_keywords
             )
+            # "responsibilities" doesn't substring-match any req_section_keywords
+            # entry ("responsibility" isn't a substring of "responsibilities"),
+            # so fold it in explicitly here -- matching the special-casing
+            # already done in _extract_noun_compounds and _route_list_item_by_section.
+            if section_name == "responsibilities":
+                is_req_section = True
 
             for ent in doc.ents:
                 self._route_entity_by_section(

@@ -60,6 +60,34 @@ def test_token_pricing():
 
 
 @pytest.mark.unit
+def test_extract_entities_by_section_routes_responsibilities_ner_entities():
+    """Issue #196: NER entities in a '## Responsibilities' section route to requirements.
+
+    `_route_entity_by_section`'s is_req_section check substring-matches the
+    section name against req_section_keywords, and "responsibility" is not a
+    substring of "responsibilities", so entities extracted by spaCy NER from
+    a Responsibilities section were previously routed nowhere. The two
+    sibling extraction paths (noun-compounds, list-items) already special-case
+    section_name == "responsibilities"; this test locks in the NER-entity path
+    doing the same.
+    """
+    try:
+        preprocessor = Preprocessor()
+    except Exception as e:
+        pytest.skip(f"spaCy model not available: {e}")
+
+    markdown_text = (
+        "## Responsibilities\n\n"
+        "Collaborate closely with stakeholders and coordinate with teams "
+        "across Europe to deliver quarterly roadmaps.\n"
+    )
+    _skills, _technologies, requirements = preprocessor._extract_entities_by_section(
+        markdown_text
+    )
+    assert "Europe" in requirements
+
+
+@pytest.mark.unit
 def test_preprocessed_job_company_field():
     """Test that PreprocessedJob model includes company field."""
     from datetime import UTC, datetime

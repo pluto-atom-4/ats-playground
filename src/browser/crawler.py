@@ -1,6 +1,7 @@
 """Playwright-based web crawler for extracting job postings from company websites."""
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
@@ -193,7 +194,161 @@ class Crawler:
         """
         if not description:
             return ""
-        return html_to_markdown(description)
+        markdown = html_to_markdown(description)
+        return self._add_markdown_section_headers(markdown) if markdown else markdown
+
+    # Standalone lines matching these phrases (case-insensitive, after
+    # stripping bold markers / trailing colon) are synthesized into
+    # "## " section headers when the source HTML lacks real heading tags.
+    _SECTION_HEADER_KEYWORDS = frozenset(
+        {
+            # qualifications
+            "qualifications",
+            "desired qualifications",
+            "preferred qualifications",
+            "minimum qualifications",
+            "essential qualifications",
+            # requirements
+            "requirements",
+            "must-have",
+            "must haves",
+            "must-haves",
+            "nice-to-have",
+            "nice-to-haves",
+            "nice to have",
+            "nice to haves",
+            "needed",
+            # skills
+            "skills",
+            "technical skills",
+            "core skills",
+            "competencies",
+            # knowledge
+            "knowledge",
+            "understanding",
+            # responsibilities
+            "responsibilities",
+            "what you'll do",
+            "duties",
+            "accountabilities",
+            # experience
+            "experience",
+            "background",
+            # education
+            "education",
+            # benefits / compensation
+            "benefits",
+            "compensation",
+            # about-the-role variants
+            "about the role",
+            "about this role",
+            "what we're looking for",
+        }
+    )
+
+    @staticmethod
+    def _extract_bold_label(text: str) -> Optional[str]:
+        """Return the inner text of a bold-only standalone line, or None.
+
+        Matches Markdown bold (``**label**``) and MarkItDown-escaped bold
+        (``\\*\\*label\\*\\*``) wrapping the entire line.
+        """
+        match = re.match(r"^\\\*\\\*(.+?)\\\*\\\*$", text)
+        if match:
+            return match.group(1).strip()
+        match = re.match(r"^\*\*(.+?)\*\*$", text)
+        if match:
+            return match.group(1).strip()
+        return None
+
+    @staticmethod
+    def _extract_standalone_label(text: str) -> Optional[str]:
+        """Return the label of a standalone plain/bold line, or None.
+
+        Excludes list items, headers, and table rows so only genuine
+        heading-like lines are considered.
+        """
+        bold_label = Crawler._extract_bold_label(text)
+        if bold_label is not None:
+            return bold_label
+        if text.startswith(("#", "-", "*", "+", ">", "|")) or re.match(r"^\d+\.\s", text):
+            return None
+        return text
+
+    @classmethod
+    def _synthesize_keyword_headers(cls, lines: List[str]) -> None:
+        """Step 1: standalone lines matching a known section keyword -> '## Header'.
+
+        Mutates ``lines`` in place.
+        """
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            label = cls._extract_standalone_label(stripped)
+            if label is None:
+                continue
+            normalized = label.rstrip(":").strip()
+            if normalized.replace("’", "'").lower() in cls._SECTION_HEADER_KEYWORDS:
+                lines[i] = f"## {normalized}"
+
+    @classmethod
+    def _synthesize_bold_subsection_headers(cls, lines: List[str]) -> None:
+        """Step 2: bold-only line followed by non-empty, non-header content -> '### Subsection'.
+
+        Mutates ``lines`` in place.
+        """
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            label = cls._extract_bold_label(stripped)
+            if label is None:
+                continue
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j >= len(lines):
+                continue
+            next_stripped = lines[j].strip()
+            if next_stripped and not next_stripped.startswith("#"):
+                lines[i] = f"### {label.rstrip(':').strip()}"
+
+    @staticmethod
+    def _synthesize_colon_subsection_headers(lines: List[str]) -> None:
+        """Step 3: any remaining non-header line ending in ':' -> '### Subsection'.
+
+        Mutates ``lines`` in place.
+        """
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or not stripped.endswith(":"):
+                continue
+            label = stripped[:-1].strip()
+            if not label:
+                continue
+            lines[i] = f"### {label}"
+
+    def _add_markdown_section_headers(self, markdown: str) -> str:
+        """
+        Synthesize "## "/"### " section headers from keyword, bold, and
+        colon-terminated standalone lines when the source HTML lacked real
+        heading tags.
+
+        Runs three passes in sequence:
+        1. Standalone lines matching a known section keyword (plain, bold,
+           or MarkItDown-escaped bold, with an optional trailing colon)
+           become "## <Header>".
+        2. Remaining bold-only standalone lines followed by non-empty,
+           non-header content become "### <Subsection>".
+        3. Remaining non-header lines ending in ":" become
+           "### <Subsection>".
+        """
+        lines = markdown.split("\n")
+        self._synthesize_keyword_headers(lines)
+        self._synthesize_bold_subsection_headers(lines)
+        self._synthesize_colon_subsection_headers(lines)
+        return "\n".join(lines)
 
     async def _extract_text(self, element: Any, selector: Optional[str]) -> Optional[str]:
         """Extract text from element using selector."""
