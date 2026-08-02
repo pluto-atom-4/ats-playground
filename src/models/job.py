@@ -56,8 +56,12 @@ class PreprocessedJob(BaseModel):
     )
 
     job_id: str = Field(..., description="Reference to original job")
+    title: Optional[str] = Field(None, description="Job title (preserved from crawled data)")
     company: Optional[str] = Field(None, description="Company name")
     clean_text: str = Field(..., description="Cleaned HTML -> text")
+    markdown_description: Optional[str] = Field(
+        None, description="Markdown-formatted description"
+    )
     sentences: List[str] = Field(..., description="Sentence-segmented text")
     chunks: List[str] = Field(..., description="Semantic chunks")
     skills: List[str] = Field(default_factory=list, description="Extracted skills (NLP)")

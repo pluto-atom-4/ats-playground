@@ -1323,8 +1323,10 @@ def _preprocess_single_job(
 
         preprocessed = PreprocessedJob(
             job_id=job_id,
+            title=job.title,
             company=job.company,
             clean_text=clean_text,
+            markdown_description=job.description,
             sentences=clean_text.split("\n"),
             chunks=chunks,
             skills=skills,

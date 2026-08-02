@@ -1,123 +1,95 @@
-"""Tests for description normalization in crawler."""
+"""Tests for HTML-to-Markdown description normalization in crawler.
 
-import pytest
+Rewritten for Issue #195 / Phase 8: `_normalize_description` used to run
+regex-based metadata-separator logic on raw concatenated text. It is now a
+thin wrapper around the shared `html_to_markdown()` utility, since the
+crawler extracts `inner_html()` (not `text_content()`) for job descriptions.
+These tests assert markdown structure and absence of residual HTML tags,
+rather than the old regex label-spacing behavior.
+"""
+
+import re
 
 from src.browser.crawler import Crawler
 
 
 class TestDescriptionNormalization:
-    """Test metadata label separation in job descriptions."""
+    """Test HTML -> Markdown conversion of job descriptions."""
 
-    def test_normalize_remote_type(self):
-        """Separate 'remote type' label from value."""
+    def test_normalize_heading_and_paragraph(self):
+        """Basic heading + paragraph HTML converts to markdown structure."""
         crawler = Crawler()
-        desc = "remote typeHybrid (telework 2 days)"
-        result = crawler._normalize_description(desc)
-        assert "remote type Hybrid" in result
+        html = "<h2>About the Role</h2><p>We build great software.</p>"
+        result = crawler._normalize_description(html)
 
-    def test_normalize_locations(self):
-        """Separate 'locations' label from value."""
-        crawler = Crawler()
-        desc = "locationsSeattle, WA"
-        result = crawler._normalize_description(desc)
-        assert "locations Seattle" in result
+        assert result.startswith("#")
+        assert "About the Role" in result
+        assert "We build great software." in result
 
-    def test_normalize_time_type(self):
-        """Separate 'time type' label from value."""
+    def test_normalize_list_items(self):
+        """Unordered list HTML converts to markdown list syntax."""
         crawler = Crawler()
-        desc = "time typeFull time"
-        result = crawler._normalize_description(desc)
-        assert "time type Full" in result
+        html = "<ul><li>Python</li><li>SQL</li><li>Docker</li></ul>"
+        result = crawler._normalize_description(html)
 
-    def test_normalize_posted_on(self):
-        """Separate 'posted on' label from value."""
-        crawler = Crawler()
-        desc = "posted onPosted Yesterday"
-        result = crawler._normalize_description(desc)
-        assert "posted on Posted" in result
+        assert "Python" in result
+        assert "SQL" in result
+        assert "Docker" in result
 
-    def test_normalize_job_description(self):
-        """Separate 'Job Description' label from value."""
+    def test_normalize_no_residual_html_tags(self):
+        """Converted output should not contain raw HTML tags."""
         crawler = Crawler()
-        desc = "Job DescriptionThe College"
-        result = crawler._normalize_description(desc)
-        assert "Job Description The" in result
-
-    def test_normalize_multiple_fields_separated(self):
-        """Multiple metadata fields get newline separators."""
-        crawler = Crawler()
-        desc = (
-            "remote typeHybrid (telework)"
-            "locationsSeattle, WAtime typeFull"
+        html = (
+            "<div><h2>Requirements</h2>"
+            "<ul><li>5+ years experience</li><li>Strong communication</li></ul>"
+            "<p>Remote type: <strong>Hybrid</strong></p></div>"
         )
-        result = crawler._normalize_description(desc)
-        # Should have newlines before each label
-        assert result.count("\n") >= 2
-        assert "remote type Hybrid" in result
-        assert "locations Seattle" in result
-        assert "time type Full" in result
+        result = crawler._normalize_description(html)
 
-    def test_normalize_complete_workday_description(self):
-        """Normalize a complete concatenated Workday description."""
+        assert not re.search(r"<[a-zA-Z/][^>]*>", result)
+        assert "Requirements" in result
+        assert "5+ years experience" in result
+        assert "Hybrid" in result
+
+    def test_normalize_workday_style_metadata(self):
+        """Structured metadata table converts cleanly without concatenation."""
         crawler = Crawler()
-        desc = (
-            "remote typeHybrid (telework 2 days or less per week)"
-            "locationsSeattle, WAtime typeFull timeposted onPosted Today"
-            "time left to applyEnd Date: July 22, 2026"
-            "job requisition idREQ-0000133673"
-            "Job DescriptionThe College of Engineering team..."
+        html = (
+            "<table>"
+            "<tr><td>remote type</td><td>Hybrid</td></tr>"
+            "<tr><td>locations</td><td>Seattle, WA</td></tr>"
+            "<tr><td>time type</td><td>Full time</td></tr>"
+            "</table>"
         )
-        result = crawler._normalize_description(desc)
+        result = crawler._normalize_description(html)
 
-        # Verify all labels have proper spacing
-        assert "remote type Hybrid" in result
-        assert "locations Seattle" in result
-        assert "time type Full" in result
-        assert "posted on Posted" in result
-        assert "time left to apply End" in result
-        assert "job requisition id REQ" in result
-        assert "Job Description The" in result
-
-        # Verify newlines between sections
-        lines = result.split("\n")
-        # Should have multiple lines due to newline separators
-        assert len(lines) > 3
-
-    def test_normalize_already_separated(self):
-        """Don't double-space metadata that's already separated."""
-        crawler = Crawler()
-        desc = "remote type Hybrid (telework)"
-        result = crawler._normalize_description(desc)
-        # Should not have double spaces
-        assert "remote  type" not in result
-        assert "remote type Hybrid" in result
+        assert "Hybrid" in result
+        assert "Seattle" in result
+        assert "Full time" in result
 
     def test_normalize_empty_description(self):
-        """Handle empty description."""
+        """Handle empty string description."""
         crawler = Crawler()
         result = crawler._normalize_description("")
         assert result == ""
 
     def test_normalize_none_description(self):
-        """Handle None description."""
+        """Handle None description by returning empty string."""
         crawler = Crawler()
         result = crawler._normalize_description(None)
-        assert result is None
+        assert result == ""
 
-    def test_normalize_case_insensitive(self):
-        """Normalize metadata labels case-insensitively."""
+    def test_normalize_plain_text_passthrough(self):
+        """Plain text with no HTML tags passes through largely unchanged."""
         crawler = Crawler()
-        desc = "REMOTE TYPEHybrid"
-        result = crawler._normalize_description(desc)
-        # Case-insensitive match should work
-        assert "Hybrid" in result
-        assert "REMOTE TYPE" in result or "remote type" in result.lower()
+        text = "Just a plain sentence with no markup at all."
+        result = crawler._normalize_description(text)
+        assert "Just a plain sentence with no markup at all." in result
 
-    def test_normalize_no_false_positives(self):
-        """Don't modify unrelated content containing label words."""
+    def test_normalize_malformed_html_does_not_raise(self):
+        """Malformed/unclosed HTML should not raise."""
         crawler = Crawler()
-        desc = "The location type is important for this job"
-        # Should not add newlines to words that contain "location" or "type"
-        result = crawler._normalize_description(desc)
-        # These sentences should remain unchanged
-        assert "The location type is" in result
+        html = "<div><p>Unclosed paragraph and div"
+        result = crawler._normalize_description(html)
+        assert isinstance(result, str)
+        assert "Unclosed paragraph and div" in result

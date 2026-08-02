@@ -70,12 +70,10 @@ class HTMLCleaner:
     def _clean_with_markitdown(self, html: str) -> str:
         """Clean HTML using MarkItDown."""
         try:
-            import markitdown
+            from src.parsers.html_to_markdown import html_to_markdown
 
             logger.debug("Cleaning with MarkItDown")
-            md = markitdown.MarkItDown()
-            result = md.convert(html)
-            clean_text = result.text_content
+            clean_text = html_to_markdown(html)
             return self._postprocess_text(clean_text)
         except Exception as e:
             logger.warning(f"MarkItDown failed: {e}, falling back to BeautifulSoup")

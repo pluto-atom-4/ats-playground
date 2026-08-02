@@ -1,7 +1,6 @@
 """Playwright-based web crawler for extracting job postings from company websites."""
 
 import logging
-import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
@@ -10,6 +9,7 @@ from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 from models.job import JobPosting
 from src.id_generation import generate_job_id
+from src.parsers.html_to_markdown import html_to_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -185,31 +185,15 @@ class Crawler:
 
     def _normalize_description(self, description: str) -> str:
         """
-        Normalize job description by adding separators between metadata labels and values.
+        Normalize job description by converting HTML to Markdown.
 
-        Handles concatenated metadata like 'remote typeHybrid' -> 'remote type Hybrid'
-        and between metadata fields like ')locationsSeattle' -> ')\nlocations Seattle'
+        Uses the shared html_to_markdown() utility so that structural
+        formatting (headings, lists, etc.) is preserved instead of
+        collapsing into a flat, ambiguous run of text.
         """
         if not description:
-            return description
-
-        # Step 1: Add newline before metadata labels that aren't already separated
-        # Pattern: non-whitespace followed by a metadata label (case-insensitive)
-        metadata_labels_pattern = (
-            r"(?<![:\s\n/])((?:remote\s+type|locations|time\s+type|posted\s+on|"
-            r"time\s+left\s+to\s+apply|job\s+requisition\s+id|Job\s+Description)"
-            r"(?=\s|$|[A-Z]))"
-        )
-        result = re.sub(metadata_labels_pattern, r"\n\1", description, flags=re.IGNORECASE)
-
-        # Step 2: Add space between metadata label and its value (label followed by capital)
-        pattern = re.compile(
-            r"((?:remote\s+type|locations|time\s+type|posted\s+on|time\s+left\s+to\s+apply|job\s+requisition\s+id|Job\s+Description))\s*([A-Z])",
-            re.IGNORECASE
-        )
-        result = pattern.sub(r"\1 \2", result)
-
-        return result
+            return ""
+        return html_to_markdown(description)
 
     async def _extract_text(self, element: Any, selector: Optional[str]) -> Optional[str]:
         """Extract text from element using selector."""
@@ -222,6 +206,19 @@ class Crawler:
                 return text.strip() if text else None
         except Exception as e:
             logger.debug(f"Error extracting text with selector {selector}: {e}")
+        return None
+
+    async def _extract_html(self, element: Any, selector: Optional[str]) -> Optional[str]:
+        """Extract inner HTML from element using selector."""
+        if not selector:
+            return None
+        try:
+            sub_element = await element.query_selector(selector)
+            if sub_element:
+                html = await sub_element.inner_html()
+                return html.strip() if html else None
+        except Exception as e:
+            logger.debug(f"Error extracting HTML with selector {selector}: {e}")
         return None
 
     async def _extract_link(self, element: Any, selector: Optional[str]) -> Optional[str]:
@@ -273,9 +270,9 @@ class Crawler:
                             # Fallback: get all text from iframe body
                             description = await self._fetch_iframe_via_frame(detail_page, None)
                     else:
-                        # Regular element - extract text
-                        desc_text = await desc_elem.text_content()
-                        description = desc_text.strip() if desc_text else ""
+                        # Regular element - extract HTML (converted to markdown below)
+                        desc_html = await desc_elem.inner_html()
+                        description = desc_html.strip() if desc_html else ""
 
             # Try to extract requirements
             req_selector = selectors.get("requirements_selector")
@@ -285,7 +282,7 @@ class Crawler:
                     req_text = await req_elem.text_content()
                     requirements = req_text.strip() if req_text else None
 
-            # Normalize description to add separators between metadata labels
+            # Convert HTML description to Markdown (iframe-sourced text passes through unchanged)
             description = self._normalize_description(description)
 
             logger.debug(f"Fetched detail: {len(description)} chars")
