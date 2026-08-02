@@ -119,5 +119,5 @@ See `.claude/skills/<skill>/SKILL.md` for examples (crawl-jobs, assess-jobs, pre
 
 ---
 
-**Last Updated:** 2026-07-19
-**Status:** Condensed for token budget compliance
+**Last Updated:** 2026-08-01
+**Status:** Condensed for token budget compliance; Phase 5-7 enhancements documented

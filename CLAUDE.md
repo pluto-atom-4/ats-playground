@@ -129,4 +129,4 @@ Automated token budget validation in `.github/workflows/context-lint.yml`. See [
 ---
 
 **Status**: Progressive Disclosure (minimal bloat, maximum clarity)
-**Last Updated**: 2026-07-21 (trimmed for token budget)
+**Last Updated**: 2026-08-01 (trimmed for token budget; Phase 5-7 enhancements merged)
