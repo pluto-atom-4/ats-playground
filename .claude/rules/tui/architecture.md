@@ -224,5 +224,5 @@ async def all(cv: str, config: str, tui: Optional[bool] = None) -> None:
 
 ---
 
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-08-01
 **Status:** Core concepts documented; full implementation in reference file
