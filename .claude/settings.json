@@ -39,8 +39,8 @@
       "Bash(rm *)",
       "Bash(git push *)",
       "Bash(git rebase *)",
-      "Write(.github/*)",
-      "Write(.env*)",
+      "Edit(.github/*)",
+      "Edit(.env*)",
       "Bash(npm *)",
       "Bash(yarn *)"
     ],
