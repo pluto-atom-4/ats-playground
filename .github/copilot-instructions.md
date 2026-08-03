@@ -79,6 +79,23 @@ See [CLAUDE.md § NEVER DO THIS](../CLAUDE.md#never-do-this) for full constraint
 
 ---
 
+## Tool Constraints (Enforced)
+
+The following dangerous operations are **DENIED**:
+- `rm -rf` – Recursive file deletion forbidden
+- `git push --force` – Force push forbidden
+- `git reset --hard` – Hard reset forbidden
+- `git clean -fd` – Force clean forbidden
+- `.env` read/edit – Credentials protection
+
+Request user confirmation for:
+- `git push` – Normal (non-force) push
+- `git rebase` – Interactive rebasing
+- `.github/*` write operations
+- `npm`/`yarn` package manager
+
+---
+
 ## Roles & Handoff
 
 **Architect** (plan) → **Coder** (implement) → **Reviewer** (verify)
