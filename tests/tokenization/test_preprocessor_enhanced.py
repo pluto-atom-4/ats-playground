@@ -555,4 +555,142 @@ class TestPreprocessorAdvancedExtraction:
         # All results should be lists of strings
         assert all(isinstance(x, str) for x in skills)
         assert all(isinstance(x, str) for x in tech)
-        assert all(isinstance(x, str) for x in reqs)
+
+
+class TestNoiseFilteringAdditions:
+    """Issue #211 / Phase 10, Task 3: noise-filtering additions.
+
+    One test per sub-change in `_should_skip_list_item`,
+    `_route_list_item_by_section`, `_should_skip_entity_common`, and the
+    `boilerplate_keywords` set inside `_filter_entities`.
+    """
+
+    def test_should_skip_list_item_year_duration_range(self, preprocessor_with_mock):
+        """'5-10 years' (duration-range phrasing) is skipped."""
+        assert preprocessor_with_mock._should_skip_list_item("5-10 years") is True
+
+    def test_should_skip_list_item_plus_years(self, preprocessor_with_mock):
+        """'5+ years' is skipped."""
+        assert preprocessor_with_mock._should_skip_list_item("5+ years of Python") is True
+
+    def test_should_skip_list_item_years_experience_phrase(self, preprocessor_with_mock):
+        """'5 years of experience' is skipped."""
+        assert preprocessor_with_mock._should_skip_list_item("5 years of experience") is True
+
+    def test_should_skip_list_item_measurement_unit(self, preprocessor_with_mock):
+        """'10,001 lbs' (measurement unit) is skipped."""
+        assert preprocessor_with_mock._should_skip_list_item("10,001 lbs") is True
+
+    def test_should_skip_list_item_normal_skill_not_skipped(self, preprocessor_with_mock):
+        """Regression guard: a normal skill phrase is not skipped."""
+        assert preprocessor_with_mock._should_skip_list_item("Python programming") is False
+
+    def test_route_list_item_skips_three_comma_metadata(self, preprocessor_with_mock):
+        """A list item with 3+ commas (likely metadata) is not routed to skills."""
+        skills: set[str] = set()
+        technologies: set[str] = set()
+        requirements: set[str] = set()
+        item_text = "Seattle, WA, USA, Remote"
+
+        preprocessor_with_mock._route_list_item_by_section(
+            item_text,
+            section_name="skills",
+            is_skills_section=True,
+            is_req_section=False,
+            is_description_section=False,
+            tech_keywords=set(),
+            skills=skills,
+            technologies=technologies,
+            requirements=requirements,
+        )
+
+        assert item_text not in skills
+
+    def test_route_list_item_two_comma_item_still_routed(self, preprocessor_with_mock):
+        """Regression guard: an item with fewer than 2 commas is still routed."""
+        skills: set[str] = set()
+        technologies: set[str] = set()
+        requirements: set[str] = set()
+        item_text = "Python, Docker experience"
+
+        preprocessor_with_mock._route_list_item_by_section(
+            item_text,
+            section_name="skills",
+            is_skills_section=True,
+            is_req_section=False,
+            is_description_section=False,
+            tech_keywords=set(),
+            skills=skills,
+            technologies=technologies,
+            requirements=requirements,
+        )
+
+        assert item_text in skills
+
+    def test_should_skip_entity_common_markdown_header_artifact(self, preprocessor_with_mock):
+        """A stray '# Requirements' markdown-header artifact is skipped."""
+        entity = "# Requirements"
+        assert preprocessor_with_mock._should_skip_entity_common(
+            entity, entity.lower(), "requirements", set()
+        ) is True
+
+    def test_should_skip_entity_common_normal_entity_not_skipped(self, preprocessor_with_mock):
+        """Regression guard: a normal entity without a leading '#' is not skipped."""
+        entity = "Python"
+        assert preprocessor_with_mock._should_skip_entity_common(
+            entity, entity.lower(), "skills", set()
+        ) is False
+
+    def test_filter_entities_drug_test_filtered_from_requirements(self, preprocessor_with_mock):
+        """'drug test' is filtered out of requirements via boilerplate_keywords."""
+        filtered = preprocessor_with_mock._filter_entities(
+            ["drug test", "Python experience"], entity_type="requirements"
+        )
+        assert "drug test" not in filtered
+        assert "Python experience" in filtered
+
+
+class TestTechKeywordAdjExemption:
+    """Issue #211 / Phase 10, Task 4: tech-keyword ADJ exemption.
+
+    Empirical verification (spaCy en_core_web_md, run outside the test
+    suite): standalone single-token input tags "Agile" and "Lean" as ADJ
+    (JJ) reliably; "Azure" tags NOUN standalone but ADJ is also plausible in
+    other attributive contexts elsewhere in TECH_KEYWORDS. Since at least
+    "agile"/"lean" reliably reproduce the gap, `_should_skip_skill`'s
+    single-adjective filter now also exempts entities present in
+    `tech_keywords`, in addition to the pre-existing `soft_skills` exemption.
+    """
+
+    def test_single_word_tech_keyword_survives_adj_pos_tag(self, preprocessor_with_mock):
+        """'agile' tagged ADJ is not dropped by the single-adjective filter.
+
+        Without the tech_keywords exemption, `_should_skip_skill` would
+        return True here (single ADJ token not in the soft_skills
+        vocabulary), silently dropping a legitimate methodology keyword.
+        """
+        filtered = preprocessor_with_mock._filter_entities(
+            ["agile"], entity_type="skills", entity_pos_tags={"agile": "ADJ"}
+        )
+        assert "agile" in filtered
+
+    def test_single_word_non_tech_adjective_still_filtered(self, preprocessor_with_mock):
+        """Regression guard: a generic single-word ADJ not in tech_keywords is still dropped."""
+        filtered = preprocessor_with_mock._filter_entities(
+            ["excellent"], entity_type="skills", entity_pos_tags={"excellent": "ADJ"}
+        )
+        assert "excellent" not in filtered
+
+    def test_should_skip_skill_exempts_tech_keyword_adj(self, preprocessor_with_mock):
+        """Direct unit test of `_should_skip_skill`'s tech_keywords ADJ exemption."""
+        tech_keywords = {"agile", "lean", "azure"}
+        assert preprocessor_with_mock._should_skip_skill(
+            "lean", "lean", ["lean"], generic_skills=set(), company_names=set(),
+            pos_tag="ADJ", tech_keywords=tech_keywords
+        ) is False
+
+    def test_should_skip_skill_without_tech_keywords_param_unaffected(self, preprocessor_with_mock):
+        """Regression guard: omitting tech_keywords preserves prior ADJ-filtering behavior."""
+        assert preprocessor_with_mock._should_skip_skill(
+            "lean", "lean", ["lean"], generic_skills=set(), company_names=set(), pos_tag="ADJ"
+        ) is True
