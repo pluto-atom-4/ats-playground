@@ -33,7 +33,7 @@
       "Bash(drop *)",
       "Bash(truncate *)",
       "Read(.env*)",
-      "Write(.env*)"
+      "Edit(.env*)"
     ],
     "ask": [
       "Bash(rm *)",
