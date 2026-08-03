@@ -83,12 +83,17 @@
         ]
       }
     ],
-    "PrePush": [
+    "PostToolBatch": [
       {
-        "type": "command",
-        "command": "bash .claude/hooks/gate2-evidence.sh",
-        "timeout": 30,
-        "statusMessage": "Verifying evidence artifacts (Gate 2)..."
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gate2-evidence.sh",
+            "timeout": 30,
+            "statusMessage": "Verifying evidence artifacts (Gate 2)..."
+          }
+        ]
       }
     ]
   },
@@ -164,58 +169,6 @@
   "fileCheckpointingEnabled": true,
   "showTurnDuration": false,
   "showMessageTimestamps": false,
-  "modelOverride": "haiku",
-  "agentRoles": {
-    "architect": {
-      "model": "claude-opus-4-8",
-      "permissions": [
-        "read",
-        "view",
-        "write:tasks.md",
-        "write:docs/dev-note/*"
-      ],
-      "maxSteps": 15,
-      "forbidden": [
-        "write:src/**",
-        "write:tests/**",
-        "bash:execute",
-        "git:push"
-      ]
-    },
-    "coder": {
-      "model": "claude-opus-4-8",
-      "permissions": [
-        "read",
-        "write:src/**",
-        "write:tests/**",
-        "bash:compile",
-        "bash:test"
-      ],
-      "maxSteps": 20,
-      "forbidden": [
-        "write:CLAUDE.md",
-        "write:AGENTS.md",
-        "write:.claude/settings.json",
-        "git:push:force"
-      ]
-    },
-    "reviewer": {
-      "model": "claude-sonnet-5",
-      "permissions": [
-        "read",
-        "bash:test",
-        "bash:lint",
-        "write:.test.*"
-      ],
-      "maxSteps": 10,
-      "forbidden": [
-        "write:src/**",
-        "git:merge",
-        "git:push:force"
-      ]
-    }
-  },
-  "todo": false,
   "mcpServers": {
     "playwright": {
       "type": "local",
