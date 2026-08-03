@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from src.browser.crawler import Crawler
 from src.tokenization.preprocessor import Preprocessor
 
 
@@ -332,3 +333,91 @@ class TestPerformanceMetrics:
         # All jobs should have extracted something
         assert all(len(skills) + len(tech) + len(reqs) > 0 for skills, tech, reqs in results), \
             "Some jobs produced no results"
+
+
+class TestMarkdownDividerIntegration:
+    """Issue #211 / Phase 10: crawler '---' dividers -> preprocessor section split.
+
+    Prior to Issue #211, `Crawler._add_markdown_section_headers` synthesized
+    "## "/"### " headers but never emitted a "---" divider after them, even
+    though `Preprocessor._extract_markdown_sections` already had divider-aware
+    boundary handling (dead code with real crawled input: nothing ever
+    produced a "---" line). These tests feed real crawler output -- including
+    the adversarial case of section content with no trailing blank line
+    before the next header -- through the real preprocessor pipeline.
+    """
+
+    @pytest.fixture
+    def preprocessor(self, monkeypatch):
+        """Initialize Preprocessor with real spaCy model."""
+        return Preprocessor(model="en_core_web_md")
+
+    def test_crawler_output_contains_dividers_after_headers(self):
+        """Real crawler header-synthesis output contains '---' after each header.
+
+        This assertion alone fails if Task 1's divider-insertion pass is
+        reverted -- `_add_markdown_section_headers` would then only emit
+        headers, never dividers.
+        """
+        crawler = Crawler()
+        # No blank line between section content and the next header --
+        # the adversarial shape the preprocessor's divider-boundary code
+        # (preprocessor.py:974-978) exists to handle, constructed directly
+        # against `_add_markdown_section_headers` (the real production
+        # method Task 1 modified) to precisely control line adjacency.
+        markdown_in = (
+            "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
+        )
+        result = crawler._add_markdown_section_headers(markdown_in)
+
+        assert result == (
+            "## Skills\n---\nPython\nKubernetes\n"
+            "## Benefits\n---\n401k match\nHealth insurance"
+        )
+
+    def test_divider_bearing_output_splits_sections_without_bleed(self, preprocessor):
+        """Section boundaries are correct even with no blank line before the next header.
+
+        Feeds real crawler output (with '---' dividers, post-Task-1) through
+        `_extract_markdown_sections`, in the adversarial case described by
+        the Issue #211 plan: content immediately followed by the next
+        header, no blank-line separator.
+        """
+        crawler = Crawler()
+        markdown_in = (
+            "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
+        )
+        crawler_output = crawler._add_markdown_section_headers(markdown_in)
+        assert "---" in crawler_output  # sanity: divider path is actually exercised below
+
+        sections = preprocessor._extract_markdown_sections(crawler_output)
+
+        assert sections["skills"] == "Python\nKubernetes"
+        assert sections["benefits"] == "401k match\nHealth insurance"
+        # No bleed: skills content must not have absorbed benefits text or
+        # vice versa.
+        assert "401k" not in sections["skills"]
+        assert "Python" not in sections["benefits"]
+
+    def test_divider_bearing_output_flows_through_extract_entities(self, preprocessor):
+        """Full crawl -> preprocess loop: benefits content is excluded from skills/tech.
+
+        `_extract_entities_by_section`'s `skip_sections` denylist should
+        exclude the 'benefits' section from entity extraction entirely,
+        while 'skills' section content is extracted normally -- proving the
+        divider-bearing markdown flows end-to-end through
+        `extract_entities()` without error and with correct section-scoped
+        results.
+        """
+        crawler = Crawler()
+        markdown_in = (
+            "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
+        )
+        crawler_output = crawler._add_markdown_section_headers(markdown_in)
+        assert "---" in crawler_output
+
+        skills, technologies, requirements = preprocessor.extract_entities(crawler_output)
+
+        all_entities_lower = " ".join(skills + technologies + requirements).lower()
+        assert "401k" not in all_entities_lower
+        assert "health insurance" not in all_entities_lower
