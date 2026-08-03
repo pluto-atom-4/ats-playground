@@ -12,6 +12,11 @@ triggers:
   - "enforce branch protection"
   - "git workflow"
   - "feature branch"
+allowed_tools:
+  - Read
+  - Write
+  - Bash(bash *)
+  - Bash(git *)
 ---
 
 # Pre-Commit Enforcement Skill

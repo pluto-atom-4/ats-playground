@@ -17,6 +17,13 @@ triggers:
   - "fetch job listings"
   - "scrape companies"
 execution: atomic
+allowed_tools:
+  - Read
+  - Bash(uv run *)
+  - Bash(python *)
+  - Bash(ls *)
+  - Bash(find *)
+  - Bash(grep *)
 ---
 
 ## Workflow: Crawl → Preprocess → Estimate Costs
