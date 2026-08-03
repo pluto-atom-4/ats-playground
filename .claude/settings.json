@@ -59,6 +59,17 @@
             "statusMessage": "Running quality checks on edited file..."
           }
         ]
+      },
+      {
+        "matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)|Edit(.claude/skills/**)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/validate-instructions.sh",
+            "timeout": 30,
+            "statusMessage": "Validating instruction compliance..."
+          }
+        ]
       }
     ]
   },
@@ -87,6 +98,48 @@
     "**/vendor/**/CLAUDE.md",
     "**/node_modules/**/CLAUDE.md"
   ],
+  "pathScoping": {
+    ".claude/rules/crawl.md": {
+      "phases": ["crawl"],
+      "appliesTo": ["src/browser/**", "src/parsers/**"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/preprocess.md": {
+      "phases": ["preprocess"],
+      "appliesTo": ["src/tokenization/**", "src/parsers/**"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/assess.md": {
+      "phases": ["assess"],
+      "appliesTo": ["src/llm/**", "src/assessment/**"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/verify.md": {
+      "phases": ["verify"],
+      "appliesTo": ["src/cli/**"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/storage.md": {
+      "phases": ["storage"],
+      "appliesTo": ["src/storage/**"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/cli.md": {
+      "phases": ["cli"],
+      "appliesTo": ["src/cli.py"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/tui/": {
+      "phases": ["tui"],
+      "appliesTo": ["src/tui/**"],
+      "roles": ["coder", "reviewer"]
+    },
+    ".claude/rules/multi-agent.md": {
+      "phases": ["coordination"],
+      "appliesTo": ["tasks.md", ".claude/**"],
+      "roles": ["architect"]
+    }
+  },
   "verbose": true,
   "autoCompactEnabled": true,
   "fileCheckpointingEnabled": true,

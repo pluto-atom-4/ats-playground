@@ -17,6 +17,12 @@ triggers:
   - "score jobs"
   - "evaluate cv fit"
 execution: streaming
+allowed_tools:
+  - Read
+  - Bash(uv run *)
+  - Bash(python *)
+  - Bash(pytest *)
+  - Bash(tail *)
 ---
 
 ## Workflow: Verify → Assess → Export Results
