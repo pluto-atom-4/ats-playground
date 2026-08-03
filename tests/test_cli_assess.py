@@ -76,7 +76,41 @@ def temp_cv_file(tmp_path: Any) -> str:
     return str(cv_path)
 
 
-def test_assess_single_job(temp_cv_file: str, mock_assessor_result: dict[str, Any]) -> None:
+@pytest.fixture
+def sample_preprocessed_job() -> dict[str, Any]:
+    """Sample preprocessed job with required fields."""
+    return {
+        "job_id": "test-job-1",
+        "title": "Senior Python Developer",
+        "company": "TechCorp",
+        "location": "Remote",
+        "description": "Senior Python Developer at TechCorp...",
+        "clean_text": "Senior Python Developer at TechCorp. Requires 5+ years Python experience.",
+        "token_count": 45,
+        "status": "confirmed",
+        "crawled_at": "2026-07-20",
+    }
+
+
+@pytest.fixture
+def sample_preprocessed_job_2() -> dict[str, Any]:
+    """Second sample preprocessed job."""
+    return {
+        "job_id": "test-job-2",
+        "title": "DevOps Engineer",
+        "company": "CloudSys",
+        "location": "San Francisco",
+        "description": "DevOps Engineer at CloudSys...",
+        "clean_text": "DevOps Engineer at CloudSys. Requires Kubernetes and Docker experience.",
+        "token_count": 38,
+        "status": "confirmed",
+        "crawled_at": "2026-07-20",
+    }
+
+
+def test_assess_single_job(
+    temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
+) -> None:
     """Test assessing a single job."""
     with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
          patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
@@ -84,16 +118,7 @@ def test_assess_single_job(temp_cv_file: str, mock_assessor_result: dict[str, An
 
         # Mock JobReviewer
         reviewer = MagicMock()
-        reviewer.get_confirmed_jobs.return_value = [
-            {
-                "job_id": "test-job-1",
-                "title": "Senior Python Developer",
-                "company": "TechCorp",
-                "location": "Remote",
-                "description": "Senior Python Developer at TechCorp...",
-                "crawled_at": "2026-07-20",
-            },
-        ]
+        reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
         mock_reviewer_cls.return_value = reviewer
 
         # Mock AssessmentStore
@@ -117,7 +142,12 @@ def test_assess_single_job(temp_cv_file: str, mock_assessor_result: dict[str, An
         assert "Assessment Summary" in result.stdout or "Assessment complete" in result.stdout
 
 
-def test_assess_multiple_jobs(temp_cv_file: str, mock_assessor_result: dict[str, Any]) -> None:
+def test_assess_multiple_jobs(
+    temp_cv_file: str,
+    mock_assessor_result: dict[str, Any],
+    sample_preprocessed_job: dict[str, Any],
+    sample_preprocessed_job_2: dict[str, Any],
+) -> None:
     """Test assessing multiple jobs."""
     with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
          patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
@@ -125,24 +155,7 @@ def test_assess_multiple_jobs(temp_cv_file: str, mock_assessor_result: dict[str,
 
         # Mock JobReviewer
         reviewer = MagicMock()
-        reviewer.get_confirmed_jobs.return_value = [
-            {
-                "job_id": "test-job-1",
-                "title": "Senior Python Developer",
-                "company": "TechCorp",
-                "location": "Remote",
-                "description": "Senior Python Developer at TechCorp...",
-                "crawled_at": "2026-07-20",
-            },
-            {
-                "job_id": "test-job-2",
-                "title": "DevOps Engineer",
-                "company": "CloudSys",
-                "location": "San Francisco",
-                "description": "DevOps Engineer at CloudSys...",
-                "crawled_at": "2026-07-20",
-            },
-        ]
+        reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job, sample_preprocessed_job_2]
         mock_reviewer_cls.return_value = reviewer
 
         # Mock AssessmentStore
@@ -165,7 +178,9 @@ def test_assess_multiple_jobs(temp_cv_file: str, mock_assessor_result: dict[str,
         assert "✅ [2/2]" in result.stdout
 
 
-def test_assess_cost_tracking(temp_cv_file: str, mock_assessor_result: dict[str, Any]) -> None:
+def test_assess_cost_tracking(
+    temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
+) -> None:
     """Test cost tracking (estimate vs actual)."""
     with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
          patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
@@ -173,16 +188,7 @@ def test_assess_cost_tracking(temp_cv_file: str, mock_assessor_result: dict[str,
 
         # Mock JobReviewer
         reviewer = MagicMock()
-        reviewer.get_confirmed_jobs.return_value = [
-            {
-                "job_id": "test-job-1",
-                "title": "Senior Python Developer",
-                "company": "TechCorp",
-                "location": "Remote",
-                "description": "Senior Python Developer at TechCorp...",
-                "crawled_at": "2026-07-20",
-            },
-        ]
+        reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
         mock_reviewer_cls.return_value = reviewer
 
         # Mock AssessmentStore
@@ -229,7 +235,9 @@ def test_assess_cv_not_found() -> None:
     assert "not found" in output.lower() or "exit" in result.output.lower()
 
 
-def test_assess_rate_limit_handling(temp_cv_file: str, mock_assessor_result: dict[str, Any]) -> None:
+def test_assess_rate_limit_handling(
+    temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
+) -> None:
     """Test rate limit error handling (non-fatal)."""
     import anthropic
 
@@ -239,16 +247,7 @@ def test_assess_rate_limit_handling(temp_cv_file: str, mock_assessor_result: dic
 
         # Mock JobReviewer
         reviewer = MagicMock()
-        reviewer.get_confirmed_jobs.return_value = [
-            {
-                "job_id": "test-job-1",
-                "title": "Senior Python Developer",
-                "company": "TechCorp",
-                "location": "Remote",
-                "description": "Senior Python Developer at TechCorp...",
-                "crawled_at": "2026-07-20",
-            },
-        ]
+        reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
         mock_reviewer_cls.return_value = reviewer
 
         # Mock AssessmentStore
@@ -270,7 +269,9 @@ def test_assess_rate_limit_handling(temp_cv_file: str, mock_assessor_result: dic
         assert "Assessment complete" in result.stdout or "Failed" in result.stdout or result.exit_code in (0, 1)
 
 
-def test_assess_verify_cost_flag(temp_cv_file: str, mock_assessor_result: dict[str, Any]) -> None:
+def test_assess_verify_cost_flag(
+    temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
+) -> None:
     """Test --verify-cost flag prompts user."""
     with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
          patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
@@ -278,16 +279,7 @@ def test_assess_verify_cost_flag(temp_cv_file: str, mock_assessor_result: dict[s
 
         # Mock JobReviewer
         reviewer = MagicMock()
-        reviewer.get_confirmed_jobs.return_value = [
-            {
-                "job_id": "test-job-1",
-                "title": "Senior Python Developer",
-                "company": "TechCorp",
-                "location": "Remote",
-                "description": "Senior Python Developer at TechCorp...",
-                "crawled_at": "2026-07-20",
-            },
-        ]
+        reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
         mock_reviewer_cls.return_value = reviewer
 
         # Mock AssessmentStore

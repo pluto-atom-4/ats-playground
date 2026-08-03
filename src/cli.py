@@ -1783,6 +1783,96 @@ def _get_and_validate_jobs() -> List[dict]:
     return confirmed_jobs
 
 
+def _validate_job_statuses(jobs: List[dict], skip_unconfirmed: bool) -> None:
+    """Validate all jobs have status='confirmed'.
+
+    Args:
+        jobs: List of job dictionaries
+        skip_unconfirmed: If True, silently skip unconfirmed jobs; if False, error
+
+    Raises:
+        typer.Exit: If unconfirmed jobs found and skip_unconfirmed=False
+    """
+    unconfirmed = [j for j in jobs if j.get("status") != "confirmed"]
+
+    if not unconfirmed:
+        return
+
+    unconfirmed_count = len(unconfirmed)
+    total_count = len(jobs)
+
+    if skip_unconfirmed:
+        typer.echo(f"⚠️  Skipping {unconfirmed_count} unconfirmed jobs (status != 'confirmed')\n")
+        logger.warning(f"Skipped {unconfirmed_count} unconfirmed jobs during assessment")
+    else:
+        typer.echo(
+            f"❌ Found {unconfirmed_count}/{total_count} unconfirmed jobs:\n"
+            f"   Use --skip-unconfirmed to proceed anyway\n"
+            f"   Or run 'review' phase to confirm all jobs",
+            err=True
+        )
+        logger.error(f"Assessment blocked: {unconfirmed_count} unconfirmed jobs found")
+        raise typer.Exit(1)
+
+
+def _is_raw_html(text: str) -> bool:
+    """Check if text contains raw HTML patterns.
+
+    Args:
+        text: Text to check
+
+    Returns:
+        True if text contains HTML entity or tag patterns, False otherwise
+    """
+    if not text:
+        return True
+    # Check for HTML entities and tags
+    html_patterns = ["&lt;", "&gt;", "&amp;", "<html", "<div", "<p>", "<span", "<a href"]
+    return any(pattern in text.lower() for pattern in html_patterns)
+
+
+def _validate_preprocessed_jobs(jobs: List[dict]) -> None:
+    """Validate all jobs are preprocessed (not raw HTML).
+
+    Args:
+        jobs: List of job dictionaries
+
+    Raises:
+        typer.Exit: If unpreprocessed jobs found
+    """
+    unpreprocessed = []
+
+    for job in jobs:
+        job_id = job.get("job_id", "unknown")
+        clean_text = job.get("clean_text", "")
+        token_count = job.get("token_count", 0)
+
+        # Check if clean_text is missing or contains raw HTML
+        if not clean_text or _is_raw_html(clean_text):
+            unpreprocessed.append(job_id)
+            continue
+
+        # Check if token_count is valid
+        if not isinstance(token_count, int) or token_count <= 0:
+            unpreprocessed.append(job_id)
+
+    if not unpreprocessed:
+        return
+
+    unpreprocessed_count = len(unpreprocessed)
+    total_count = len(jobs)
+
+    typer.echo(
+        f"❌ Found {unpreprocessed_count}/{total_count} unpreprocessed jobs (missing clean_text or token_count):\n"
+        f"   Job IDs: {', '.join(unpreprocessed[:5])}"
+        f"{'...' if len(unpreprocessed) > 5 else ''}\n"
+        f"   Run 'preprocess' phase before assessment",
+        err=True
+    )
+    logger.error(f"Assessment blocked: {unpreprocessed_count} unpreprocessed jobs found")
+    raise typer.Exit(1)
+
+
 def _filter_jobs_by_mode(
     jobs: List[dict], mode: str, assessment_store: Any
 ) -> List[dict]:
@@ -2124,6 +2214,7 @@ def _display_assessment_summary(
 def assess(
     cv: str = typer.Option(..., help="CV file path (json or txt)"),
     confirmed_only: bool = typer.Option(True, help="Only assess confirmed jobs"),
+    skip_unconfirmed: bool = typer.Option(True, help="Skip jobs with status != 'confirmed'"),
     mode: str = typer.Option(
         "new-only",
         "--mode",
@@ -2165,6 +2256,12 @@ def assess(
 
         # Get confirmed jobs
         confirmed_jobs = _get_and_validate_jobs()
+
+        # Validate job statuses
+        _validate_job_statuses(confirmed_jobs, skip_unconfirmed)
+
+        # Validate jobs are preprocessed
+        _validate_preprocessed_jobs(confirmed_jobs)
 
         # Initialize assessment store
         assessment_store = AssessmentStore()
