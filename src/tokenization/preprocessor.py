@@ -439,6 +439,10 @@ class Preprocessor:
         if len(entity_clean) < 2 or len(entity_clean) > max_length:
             return True
 
+        # Skip markdown header artifacts (e.g. stray "# Requirements" fragments)
+        if entity_clean.startswith("#"):
+            return True
+
         # Skip boilerplate keywords
         if any(kw in entity_lower for kw in boilerplate_keywords):
             return True
@@ -647,7 +651,8 @@ class Preprocessor:
 
     def _should_skip_skill(
         self, entity_clean: str, entity_lower: str, words: list[str], generic_skills: Set[str],
-        company_names: Set[str], pos_tag: Optional[str] = None
+        company_names: Set[str], pos_tag: Optional[str] = None,
+        tech_keywords: Optional[Set[str]] = None
     ) -> bool:
         """Check if skill entity should be skipped (Phase 3: POS-aware filtering).
 
@@ -658,6 +663,9 @@ class Preprocessor:
             generic_skills: Set of generic skill words to filter
             company_names: Set of company names to filter (deprecated: use _is_company_name)
             pos_tag: POS tag of entity (from pre-computed extraction, avoids re-parsing)
+            tech_keywords: Set of technology keywords exempted from the single-adjective
+                filter below (Issue #211: spaCy tags standalone/attributive tech terms
+                like "Agile"/"Lean" as ADJ, which would otherwise drop them)
 
         Returns:
             True if entity should be skipped, False otherwise
@@ -678,8 +686,10 @@ class Preprocessor:
         # Only filter if we have POS tag info available to avoid false positives
         soft_skills = get_all_soft_skills()
         if pos_tag == "ADJ" and len(words) == 1:
-            # Single adjective: only keep if it's in soft skills vocabulary
-            if entity_lower not in soft_skills:
+            # Single adjective: only keep if it's in soft skills vocabulary or is a
+            # known tech keyword (e.g. "Agile", "Lean" -- spaCy tags these ADJ in
+            # attributive position, e.g. "Agile methodology")
+            if entity_lower not in soft_skills and entity_lower not in (tech_keywords or set()):
                 return True
 
         # Issue #194 Phase 7: Skip company names using centralized taxonomy with word-boundary matching
@@ -861,6 +871,15 @@ class Preprocessor:
             "wage",
             "location",
             "remote",
+            "drug test",
+            "alcohol test",
+            "testing",
+            "experienced",
+            "autonomy",
+            "years of",
+            "bachelor",
+            "master",
+            "degree",
         }
 
         # Generic/low-signal skills that are too broad
@@ -902,7 +921,8 @@ class Preprocessor:
                 # Get pre-computed POS tag for this entity (Phase 3 optimization)
                 pos_tag = entity_pos_tags.get(entity_clean, None)
                 if self._should_skip_skill(
-                    entity_clean, entity_lower, words, generic_skills, company_names, pos_tag=pos_tag
+                    entity_clean, entity_lower, words, generic_skills, company_names,
+                    pos_tag=pos_tag, tech_keywords=self._get_tech_keywords()
                 ):
                     continue
 
@@ -1155,6 +1175,15 @@ class Preprocessor:
             return True
         if re.search(r"^\d{4}\s*[-–]\s*\d{4}$", item_text):
             return True
+        item_lower = item_text.lower()
+        if re.search(r"\d+\s*[-–]\s*\d+\s*years?", item_lower):
+            return True
+        if re.search(r"^\d+\+\s*years?", item_lower):
+            return True
+        if re.search(r"\d+\s*years?.*experience", item_lower):
+            return True
+        if re.search(r"\d+\s*(?:lbs?|kg|meters?|feet?|hours?|days?)", item_lower):
+            return True
         return False
 
     @staticmethod
@@ -1183,10 +1212,10 @@ class Preprocessor:
             requirements: Set to add requirement items to
         """
         if is_skills_section:
-            if len(item_text) > 3:
+            if len(item_text) > 3 and item_text.count(",") < 2:
                 skills.add(item_text)
         elif is_req_section:
-            if len(item_text) > 3:
+            if len(item_text) > 3 and item_text.count(",") < 2:
                 requirements.add(item_text)
         elif section_name == "responsibilities" or is_description_section:
             exclude_words = ("design", "architecture", "strategy")
