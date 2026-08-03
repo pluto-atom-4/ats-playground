@@ -70,6 +70,25 @@
             "statusMessage": "Validating instruction compliance..."
           }
         ]
+      },
+      {
+        "matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gate1-plan-approval.sh",
+            "timeout": 30,
+            "statusMessage": "Checking plan approval (Gate 1)..."
+          }
+        ]
+      }
+    ],
+    "PrePush": [
+      {
+        "type": "command",
+        "command": "bash .claude/hooks/gate2-evidence.sh",
+        "timeout": 30,
+        "statusMessage": "Verifying evidence artifacts (Gate 2)..."
       }
     ]
   },
