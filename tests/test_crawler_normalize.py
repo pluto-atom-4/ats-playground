@@ -165,3 +165,67 @@ class TestMarkdownSectionHeaderSynthesis:
         assert "Seattle" in result
         assert "Full time" in result
         assert "##" not in result
+
+
+class TestMarkdownSectionDividers:
+    """Test '---' divider insertion after synthesized section headers.
+
+    Issue #211 / Phase 10: synthesized headers (from
+    `_add_markdown_section_headers`) are followed by a '---' divider line so
+    the preprocessor's divider-aware section splitting
+    (`_extract_markdown_sections`) can determine section boundaries even
+    when content doesn't end with a blank line before the next header.
+    """
+
+    def test_synthesized_h2_header_followed_by_divider(self):
+        """A synthesized '## Qualifications' header is immediately followed by '---'."""
+        crawler = Crawler()
+        html = (
+            "<p><strong>Qualifications</strong></p>"
+            "<ul><li>5+ years experience</li><li>Bachelor's degree</li></ul>"
+        )
+        result = crawler._normalize_description(html)
+        lines = result.split("\n")
+        header_idx = next(i for i, line in enumerate(lines) if line == "## Qualifications")
+        assert lines[header_idx + 1] == "---"
+
+    def test_synthesized_h3_header_followed_by_divider(self):
+        """A synthesized '### Subsection' header is also followed by '---'."""
+        crawler = Crawler()
+        html = (
+            "<p><strong>Team Culture</strong></p>"
+            "<ul><li>We value transparency</li><li>We move fast</li></ul>"
+        )
+        result = crawler._normalize_description(html)
+        lines = result.split("\n")
+        header_idx = next(i for i, line in enumerate(lines) if line == "### Team Culture")
+        assert lines[header_idx + 1] == "---"
+
+    def test_no_synthesized_headers_no_spurious_dividers(self):
+        """Input with no synthesized headers gains no spurious dividers."""
+        crawler = Crawler()
+        html = (
+            "<table>"
+            "<tr><td>remote type</td><td>Hybrid</td></tr>"
+            "<tr><td>locations</td><td>Seattle, WA</td></tr>"
+            "<tr><td>time type</td><td>Full time</td></tr>"
+            "</table>"
+        )
+        result = crawler._normalize_description(html)
+        # A standalone '---' divider line is what the header-insertion pass
+        # would add; markdown table separator rows (e.g. '| --- | --- |')
+        # are unrelated and expected here, so check for exact '---' lines.
+        assert "---" not in result.split("\n")
+
+    def test_no_doubled_dividers_on_consecutive_headers(self):
+        """Two headers landing on consecutive lines do not each get a divider."""
+        crawler = Crawler()
+        markdown = "## Requirements\n### Subsection\nSome content"
+        result = crawler._add_markdown_section_headers(markdown)
+        lines = result.split("\n")
+        assert lines.count("---") == 1
+        # The single divider comes after the last header, not between them.
+        req_idx = lines.index("## Requirements")
+        sub_idx = lines.index("### Subsection")
+        assert sub_idx == req_idx + 1
+        assert lines[sub_idx + 1] == "---"
