@@ -304,17 +304,24 @@ def _validate_preprocess_directory() -> Path:
 def _build_preprocess_clean_text(job: dict) -> str:
     """Build clean text from job fields.
 
+    Converts the raw HTML description to normalized Markdown (headings,
+    lists, synthesized section headers) as the first step of preprocessing,
+    since crawl no longer performs this transform (Issue #228).
+
     Args:
         job: Job dictionary
 
     Returns:
-        Clean text combining title, location, and description
+        Clean text combining title, location, and normalized description
     """
+    from src.parsers.html_to_markdown import normalize_description
+
     clean_text = str(job.get("title", ""))
     if job.get("location"):
         clean_text = f"{clean_text}\n{str(job.get('location', ''))}"
     if job.get("description"):
-        clean_text = f"{clean_text}\n{str(job.get('description', ''))}"
+        description_md = normalize_description(str(job.get("description", "")))
+        clean_text = f"{clean_text}\n{description_md}"
     return clean_text
 
 

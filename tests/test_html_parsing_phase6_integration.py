@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.browser.crawler import Crawler
+from src.parsers.html_to_markdown import add_markdown_section_headers
 from src.tokenization.preprocessor import Preprocessor
 
 
@@ -325,13 +325,16 @@ class TestPerformanceMetrics:
 class TestMarkdownDividerIntegration:
     """Issue #211 / Phase 10: crawler '---' dividers -> preprocessor section split.
 
-    Prior to Issue #211, `Crawler._add_markdown_section_headers` synthesized
-    "## "/"### " headers but never emitted a "---" divider near them, even
-    though `Preprocessor._extract_markdown_sections` already had divider-aware
-    boundary handling (dead code with real crawled input: nothing ever
-    produced a "---" line). These tests feed real crawler output -- including
-    the adversarial case of section content with no trailing blank line
-    before the next header -- through the real preprocessor pipeline.
+    Prior to Issue #211, the header-synthesis pass (originally
+    `Crawler._add_markdown_section_headers`, moved to
+    `src.parsers.html_to_markdown.add_markdown_section_headers` in Issue
+    #228) synthesized "## "/"### " headers but never emitted a "---"
+    divider near them, even though `Preprocessor._extract_markdown_sections`
+    already had divider-aware boundary handling (dead code with real crawled
+    input: nothing ever produced a "---" line). These tests feed real
+    header-synthesis output -- including the adversarial case of section
+    content with no trailing blank line before the next header -- through
+    the real preprocessor pipeline.
 
     Issue #224: the divider (preceded by a blank line) is inserted
     immediately *before* each synthesized header, not after it.
@@ -343,21 +346,20 @@ class TestMarkdownDividerIntegration:
         return Preprocessor(model="en_core_web_md")
 
     def test_crawler_output_contains_dividers_before_headers(self):
-        """Real crawler header-synthesis output contains '---' before each
+        """Real header-synthesis output contains '---' before each
         non-first header.
 
         This assertion alone fails if Task 1's divider-insertion pass is
-        reverted -- `_add_markdown_section_headers` would then only emit
+        reverted -- `add_markdown_section_headers` would then only emit
         headers, never dividers.
         """
-        crawler = Crawler()
         # No blank line between section content and the next header --
         # the adversarial shape the preprocessor's divider-boundary code
         # (preprocessor.py:974-978) exists to handle, constructed directly
-        # against `_add_markdown_section_headers` (the real production
-        # method Task 1 modified) to precisely control line adjacency.
+        # against `add_markdown_section_headers` (the real production
+        # function Task 1 modified) to precisely control line adjacency.
         markdown_in = "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
-        result = crawler._add_markdown_section_headers(markdown_in)
+        result = add_markdown_section_headers(markdown_in)
 
         # "## Skills" is the very first line of the document, so it gets
         # no leading blank/divider. "## Benefits" follows ordinary content
@@ -373,9 +375,8 @@ class TestMarkdownDividerIntegration:
         the Issue #211 plan: content immediately followed by the next
         header, no blank-line separator.
         """
-        crawler = Crawler()
         markdown_in = "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
-        crawler_output = crawler._add_markdown_section_headers(markdown_in)
+        crawler_output = add_markdown_section_headers(markdown_in)
         assert "---" in crawler_output  # sanity: divider path is actually exercised below
 
         sections = preprocessor._extract_markdown_sections(crawler_output)
@@ -397,9 +398,8 @@ class TestMarkdownDividerIntegration:
         `extract_entities()` without error and with correct section-scoped
         results.
         """
-        crawler = Crawler()
         markdown_in = "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
-        crawler_output = crawler._add_markdown_section_headers(markdown_in)
+        crawler_output = add_markdown_section_headers(markdown_in)
         assert "---" in crawler_output
 
         skills, technologies, requirements = preprocessor.extract_entities(crawler_output)

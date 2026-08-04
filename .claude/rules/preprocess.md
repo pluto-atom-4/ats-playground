@@ -16,6 +16,8 @@ from src.parsers.html import parse_html
 clean_text = parse_html(raw_html)  # Automatic fallback if MarkItDown fails
 ```
 
+**HTML→Markdown normalization runs first (Issue #228)**: crawl stores the raw extracted description as-is; `_build_preprocess_clean_text` (`src/cli.py`) calls `src.parsers.html_to_markdown.normalize_description()` — HTML→Markdown conversion + synthesized `##`/`###` section headers + `---` dividers — as the first step of preprocess, before chunking. This used to run inline in `Crawler` at crawl time; it does not anymore.
+
 ## Semantic Chunking (Sentences, Not Tokens)
 
 Split at semantic boundaries: "Requires 5+ years MES. Must know Wonderware." stays together. Chunks vary 100–600 tokens (intentional).

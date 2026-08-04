@@ -1034,6 +1034,11 @@ class Preprocessor:
 
         Checks for markdown indicators: headers, lists, bold, code blocks.
         Prioritizes markdown headers (## Section) as strongest indicator.
+
+        Coupled to the header/divider format synthesized by
+        ``src.parsers.html_to_markdown.add_markdown_section_headers``
+        ("## "/"### " headers, "---" dividers, Issue #228) — a change to
+        that synthesis format must stay in sync with the patterns below.
         """
         if not text:
             return False
