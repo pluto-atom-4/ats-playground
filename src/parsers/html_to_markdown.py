@@ -11,15 +11,20 @@ when the source HTML lacked real heading tags, keyword/bold/colon-terminated
 standalone lines are promoted to "## "/"### " headers so downstream chunking
 and NER section-routing (``src/tokenization/preprocessor.py``) have structure
 to work with.
+
+Issue #230: Unified HTML cleaning pipeline (clean_html) combining MarkItDown,
+section header synthesis, boilerplate removal, and entity normalization.
 """
 
 import logging
 import os
 import re
 import tempfile
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from markitdown import MarkItDown
+
+from src.parsers import _boilerplate_patterns
 
 logger = logging.getLogger(__name__)
 
@@ -266,3 +271,76 @@ def normalize_description(description: str) -> str:
         return ""
     markdown = html_to_markdown(description)
     return add_markdown_section_headers(markdown) if markdown else markdown
+
+
+def clean_html(
+    html: str,
+    include_section_headers: bool = True,
+    skip_boilerplate_categories: Optional[Set[str]] = None,
+) -> str:
+    """
+    Unified HTML cleaning pipeline (Issue #230).
+
+    Converts raw HTML to clean, readable text through a 6-step pipeline:
+    1. ``html_to_markdown()`` – MarkItDown + BeautifulSoup fallback
+    2. ``add_markdown_section_headers()`` – Synthesize missing headers (if enabled)
+    3. ``_insert_section_dividers()`` – Add dividers before headers
+    4. ``remove_boilerplate_fast()`` – Remove legal, section, company, salary, etc.
+    5. ``remove_html_entities()`` – Normalize &nbsp;, &amp;, &#\\d+;, etc.
+    6. ``_normalize_whitespace()`` – Collapse multi-space/newline to single
+
+    Args:
+        html: Raw HTML string to clean
+        include_section_headers: If True, synthesize missing "##"/"###" headers
+            from keyword/bold/colon-terminated lines (default: True)
+        skip_boilerplate_categories: Optional set of category names to skip
+            (e.g., {"section_headers", "time_references"}). Supported categories:
+            "legal_compliance", "section_headers", "company_boilerplate",
+            "time_references", "salary_benefits", "special_formatting", "navigation"
+
+    Returns:
+        Clean text content with boilerplate removed and entities normalized
+
+    Examples:
+        >>> html = '<h1>Senior Dev</h1><p>Equal Opportunity Employer.</p>'
+        >>> clean_html(html)
+        '# Senior Dev\\nSenior Dev'
+
+        >>> html = '<p>Salary: $100K</p>'
+        >>> clean_html(html, skip_boilerplate_categories={"salary_benefits"})
+        'Salary: $100K'
+
+        >>> html = ''  # Empty input
+        >>> clean_html(html)
+        ''
+    """
+    if not html or not isinstance(html, str):
+        return ""
+
+    # Step 1: Convert HTML to Markdown (MarkItDown + BeautifulSoup fallback)
+    markdown = html_to_markdown(html)
+    if not markdown:
+        return ""
+
+    # Step 2: Synthesize section headers (if enabled)
+    if include_section_headers:
+        markdown = add_markdown_section_headers(markdown)
+
+    # Step 3: Insert section dividers (part of header synthesis)
+    # (Already included in add_markdown_section_headers)
+
+    # Step 4: Remove boilerplate using pre-compiled patterns
+    cleaned = _boilerplate_patterns.remove_boilerplate_fast(markdown, skip_categories=skip_boilerplate_categories)
+
+    # Step 5: Remove HTML entities
+    cleaned = _boilerplate_patterns.remove_html_entities(cleaned)
+
+    # Step 6: Normalize whitespace
+    cleaned = _boilerplate_patterns._normalize_whitespace(cleaned)
+
+    logger.debug(
+        f"clean_html: {len(html)} chars → {len(cleaned)} chars "
+        f"(reduction: {(len(html) - len(cleaned)) / len(html) * 100:.1f}%)"
+    )
+
+    return cleaned
