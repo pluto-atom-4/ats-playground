@@ -11,6 +11,7 @@ from src.tui.utils.formatters import truncate
 
 try:
     from src.tokenization.preprocessor import Preprocessor
+
     PREPROCESSOR_AVAILABLE = True
 except ImportError:
     PREPROCESSOR_AVAILABLE = False

@@ -221,9 +221,7 @@ class TestExportDateFilteringWorkflow:
 
         date_from = parse_date_str("2025-06-01")
         date_to = parse_date_str("2025-12-31")
-        config = ExportConfig(
-            date_from=date_from, date_to=date_to, min_score=75, max_score=95
-        )
+        config = ExportConfig(date_from=date_from, date_to=date_to, min_score=75, max_score=95)
         exporter = MarkdownExporter(store, config)
         report = exporter.generate_report()
 
@@ -285,9 +283,7 @@ class TestPurgeDateFilteringWorkflow:
         """Purge with both before and after dates."""
         store, _ = temp_db_with_dated_assessments
 
-        result = store.purge_by_date(
-            after_date="2025-01-31", before_date="2025-12-01", dry_run=False
-        )
+        result = store.purge_by_date(after_date="2025-01-31", before_date="2025-12-01", dry_run=False)
 
         # Should delete June (between Jan 31 and Dec 1)
         assert result["count"] == 1

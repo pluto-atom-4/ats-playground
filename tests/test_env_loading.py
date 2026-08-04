@@ -44,9 +44,7 @@ class TestEnvLoading:
         if env_example.exists():
             with open(env_example) as f:
                 content = f.read()
-                assert (
-                    "ANTHROPIC_API_KEY" in content
-                ), "ANTHROPIC_API_KEY not in .env.example"
+                assert "ANTHROPIC_API_KEY" in content, "ANTHROPIC_API_KEY not in .env.example"
 
     def test_llm_provider_error_message(self):
         """Test improved error message from LLMProvider."""
@@ -92,9 +90,7 @@ class TestEnvIntegration:
         from dotenv import load_dotenv
 
         # Create temp .env file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".env", delete=False, dir="."
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False, dir=".") as f:
             f.write("TEST_VAR=test_value\n")
             f.write("ANOTHER_VAR=another_value\n")
             temp_env_path = f.name
@@ -121,9 +117,7 @@ class TestEnvIntegration:
         os.environ["OVERRIDE_TEST"] = "original"
 
         # Create temp .env with different value
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".env", delete=False, dir="."
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False, dir=".") as f:
             f.write("OVERRIDE_TEST=from_env_file\n")
             temp_env_path = f.name
 

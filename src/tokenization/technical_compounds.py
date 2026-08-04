@@ -24,67 +24,119 @@ Categories:
 # High-confidence exact match patterns (Issue #191 + historical)
 TECHNICAL_COMPOUND_PATTERNS = {
     # Software Development Compounds (Issue #191)
-    "software development", "software engineering", "software development engineer",
-    "software development platform", "software development lifecycle",
-    "software development practices", "software development methodology",
-
+    "software development",
+    "software engineering",
+    "software development engineer",
+    "software development platform",
+    "software development lifecycle",
+    "software development practices",
+    "software development methodology",
     # Data Processing Compounds (Issue #191)
-    "data processing", "data processing pipeline", "data processing system",
-    "data processing infrastructure", "big data processing",
-    "data processing workflow", "etl pipeline", "data pipeline",
-
+    "data processing",
+    "data processing pipeline",
+    "data processing system",
+    "data processing infrastructure",
+    "big data processing",
+    "data processing workflow",
+    "etl pipeline",
+    "data pipeline",
     # Engineering Technology Compounds (Issue #191)
-    "engineering technology", "engineering technology platform",
-    "engineering technology stack", "engineering technology framework",
-    "engineering technology solution", "engineering technology system",
-
+    "engineering technology",
+    "engineering technology platform",
+    "engineering technology stack",
+    "engineering technology framework",
+    "engineering technology solution",
+    "engineering technology system",
     # Manufacturing Engineering Compounds (Issue #191)
-    "manufacturing engineering", "manufacturing engineering process",
-    "manufacturing engineering technology", "manufacturing engineering automation",
-    "manufacturing engineering design", "manufacturing engineering system",
-
+    "manufacturing engineering",
+    "manufacturing engineering process",
+    "manufacturing engineering technology",
+    "manufacturing engineering automation",
+    "manufacturing engineering design",
+    "manufacturing engineering system",
     # System-Level Compounds (Issue #191)
-    "system-level", "system-level design", "system-level architecture",
-    "system-level integration", "system-level requirements",
-    "system-level planning", "system-level optimization",
-
+    "system-level",
+    "system-level design",
+    "system-level architecture",
+    "system-level integration",
+    "system-level requirements",
+    "system-level planning",
+    "system-level optimization",
     # Framework/library compounds
-    "spring framework", "spring boot", "react native", "express.js",
-    "web framework", "api framework", "testing framework",
-    "javascript framework", "python framework",
-
+    "spring framework",
+    "spring boot",
+    "react native",
+    "express.js",
+    "web framework",
+    "api framework",
+    "testing framework",
+    "javascript framework",
+    "python framework",
     # Service compounds
-    "web service", "microservice", "microservices", "cloud service",
-    "aws service", "api service", "rest service", "soap service",
-
+    "web service",
+    "microservice",
+    "microservices",
+    "cloud service",
+    "aws service",
+    "api service",
+    "rest service",
+    "soap service",
     # Database compounds
-    "sql database", "nosql database", "relational database",
-    "distributed database", "time series database",
-
+    "sql database",
+    "nosql database",
+    "relational database",
+    "distributed database",
+    "time series database",
     # Language/tool combinations
-    "python django", "python flask", "javascript react",
-    "node.js", "python pandas", "python numpy",
-
+    "python django",
+    "python flask",
+    "javascript react",
+    "node.js",
+    "python pandas",
+    "python numpy",
     # Infrastructure compounds
-    "cloud infrastructure", "infrastructure as code", "container orchestration",
-    "kubernetes cluster", "docker container", "ci/cd pipeline",
-
+    "cloud infrastructure",
+    "infrastructure as code",
+    "container orchestration",
+    "kubernetes cluster",
+    "docker container",
+    "ci/cd pipeline",
     # Architecture patterns
-    "microservices architecture", "event-driven architecture",
-    "distributed system", "scalable system", "high availability",
+    "microservices architecture",
+    "event-driven architecture",
+    "distributed system",
+    "scalable system",
+    "high availability",
 }
 
 # Medium-confidence keyword patterns for detection
 MULTI_WORD_KEYWORDS = {
-    "framework", "library", "database", "service", "platform",
-    "application", "system", "tool", "utility", "plugin", "extension",
-    "architecture", "infrastructure", "pipeline", "workflow", "process",
+    "framework",
+    "library",
+    "database",
+    "service",
+    "platform",
+    "application",
+    "system",
+    "tool",
+    "utility",
+    "plugin",
+    "extension",
+    "architecture",
+    "infrastructure",
+    "pipeline",
+    "workflow",
+    "process",
 }
 
 # Issue #191 specific keywords for enhanced detection
 ISSUE_191_KEYWORDS = {
-    "software", "data processing", "engineering technology",
-    "manufacturing", "system-level", "system",
+    "software",
+    "data processing",
+    "engineering technology",
+    "manufacturing",
+    "system-level",
+    "system",
 }
 
 
@@ -177,37 +229,59 @@ def get_compound_categories() -> dict[str, list[str]]:
     """
     categories = {
         "development": [
-            "software development", "software engineering",
-            "software development platform", "software development lifecycle",
+            "software development",
+            "software engineering",
+            "software development platform",
+            "software development lifecycle",
         ],
         "data": [
-            "data processing", "data processing pipeline",
-            "data processing system", "big data processing",
-            "etl pipeline", "data pipeline",
+            "data processing",
+            "data processing pipeline",
+            "data processing system",
+            "big data processing",
+            "etl pipeline",
+            "data pipeline",
         ],
         "infrastructure": [
-            "cloud infrastructure", "infrastructure as code",
-            "container orchestration", "ci/cd pipeline",
+            "cloud infrastructure",
+            "infrastructure as code",
+            "container orchestration",
+            "ci/cd pipeline",
         ],
         "architecture": [
-            "system-level", "system-level design", "system-level architecture",
-            "microservices architecture", "distributed system",
+            "system-level",
+            "system-level design",
+            "system-level architecture",
+            "microservices architecture",
+            "distributed system",
         ],
         "engineering": [
-            "engineering technology", "manufacturing engineering",
-            "engineering technology platform", "manufacturing engineering process",
+            "engineering technology",
+            "manufacturing engineering",
+            "engineering technology platform",
+            "manufacturing engineering process",
         ],
         "frameworks": [
-            "spring framework", "spring boot", "react native",
-            "web framework", "javascript framework", "python framework",
+            "spring framework",
+            "spring boot",
+            "react native",
+            "web framework",
+            "javascript framework",
+            "python framework",
         ],
         "services": [
-            "web service", "microservice", "cloud service",
-            "aws service", "rest service",
+            "web service",
+            "microservice",
+            "cloud service",
+            "aws service",
+            "rest service",
         ],
         "database": [
-            "sql database", "nosql database", "relational database",
-            "distributed database", "time series database",
+            "sql database",
+            "nosql database",
+            "relational database",
+            "distributed database",
+            "time series database",
         ],
     }
     return categories

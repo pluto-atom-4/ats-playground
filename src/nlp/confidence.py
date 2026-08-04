@@ -6,6 +6,7 @@ from enum import Enum
 
 class ExtractionMethod(str, Enum):
     """How entity was extracted."""
+
     KEYPHRASE_EXACT = "keyphrase_exact"
     PATTERN_MATCH = "pattern_match"
     CONTEXT_INFERRED = "context_inferred"
@@ -17,6 +18,7 @@ class ExtractionMethod(str, Enum):
 @dataclass
 class ConfidentEntity:
     """Entity with confidence score and extraction method."""
+
     value: str
     confidence: float  # 0.0 to 1.0
     method: ExtractionMethod
@@ -65,10 +67,7 @@ def build_extraction_with_confidence(
     result: dict[str, list[dict[str, float | str]]] = {}
     for category, value_list in values.items():
         confidence_list = confidences.get(category, [0.5] * len(value_list))
-        result[category] = [
-            {"value": v, "confidence": c}
-            for v, c in zip(value_list, confidence_list, strict=False)
-        ]
+        result[category] = [{"value": v, "confidence": c} for v, c in zip(value_list, confidence_list, strict=False)]
     return result
 
 

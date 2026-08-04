@@ -49,14 +49,14 @@ class ReviewStats:
         return f"""
 📊 Review Summary:
    Total reviewed:  {self.total}
-   Confirmed:       {self.confirmed} ({100*self.confirmed//max(1,self.total)}%)
-   Rejected:        {self.rejected} ({100*self.rejected//max(1,self.total)}%)
+   Confirmed:       {self.confirmed} ({100 * self.confirmed // max(1, self.total)}%)
+   Rejected:        {self.rejected} ({100 * self.rejected // max(1, self.total)}%)
    Skipped:         {self.skipped}
 
    Ready for Phase 4 Assessment:
      • Jobs: {self.confirmed}
      • Est. LLM cost: ${self.total_cost:.6f}
-     • Avg tokens/job: {self.total_tokens//max(1,self.confirmed)}
+     • Avg tokens/job: {self.total_tokens // max(1, self.confirmed)}
 """
 
 
@@ -199,9 +199,7 @@ class JobReviewer:
         if not self.conn:
             return None
         cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT status, reviewed_at, crawled_at FROM job_reviews WHERE job_id = ?", (job_id,)
-        )
+        cursor.execute("SELECT status, reviewed_at, crawled_at FROM job_reviews WHERE job_id = ?", (job_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -321,9 +319,7 @@ class JobReviewer:
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
-    def _check_review_status(
-        self, job_id: str, skip_rejected: bool
-    ) -> tuple[bool, Optional[str]]:
+    def _check_review_status(self, job_id: str, skip_rejected: bool) -> tuple[bool, Optional[str]]:
         """Check if job should be skipped based on review status.
 
         Only skips if skip_rejected=True and job status is 'rejected'.
@@ -494,9 +490,7 @@ class JobReviewer:
             prompt_text += ")"
             action = typer.prompt(prompt_text).strip().lower()
 
-            if self._process_user_action(
-                action, job_id, title, location, tokens, cost, company, prior_review, stats
-            ):
+            if self._process_user_action(action, job_id, title, location, tokens, cost, company, prior_review, stats):
                 break
 
     def _save_re_review_if_changed(
@@ -534,9 +528,7 @@ class JobReviewer:
         self.save_review(
             job_id, title, location, status="confirmed", tokens=tokens, estimated_cost=cost, company=company
         )
-        self._save_re_review_if_changed(
-            job_id, prior_review, "confirmed", "User re-reviewed and changed decision"
-        )
+        self._save_re_review_if_changed(job_id, prior_review, "confirmed", "User re-reviewed and changed decision")
         stats.add_confirmed(tokens, cost)
 
     def _handle_reject_action(
@@ -552,9 +544,7 @@ class JobReviewer:
         reason_prompt = "   Rejection reason (tech/location/seniority/other)"
         reason: str = typer.prompt(reason_prompt).strip().lower()
         self.save_review(job_id, title, location, status="rejected", reason=reason, company=company)
-        self._save_re_review_if_changed(
-            job_id, prior_review, "rejected", f"User re-reviewed and rejected ({reason})"
-        )
+        self._save_re_review_if_changed(job_id, prior_review, "rejected", f"User re-reviewed and rejected ({reason})")
         stats.add_rejected(reason)
         return reason
 
@@ -647,15 +637,11 @@ class JobReviewer:
     ) -> bool:
         """Process user action. Return True if action breaks loop, False to continue."""
         if action == "c":
-            self._handle_confirm_action(
-                job_id, title, location, tokens, cost, company, prior_review, stats
-            )
+            self._handle_confirm_action(job_id, title, location, tokens, cost, company, prior_review, stats)
             typer.echo(f"   ✓ Confirmed ({stats.confirmed}/{stats.total} confirmed)")
             return True
         elif action == "r":
-            self._handle_reject_action(
-                job_id, title, location, company, prior_review, stats
-            )
+            self._handle_reject_action(job_id, title, location, company, prior_review, stats)
             typer.echo("   ✗ Rejected")
             return True
         elif action == "s":
@@ -766,8 +752,7 @@ class JobReviewer:
 
                 try:
                     self.review_job_interactive(
-                        job_counter, total_jobs, job, preprocessed, stats,
-                        allow_re_review=allow_re_review
+                        job_counter, total_jobs, job, preprocessed, stats, allow_re_review=allow_re_review
                     )
                 except typer.Exit:
                     raise
@@ -807,11 +792,7 @@ class JobReviewer:
         typer.echo("📊 PIPELINE STATUS")
         typer.echo("=" * 80)
 
-        total_jobs = (
-            stats.get("pending_review", 0)
-            + stats.get("confirmed", 0)
-            + stats.get("rejected", 0)
-        )
+        total_jobs = stats.get("pending_review", 0) + stats.get("confirmed", 0) + stats.get("rejected", 0)
         typer.echo(f"\nTotal jobs:          {total_jobs}")
         typer.echo(f"  • Pending review:  {stats.get('pending_review', 0):<6} ← Ready for review")
         typer.echo(f"  • Confirmed:       {stats.get('confirmed', 0):<6} ← Ready for assessment")

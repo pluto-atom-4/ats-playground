@@ -17,11 +17,26 @@ def categorize_one_word(word: str) -> str:
 
     # Vague/meaningless adjectives
     vague_adjectives = {
-        "qualified", "binary", "innovation", "intermediate",
-        "specialized", "robust", "comprehensive", "thorough",
-        "effective", "efficient", "practical", "strategic",
-        "innovative", "adaptive", "dynamic", "progressive",
-        "smart", "rigorous", "pragmatic", "proactive",
+        "qualified",
+        "binary",
+        "innovation",
+        "intermediate",
+        "specialized",
+        "robust",
+        "comprehensive",
+        "thorough",
+        "effective",
+        "efficient",
+        "practical",
+        "strategic",
+        "innovative",
+        "adaptive",
+        "dynamic",
+        "progressive",
+        "smart",
+        "rigorous",
+        "pragmatic",
+        "proactive",
     }
 
     if word_lower in vague_adjectives:
@@ -31,8 +46,27 @@ def categorize_one_word(word: str) -> str:
     # Hardware/embedded systems: DSP, MMU, AXI, RAM, ROM, UART, SPI, I2C, CAN
     # Other tech: AWS, GCP, SQL, API, IOT, ROS, GPU, CPU, NVM, DDR, SoC, RTL
     known_tech_acronyms = {
-        "AWS", "GCP", "SQL", "API", "IOT", "ROS", "GPU", "CPU", "DSP", "MMU",
-        "AXI", "RAM", "ROM", "UART", "SPI", "I2C", "CAN", "NVM", "DDR", "SoC", "RTL"
+        "AWS",
+        "GCP",
+        "SQL",
+        "API",
+        "IOT",
+        "ROS",
+        "GPU",
+        "CPU",
+        "DSP",
+        "MMU",
+        "AXI",
+        "RAM",
+        "ROM",
+        "UART",
+        "SPI",
+        "I2C",
+        "CAN",
+        "NVM",
+        "DDR",
+        "SoC",
+        "RTL",
     }
     if len(word) <= 3 and word.isupper() and word not in known_tech_acronyms:
         return "ARTIFACT_CODE"

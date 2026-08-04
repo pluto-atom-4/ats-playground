@@ -18,9 +18,7 @@ class JobTable(DataTable[str]):
     - Track expanded row for detail panel integration
     """
 
-    def __init__(
-        self, state: StateManager, *args: Any, **kwargs: Any
-    ) -> None:
+    def __init__(self, state: StateManager, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
         self.expanded_job_id: Optional[str] = None

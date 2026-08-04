@@ -33,7 +33,7 @@ class BlueOriginParser(CompanyParser):
         # Extract minimum qualifications section
         min_qual = self.extract_section(
             text,
-            r"(?:##\s+)?(?:minimum|required)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)"
+            r"(?:##\s+)?(?:minimum|required)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)",
         )
 
         if min_qual:
@@ -125,7 +125,7 @@ class BoeingParser(CompanyParser):
 
         basic_qual = self.extract_section(
             text,
-            r"(?:#{2,3}\s+)?(?:basic|minimum|required)\s+(?:qualifications?|skills/experience)[\s\n:]*(.+?)(?=\n#{2,3}|Preferred|Travel|---|\Z)"
+            r"(?:#{2,3}\s+)?(?:basic|minimum|required)\s+(?:qualifications?|skills/experience)[\s\n:]*(.+?)(?=\n#{2,3}|Preferred|Travel|---|\Z)",
         )
         if basic_qual:
             requirements.update(self._extract_section_bullets(basic_qual))
@@ -135,7 +135,7 @@ class BoeingParser(CompanyParser):
 
         pref_qual = self.extract_section(
             text,
-            r"(?:#{2,3}\s+)?(?:preferred|desired)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n#{2,3}|Travel|Background|---|\Z)"
+            r"(?:#{2,3}\s+)?(?:preferred|desired)\s+(?:qualifications?|experience)[\s\n:]*(.+?)(?=\n#{2,3}|Travel|Background|---|\Z)",
         )
         if pref_qual:
             requirements.update(self._extract_preferred_bullets(pref_qual))
@@ -155,8 +155,7 @@ class GenericParser(CompanyParser):
         # Try both minimum and basic qualifications
         for section_label in [r"basic\s+qualifications", r"minimum\s+qualifications"]:
             section = self.extract_section(
-                text,
-                rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)"
+                text, rf"(?:##\s+)?(?:{section_label})[\s\n:]*(.+?)(?=\n##|Preferred|---|\Z)"
             )
             if section:
                 bullets = re.findall(r"[\*•\-]\s+(.+?)(?:\n|$)", section)

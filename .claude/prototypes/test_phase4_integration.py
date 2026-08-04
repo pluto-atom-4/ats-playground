@@ -34,11 +34,7 @@ def compare_f1(extracted: dict, expected: dict) -> Any:
         correct = extracted_set & expected_set
         precision = len(correct) / len(extracted_set) if extracted_set else 0
         recall = len(correct) / len(expected_set) if expected_set else 0
-        f1 = (
-            2 * (precision * recall) / (precision + recall)
-            if (precision + recall) > 0
-            else 0
-        )
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
         results[category] = {
             "f1": round(f1, 2),
@@ -68,9 +64,15 @@ def main():
     metrics_bo = compare_f1(result_bo, expected_bo)
 
     print(f"Domain: {result_bo['detected_domain']}")
-    print(f"Skills:       F1={metrics_bo['skills']['f1']:<5} (P={metrics_bo['skills']['precision']}, R={metrics_bo['skills']['recall']}) [correct={metrics_bo['skills']['correct']}, missing={metrics_bo['skills']['missing']}]")
-    print(f"Technologies: F1={metrics_bo['technologies']['f1']:<5} (P={metrics_bo['technologies']['precision']}, R={metrics_bo['technologies']['recall']}) [correct={metrics_bo['technologies']['correct']}, missing={metrics_bo['technologies']['missing']}]")
-    print(f"Requirements: F1={metrics_bo['requirements']['f1']:<5} (P={metrics_bo['requirements']['precision']}, R={metrics_bo['requirements']['recall']}) [correct={metrics_bo['requirements']['correct']}, missing={metrics_bo['requirements']['missing']}]")
+    print(
+        f"Skills:       F1={metrics_bo['skills']['f1']:<5} (P={metrics_bo['skills']['precision']}, R={metrics_bo['skills']['recall']}) [correct={metrics_bo['skills']['correct']}, missing={metrics_bo['skills']['missing']}]"
+    )
+    print(
+        f"Technologies: F1={metrics_bo['technologies']['f1']:<5} (P={metrics_bo['technologies']['precision']}, R={metrics_bo['technologies']['recall']}) [correct={metrics_bo['technologies']['correct']}, missing={metrics_bo['technologies']['missing']}]"
+    )
+    print(
+        f"Requirements: F1={metrics_bo['requirements']['f1']:<5} (P={metrics_bo['requirements']['precision']}, R={metrics_bo['requirements']['recall']}) [correct={metrics_bo['requirements']['correct']}, missing={metrics_bo['requirements']['missing']}]"
+    )
 
     # Test 2: Boeing (with company parser)
     print("\n\n2. BOEING - Senior Software Engineer / Boeing Translation Engine (Job 0)")
@@ -83,9 +85,15 @@ def main():
     metrics_b = compare_f1(result_b, expected_b)
 
     print(f"Domain: {result_b['detected_domain']}")
-    print(f"Skills:       F1={metrics_b['skills']['f1']:<5} (P={metrics_b['skills']['precision']}, R={metrics_b['skills']['recall']}) [correct={metrics_b['skills']['correct']}, missing={metrics_b['skills']['missing']}]")
-    print(f"Technologies: F1={metrics_b['technologies']['f1']:<5} (P={metrics_b['technologies']['precision']}, R={metrics_b['technologies']['recall']}) [correct={metrics_b['technologies']['correct']}, missing={metrics_b['technologies']['missing']}]")
-    print(f"Requirements: F1={metrics_b['requirements']['f1']:<5} (P={metrics_b['requirements']['precision']}, R={metrics_b['requirements']['recall']}) [correct={metrics_b['requirements']['correct']}, missing={metrics_b['requirements']['missing']}]")
+    print(
+        f"Skills:       F1={metrics_b['skills']['f1']:<5} (P={metrics_b['skills']['precision']}, R={metrics_b['skills']['recall']}) [correct={metrics_b['skills']['correct']}, missing={metrics_b['skills']['missing']}]"
+    )
+    print(
+        f"Technologies: F1={metrics_b['technologies']['f1']:<5} (P={metrics_b['technologies']['precision']}, R={metrics_b['technologies']['recall']}) [correct={metrics_b['technologies']['correct']}, missing={metrics_b['technologies']['missing']}]"
+    )
+    print(
+        f"Requirements: F1={metrics_b['requirements']['f1']:<5} (P={metrics_b['requirements']['precision']}, R={metrics_b['requirements']['recall']}) [correct={metrics_b['requirements']['correct']}, missing={metrics_b['requirements']['missing']}]"
+    )
 
     # Summary comparison
     print("\n\n" + "=" * 80)

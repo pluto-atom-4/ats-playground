@@ -93,9 +93,7 @@ class TokenCounter:
         """
         return {i: self.count_tokens(chunk) for i, chunk in enumerate(chunks)}
 
-    def estimate_cost(
-        self, input_tokens: int, output_tokens: int = 300
-    ) -> float:
+    def estimate_cost(self, input_tokens: int, output_tokens: int = 300) -> float:
         """Estimate cost for API call.
 
         Args:

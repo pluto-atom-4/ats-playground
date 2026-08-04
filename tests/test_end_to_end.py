@@ -266,9 +266,7 @@ class TestDatabasePersistence:
         assert first_job["job_id"] == second_job["job_id"]
         assert first_job == second_job
 
-    def test_job_rejection_skips_assessment(
-        self, sample_jobs: List[dict[str, Any]]
-    ) -> None:
+    def test_job_rejection_skips_assessment(self, sample_jobs: List[dict[str, Any]]) -> None:
         """Rejected jobs are not assessed."""
         job = sample_jobs[0].copy()
         job["status"] = "rejected"
@@ -294,9 +292,7 @@ class TestErrorHandling:
 
     @patch("src.assessment.assessor.Preprocessor")
     @patch("src.assessment.assessor.LLMProvider")
-    def test_assess_empty_cv_raises_error(
-        self, mock_llm_class: MagicMock, mock_prep_class: MagicMock
-    ) -> None:
+    def test_assess_empty_cv_raises_error(self, mock_llm_class: MagicMock, mock_prep_class: MagicMock) -> None:
         """Assessment fails gracefully on empty CV."""
         assessor = Assessor()
 
@@ -305,9 +301,7 @@ class TestErrorHandling:
 
     @patch("src.assessment.assessor.Preprocessor")
     @patch("src.assessment.assessor.LLMProvider")
-    def test_assess_empty_job_raises_error(
-        self, mock_llm_class: MagicMock, mock_prep_class: MagicMock
-    ) -> None:
+    def test_assess_empty_job_raises_error(self, mock_llm_class: MagicMock, mock_prep_class: MagicMock) -> None:
         """Assessment fails gracefully on empty job description."""
         assessor = Assessor()
 
@@ -468,9 +462,7 @@ class TestDataIntegrity:
         assert url in sample_urls
 
     @patch("src.assessment.assessor.Preprocessor")
-    def test_entity_extraction_consistency(
-        self, mock_prep_class: MagicMock, sample_cv: str
-    ) -> None:
+    def test_entity_extraction_consistency(self, mock_prep_class: MagicMock, sample_cv: str) -> None:
         """Entity extraction produces consistent results."""
         mock_prep = MagicMock()
         entities = (["Python", "AWS"], ["Docker"], ["5 years"])

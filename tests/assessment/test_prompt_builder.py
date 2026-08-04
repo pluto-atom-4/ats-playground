@@ -56,9 +56,7 @@ class TestBuildSimplePrompt:
         tech = ["AWS", "Docker"]
         requirements = ["5+ years", "Remote"]
 
-        prompt = PromptBuilder.build_simple_prompt(
-            cv, job, (skills, tech, requirements)
-        )
+        prompt = PromptBuilder.build_simple_prompt(cv, job, (skills, tech, requirements))
 
         assert "Python" in prompt
         assert "AWS" in prompt
@@ -79,9 +77,7 @@ class TestBuildSimplePrompt:
         job = "We seek a Python expert"
         chunks = ["Requirement 1: 5+ years", "Requirement 2: AWS knowledge"]
 
-        prompt = PromptBuilder.build_simple_prompt(
-            cv, job, chunks=chunks
-        )
+        prompt = PromptBuilder.build_simple_prompt(cv, job, chunks=chunks)
 
         # Chunks should be in prompt
         assert "Requirement 1" in prompt or "5+ years" in prompt
@@ -121,9 +117,7 @@ class TestBuildSimplePrompt:
         tech = ["AWS", "PostgreSQL"]
         reqs = ["Remote", "Visa"]
 
-        prompt = PromptBuilder.build_simple_prompt(
-            cv, job, (skills, tech, reqs)
-        )
+        prompt = PromptBuilder.build_simple_prompt(cv, job, (skills, tech, reqs))
 
         assert "Skills" in prompt
         assert "Tech Stack" in prompt
@@ -187,9 +181,7 @@ class TestBuildPromptWithExamples:
         tech = ["AWS"]
         reqs = ["5+ years"]
 
-        prompt = PromptBuilder.build_prompt_with_examples(
-            cv, job, (skills, tech, reqs)
-        )
+        prompt = PromptBuilder.build_prompt_with_examples(cv, job, (skills, tech, reqs))
 
         assert "Python" in prompt
         assert "AWS" in prompt
@@ -201,9 +193,7 @@ class TestBuildPromptWithExamples:
         job = "We seek a Python expert"
         chunks = ["Chunk 1: Requirements", "Chunk 2: Benefits"]
 
-        prompt = PromptBuilder.build_prompt_with_examples(
-            cv, job, chunks=chunks
-        )
+        prompt = PromptBuilder.build_prompt_with_examples(cv, job, chunks=chunks)
 
         # At least one chunk should be in prompt
         assert any(chunk in prompt for chunk in chunks)
@@ -310,4 +300,4 @@ class TestPromptComparison:
         simple = PromptBuilder.build_simple_prompt(cv, job)
         with_examples = PromptBuilder.build_prompt_with_examples(cv, job)
 
-        assert ("JSON:" in simple or "JSON:" in with_examples)
+        assert "JSON:" in simple or "JSON:" in with_examples

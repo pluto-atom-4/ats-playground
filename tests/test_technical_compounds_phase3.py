@@ -42,12 +42,9 @@ Skills required:
 
         # Should find "software development" or similar in technologies
         has_soft_dev_in_tech = any(
-            "software development" in t or
-            ("software" in t and "development" in t)
-            for t in tech_lower
+            "software development" in t or ("software" in t and "development" in t) for t in tech_lower
         )
-        assert has_soft_dev_in_tech, \
-            f"Expected 'software development' in technologies. Got: {technologies}"
+        assert has_soft_dev_in_tech, f"Expected 'software development' in technologies. Got: {technologies}"
 
     def test_data_processing_compound_reclassified(self, preprocessor):
         """Test that 'data processing' moves from skills to technologies."""
@@ -67,11 +64,8 @@ Skills:
         tech_lower = [t.lower() for t in technologies]
 
         # Should find "data processing" or similar in technologies
-        has_data_processing = any(
-            "data processing" in t for t in tech_lower
-        )
-        assert has_data_processing, \
-            f"Expected 'data processing' in technologies. Got: {technologies}"
+        has_data_processing = any("data processing" in t for t in tech_lower)
+        assert has_data_processing, f"Expected 'data processing' in technologies. Got: {technologies}"
 
     def test_hard_technologies_not_affected(self, preprocessor):
         """Test that hard technologies (Python, Java, etc.) are unaffected."""
@@ -91,8 +85,7 @@ Required skills:
         hard_techs = ["python", "javascript", "java", "sql", "docker"]
         found_hard_techs = [t for t in hard_techs if any(t in tl for tl in tech_lower)]
 
-        assert len(found_hard_techs) > 0, \
-            f"Expected to find hard technologies. Got: {technologies}"
+        assert len(found_hard_techs) > 0, f"Expected to find hard technologies. Got: {technologies}"
 
     def test_soft_skills_preserved(self, preprocessor):
         """Test that soft skills are preserved and not reclassified."""
@@ -122,10 +115,8 @@ Requirements:
             skills, technologies, requirements = preprocessor.extract_entities(text)
             # Just verify extraction doesn't error out
             assert isinstance(skills, (list, tuple)), f"Skills should be list/tuple for: {text}"
-            assert isinstance(technologies, (list, tuple)), \
-                f"Technologies should be list/tuple for: {text}"
-            assert isinstance(requirements, (list, tuple)), \
-                f"Requirements should be list/tuple for: {text}"
+            assert isinstance(technologies, (list, tuple)), f"Technologies should be list/tuple for: {text}"
+            assert isinstance(requirements, (list, tuple)), f"Requirements should be list/tuple for: {text}"
 
     def test_multiple_compounds_in_text(self, preprocessor):
         """Test extraction with multiple technical compounds."""
@@ -151,12 +142,12 @@ Desired soft skills:
         tech_lower = [t.lower() for t in technologies]
 
         # Verify hard techs are still there
-        assert any(t in tech_lower for t in ["python", "docker", "kubernetes"]), \
+        assert any(t in tech_lower for t in ["python", "docker", "kubernetes"]), (
             f"Expected hard technologies. Got: {technologies}"
+        )
 
         # Verify at least some extraction happened
-        assert len(skills) > 0 or len(technologies) > 0, \
-            "Should extract something"
+        assert len(skills) > 0 or len(technologies) > 0, "Should extract something"
 
     def test_markdown_format_extraction(self, preprocessor):
         """Test extraction works with markdown-formatted jobs."""
@@ -180,8 +171,9 @@ Desired soft skills:
         skills, technologies, requirements = preprocessor.extract_entities(text)
 
         # Verify extraction works with markdown
-        assert len(skills) > 0 or len(technologies) > 0, \
+        assert len(skills) > 0 or len(technologies) > 0, (
             f"Should extract from markdown. Got skills:{skills}, tech:{technologies}"
+        )
 
     def test_plain_text_format_extraction(self, preprocessor):
         """Test extraction works with plain text jobs."""
@@ -194,8 +186,9 @@ Desired soft skills: leadership, communication, teamwork.
         skills, technologies, requirements = preprocessor.extract_entities(text)
 
         # Verify extraction works with plain text
-        assert len(skills) > 0 or len(technologies) > 0, \
+        assert len(skills) > 0 or len(technologies) > 0, (
             f"Should extract from plain text. Got skills:{skills}, tech:{technologies}"
+        )
 
     def test_extraction_consistency(self, preprocessor):
         """Test that multiple runs produce consistent results."""
@@ -208,8 +201,7 @@ Skills: Python, Docker, system-level architecture knowledge.
         results2 = preprocessor.extract_entities(text)
 
         # Results should be identical
-        assert results1 == results2, \
-            f"Extraction should be consistent. Got:\n{results1}\nvs\n{results2}"
+        assert results1 == results2, f"Extraction should be consistent. Got:\n{results1}\nvs\n{results2}"
 
     def test_reclassification_in_context(self, preprocessor):
         """Test that reclassification works in realistic job posting context."""
@@ -254,9 +246,9 @@ solutions and optimizing data processing pipelines.
         print(f"Requirements: {sorted(requirements)}")
 
         # Verify hard technologies are present
-        assert any(t in tech_lower for t in ["python", "javascript", "docker", "kubernetes"]), \
+        assert any(t in tech_lower for t in ["python", "javascript", "docker", "kubernetes"]), (
             f"Expected hard technologies in: {technologies}"
+        )
 
         # Verify extraction happened
-        assert len(skills) > 0 or len(technologies) > 0, \
-            "Should extract from realistic job posting"
+        assert len(skills) > 0 or len(technologies) > 0, "Should extract from realistic job posting"

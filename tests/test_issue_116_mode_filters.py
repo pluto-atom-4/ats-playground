@@ -53,9 +53,7 @@ class TestModeFilterNewOnly:
         reviewer.save_review("job_1", "Engineer", "SF", "rejected", reason="location")
 
         # With new-only, should skip due to already_reviewed (mode filter runs first)
-        skip, reason = reviewer.should_skip_job(
-            "job_1", mode="new-only", skip_rejected=True
-        )
+        skip, reason = reviewer.should_skip_job("job_1", mode="new-only", skip_rejected=True)
         assert skip is True
         assert reason == "already_reviewed"  # Mode filter catches it first
 
@@ -93,9 +91,7 @@ class TestModeFilterAll:
         reviewer.save_review("job_1", "Engineer", "SF", "rejected", reason="location")
 
         # With all mode + skip_rejected, should skip due to status filter
-        skip, reason = reviewer.should_skip_job(
-            "job_1", mode="all", skip_rejected=True
-        )
+        skip, reason = reviewer.should_skip_job("job_1", mode="all", skip_rejected=True)
         assert skip is True
         assert reason == "previously_rejected"  # Status filter catches it
 
@@ -109,9 +105,7 @@ class TestModeFilterAll:
         reviewer.save_review("job_1", "Engineer", "SF", "rejected", reason="location")
 
         # With all mode + skip_rejected=False, should NOT skip
-        skip, reason = reviewer.should_skip_job(
-            "job_1", mode="all", skip_rejected=False
-        )
+        skip, reason = reviewer.should_skip_job("job_1", mode="all", skip_rejected=False)
         assert skip is False  # No filter catches it
 
         reviewer._close_db()
@@ -234,6 +228,7 @@ class TestModeFlagFiltering:
 
         # Cleanup
         import shutil
+
         shutil.rmtree(tmpdir)
 
     def test_mode_new_only_default(self, temp_files, temp_db):
@@ -294,9 +289,7 @@ class TestModeStacksWithOtherFilters:
             reviewer.conn.commit()
 
         # With new-only + skip_before_date, should skip due to date
-        skip, reason = reviewer.should_skip_job(
-            "job_1", mode="new-only", skip_before_date="2026-07-01"
-        )
+        skip, reason = reviewer.should_skip_job("job_1", mode="new-only", skip_before_date="2026-07-01")
         assert skip is True
         assert "crawled_before" in reason
 

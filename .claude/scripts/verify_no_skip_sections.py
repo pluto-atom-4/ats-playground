@@ -9,21 +9,56 @@ def get_skip_keywords():
     """Get all skip section keywords."""
     return {
         # Compensation & Benefits
-        "benefit", "compensation", "salary", "pay range", "total reward",
-        "401", "retirement", "insurance", "health", "dental", "vision",
+        "benefit",
+        "compensation",
+        "salary",
+        "pay range",
+        "total reward",
+        "401",
+        "retirement",
+        "insurance",
+        "health",
+        "dental",
+        "vision",
         # Company Info
-        "about", "company", "culture", "commitment",
+        "about",
+        "company",
+        "culture",
+        "commitment",
         # Legal & Compliance
-        "equal opportunity", "affirmative action", "disability",
-        "background check", "export control", "security clearance", "visa",
-        "right to work", "e-verify", "conflict of interest", "drug free",
-        "union", "bargaining", "safety sensitive", "contingent", "award",
+        "equal opportunity",
+        "affirmative action",
+        "disability",
+        "background check",
+        "export control",
+        "security clearance",
+        "visa",
+        "right to work",
+        "e-verify",
+        "conflict of interest",
+        "drug free",
+        "union",
+        "bargaining",
+        "safety sensitive",
+        "contingent",
+        "award",
         "boeing participates",
         # Application & Work Details
-        "apply", "posting date", "posted", "application close",
-        "codevue", "technical assessment", "relocation",
-        "shift", "location", "work location", "travel", "working condition",
-        "fte", "temporary", "education",
+        "apply",
+        "posting date",
+        "posted",
+        "application close",
+        "codevue",
+        "technical assessment",
+        "relocation",
+        "shift",
+        "location",
+        "work location",
+        "travel",
+        "working condition",
+        "fte",
+        "temporary",
+        "education",
     }
 
 
@@ -68,17 +103,10 @@ def main():
         for skill in skills:
             found_kws = check_skill_for_skip_keywords(skill, skip_keywords)
             if found_kws:
-                job_issues.append({
-                    "skill": skill,
-                    "keywords": found_kws
-                })
+                job_issues.append({"skill": skill, "keywords": found_kws})
 
         if job_issues:
-            issues_found.append({
-                "job_idx": job_idx,
-                "title": title,
-                "issues": job_issues
-            })
+            issues_found.append({"job_idx": job_idx, "title": title, "issues": job_issues})
 
     # Report findings
     if issues_found:

@@ -65,9 +65,7 @@ class TestJobReviewDialogInit:
 class TestEntityExtraction:
     """Test _extract_entities method."""
 
-    def test_extract_entities_returns_tuple(
-        self, basic_job_data: Dict[str, Any]
-    ) -> None:
+    def test_extract_entities_returns_tuple(self, basic_job_data: Dict[str, Any]) -> None:
         """_extract_entities returns tuple of three lists."""
         dialog = JobReviewDialog("job-123", basic_job_data)
         result = dialog._extract_entities()
@@ -83,9 +81,7 @@ class TestEntityExtraction:
         assert isinstance(technologies, list)
         assert isinstance(requirements, list)
 
-    def test_extract_entities_fallback_to_description(
-        self, basic_job_data: Dict[str, Any]
-    ) -> None:
+    def test_extract_entities_fallback_to_description(self, basic_job_data: Dict[str, Any]) -> None:
         """_extract_entities falls back to 'description' if clean_text missing."""
         job_data = {**basic_job_data}
         del job_data["clean_text"]
@@ -95,9 +91,7 @@ class TestEntityExtraction:
         assert isinstance(technologies, list)
         assert isinstance(requirements, list)
 
-    def test_extract_entities_empty_if_no_text(
-        self, minimal_job_data: Dict[str, Any]
-    ) -> None:
+    def test_extract_entities_empty_if_no_text(self, minimal_job_data: Dict[str, Any]) -> None:
         """_extract_entities returns empty lists if no text available."""
         dialog = JobReviewDialog("job-123", minimal_job_data)
         skills, technologies, requirements = dialog._extract_entities()
@@ -105,9 +99,7 @@ class TestEntityExtraction:
         assert technologies == []
         assert requirements == []
 
-    def test_extract_entities_handles_exceptions(
-        self, basic_job_data: Dict[str, Any]
-    ) -> None:
+    def test_extract_entities_handles_exceptions(self, basic_job_data: Dict[str, Any]) -> None:
         """_extract_entities gracefully handles extraction failures."""
         dialog = JobReviewDialog("job-123", basic_job_data)
         result = dialog._extract_entities()

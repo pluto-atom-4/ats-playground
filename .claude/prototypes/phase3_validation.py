@@ -21,7 +21,7 @@ def load_all_jobs():
     # Known job sources with indices and expected files
     sources = [
         ("blue origin", "expected_extractions.json", [1]),  # Job 1 (G&C)
-        ("boeing", "expected_extractions-2.json", [0]),      # Job 0 (BTE)
+        ("boeing", "expected_extractions-2.json", [0]),  # Job 0 (BTE)
     ]
 
     for company, expected_file, job_indices in sources:
@@ -38,13 +38,15 @@ def load_all_jobs():
 
         for idx in job_indices:
             if idx < len(jobs):
-                jobs_data.append({
-                    "company": company,
-                    "job_idx": idx,
-                    "title": jobs[idx]["title"],
-                    "description": jobs[idx]["description"],
-                    "expected": expected,
-                })
+                jobs_data.append(
+                    {
+                        "company": company,
+                        "job_idx": idx,
+                        "title": jobs[idx]["title"],
+                        "description": jobs[idx]["description"],
+                        "expected": expected,
+                    }
+                )
 
     return jobs_data
 
@@ -63,11 +65,7 @@ def calculate_metrics(extracted: dict, expected: dict) -> dict:
 
         precision = len(correct) / len(extracted_set) if extracted_set else 0
         recall = len(correct) / len(expected_set) if expected_set else 0
-        f1 = (
-            2 * (precision * recall) / (precision + recall)
-            if (precision + recall) > 0
-            else 0
-        )
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
         metrics[category] = {
             "f1": round(f1, 2),
@@ -127,22 +125,30 @@ def main():
         conf_req = extracted_with_conf["metrics"]["avg_req_confidence"]
 
         # Display metrics with confidence
-        print(f"Skills:   F1={metrics['skills']['f1']:<5} (P={metrics['skills']['precision']}, R={metrics['skills']['recall']}) Conf={conf_skills:<5} [{metrics['skills']['correct']}/{len(expected['skills'])}]")
-        print(f"Tech:     F1={metrics['technologies']['f1']:<5} (P={metrics['technologies']['precision']}, R={metrics['technologies']['recall']}) Conf={conf_tech:<5} [{metrics['technologies']['correct']}/{len(expected['technologies'])}]")
-        print(f"Req:      F1={metrics['requirements']['f1']:<5} (P={metrics['requirements']['precision']}, R={metrics['requirements']['recall']}) Conf={conf_req:<5} [{metrics['requirements']['correct']}/{len(expected['requirements'])}]")
+        print(
+            f"Skills:   F1={metrics['skills']['f1']:<5} (P={metrics['skills']['precision']}, R={metrics['skills']['recall']}) Conf={conf_skills:<5} [{metrics['skills']['correct']}/{len(expected['skills'])}]"
+        )
+        print(
+            f"Tech:     F1={metrics['technologies']['f1']:<5} (P={metrics['technologies']['precision']}, R={metrics['technologies']['recall']}) Conf={conf_tech:<5} [{metrics['technologies']['correct']}/{len(expected['technologies'])}]"
+        )
+        print(
+            f"Req:      F1={metrics['requirements']['f1']:<5} (P={metrics['requirements']['precision']}, R={metrics['requirements']['recall']}) Conf={conf_req:<5} [{metrics['requirements']['correct']}/{len(expected['requirements'])}]"
+        )
 
         # Track results
-        results.append({
-            "company": company,
-            "title": title,
-            "domain": domain.value,
-            "metrics": metrics,
-            "confidence": {
-                "skills": conf_skills,
-                "technologies": conf_tech,
-                "requirements": conf_req,
+        results.append(
+            {
+                "company": company,
+                "title": title,
+                "domain": domain.value,
+                "metrics": metrics,
+                "confidence": {
+                    "skills": conf_skills,
+                    "technologies": conf_tech,
+                    "requirements": conf_req,
+                },
             }
-        })
+        )
 
         # Track domain stats
         for category in ["skills", "technologies", "requirements"]:
@@ -173,9 +179,13 @@ def main():
     all_tech_f1 = [r["metrics"]["technologies"]["f1"] for r in results]
     all_req_f1 = [r["metrics"]["requirements"]["f1"] for r in results]
 
-    print(f"\nSkills:   Avg F1 = {sum(all_skills_f1)/len(all_skills_f1):.2f} (range: {min(all_skills_f1)}-{max(all_skills_f1)})")
-    print(f"Tech:     Avg F1 = {sum(all_tech_f1)/len(all_tech_f1):.2f} (range: {min(all_tech_f1)}-{max(all_tech_f1)})")
-    print(f"Req:      Avg F1 = {sum(all_req_f1)/len(all_req_f1):.2f} (range: {min(all_req_f1)}-{max(all_req_f1)})")
+    print(
+        f"\nSkills:   Avg F1 = {sum(all_skills_f1) / len(all_skills_f1):.2f} (range: {min(all_skills_f1)}-{max(all_skills_f1)})"
+    )
+    print(
+        f"Tech:     Avg F1 = {sum(all_tech_f1) / len(all_tech_f1):.2f} (range: {min(all_tech_f1)}-{max(all_tech_f1)})"
+    )
+    print(f"Req:      Avg F1 = {sum(all_req_f1) / len(all_req_f1):.2f} (range: {min(all_req_f1)}-{max(all_req_f1)})")
 
     # Save results
     output_file = project_root / ".claude/prototypes/phase3_validation_results.json"
@@ -185,7 +195,9 @@ def main():
                 "timestamp": "2026-07-30",
                 "jobs_tested": len(results),
                 "results": results,
-                "domain_stats": {k: {kk: [round(v, 2) for v in vv] for kk, vv in v.items()} for k, v in domain_stats.items()},
+                "domain_stats": {
+                    k: {kk: [round(v, 2) for v in vv] for kk, vv in v.items()} for k, v in domain_stats.items()
+                },
             },
             f,
             indent=2,

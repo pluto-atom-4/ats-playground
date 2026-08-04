@@ -209,11 +209,33 @@ def get_boilerplate_keywords() -> Set[str]:
     """
     # Extract keywords from simpler patterns (non-regex)
     simple_keywords = [
-        "salary", "benefits", "equal", "opportunity", "qualifications",
-        "requirements", "full-time", "part-time", "contract", "temporary",
-        "401k", "pto", "vacation", "apply", "share", "save", "export",
-        "control", "affirmative", "action", "compliance", "background",
-        "check", "security", "clearance", "visa", "sponsorship",
+        "salary",
+        "benefits",
+        "equal",
+        "opportunity",
+        "qualifications",
+        "requirements",
+        "full-time",
+        "part-time",
+        "contract",
+        "temporary",
+        "401k",
+        "pto",
+        "vacation",
+        "apply",
+        "share",
+        "save",
+        "export",
+        "control",
+        "affirmative",
+        "action",
+        "compliance",
+        "background",
+        "check",
+        "security",
+        "clearance",
+        "visa",
+        "sponsorship",
     ]
 
     return set(simple_keywords)

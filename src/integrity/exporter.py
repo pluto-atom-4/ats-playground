@@ -45,9 +45,7 @@ class DataExporter:
             logger.error(f"Error exporting to JSON {output_file}: {e}")
             return 0
 
-    def export_issues_to_markdown(
-        self, issues: List[IntegrityIssue], output_file: str
-    ) -> int:
+    def export_issues_to_markdown(self, issues: List[IntegrityIssue], output_file: str) -> int:
         """Export integrity issues to Markdown report."""
         try:
             lines = []
@@ -74,9 +72,7 @@ class DataExporter:
 
             # Issues by type table
             lines.append("## Issues by Type")
-            lines.append(
-                "| Type | Count | Table | Severity | Action |"
-            )
+            lines.append("| Type | Count | Table | Severity | Action |")
             lines.append("|------|-------|-------|----------|--------|")
 
             for issue_type in sorted(by_type.keys()):

@@ -104,8 +104,7 @@ def validate_markitdown() -> Dict[str, Any]:
             "status": "⚠️",
             "fallback": "BeautifulSoup",
             "detail": (
-                "MarkItDown not found. Fallback to BeautifulSoup "
-                "(slower, 3-5x). Install: uv pip install markitdown"
+                "MarkItDown not found. Fallback to BeautifulSoup (slower, 3-5x). Install: uv pip install markitdown"
             ),
         }
 
@@ -191,18 +190,14 @@ def check_system_dependencies() -> Dict[str, Any]:
                 print_status("⚠️", lib, "check unavailable")
                 checks_dict[lib] = "⚠️"
 
-        print_status(
-            "ℹ️", "Install missing", "sudo apt-get install libxml2-dev libxslt-dev python3-dev"
-        )
+        print_status("ℹ️", "Install missing", "sudo apt-get install libxml2-dev libxslt-dev python3-dev")
 
     elif os_name == "Darwin":  # macOS
         print(f"\n{BOLD}System Dependencies (macOS):{RESET}")
         libs = ["libxml2", "libxslt"]
         for lib in libs:
             try:
-                result = subprocess.run(
-                    ["brew", "list", lib], capture_output=True, text=True, timeout=5
-                )
+                result = subprocess.run(["brew", "list", lib], capture_output=True, text=True, timeout=5)
                 if result.returncode == 0:
                     print_status("✅", lib, "installed via Homebrew")
                     checks_dict[lib] = "✅"
@@ -225,9 +220,9 @@ def check_system_dependencies() -> Dict[str, Any]:
 
 def main() -> int:
     """Run full validation suite."""
-    print(f"\n{BOLD}{'='*70}{RESET}")
+    print(f"\n{BOLD}{'=' * 70}{RESET}")
     print(f"{BOLD}🔍 NLP Setup Validation for Issue #7{RESET}")
-    print(f"{BOLD}{'='*70}{RESET}\n")
+    print(f"{BOLD}{'=' * 70}{RESET}\n")
 
     # Core validations
     print(f"{BOLD}Python & Core Dependencies:{RESET}")
@@ -258,7 +253,7 @@ def main() -> int:
     check_system_dependencies()
 
     # Summary
-    print(f"\n{BOLD}{'='*70}{RESET}")
+    print(f"\n{BOLD}{'=' * 70}{RESET}")
     critical_ok = (
         py_result["status"] == "✅"
         and sp_result["status"] == "✅"
@@ -273,7 +268,7 @@ def main() -> int:
             print("  • Install MarkItDown: uv pip install markitdown")
         if lx_result["status"] == "⚠️":
             print("  • Install lxml: check system dependencies above")
-        print(f"{BOLD}{'='*70}{RESET}\n")
+        print(f"{BOLD}{'=' * 70}{RESET}\n")
         return 0
     else:
         print(f"{RED}{BOLD}❌ CRITICAL ISSUES FOUND{RESET}")
@@ -285,7 +280,7 @@ def main() -> int:
             print(f"  • {pd_result['detail']}")
         if tk_result["status"] == "❌":
             print(f"  • {tk_result['detail']}")
-        print(f"{BOLD}{'='*70}{RESET}\n")
+        print(f"{BOLD}{'=' * 70}{RESET}\n")
         return 1
 
 

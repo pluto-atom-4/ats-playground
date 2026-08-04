@@ -19,9 +19,7 @@ class DataPurger:
         self.store = AssessmentStore(db_path)
         self.conn: sqlite3.Connection = cast(sqlite3.Connection, self.store.conn)
 
-    def purge_orphaned_assessments(
-        self, dry_run: bool = True
-    ) -> Tuple[int, List[str]]:
+    def purge_orphaned_assessments(self, dry_run: bool = True) -> Tuple[int, List[str]]:
         """Delete assessments with job_id not in jobs table."""
         try:
             cursor = self.conn.cursor()
@@ -48,9 +46,7 @@ class DataPurger:
             self.conn.execute("BEGIN TRANSACTION")
             try:
                 cursor.execute(
-                    "DELETE FROM job_assessments WHERE job_id IN ({})".format(
-                        ",".join("?" * len(orphaned))
-                    ),
+                    "DELETE FROM job_assessments WHERE job_id IN ({})".format(",".join("?" * len(orphaned))),
                     orphaned,
                 )
                 self.conn.commit()
@@ -64,9 +60,7 @@ class DataPurger:
             logger.error(f"Error purging orphaned assessments: {e}")
             return 0, []
 
-    def purge_orphaned_preprocessed(
-        self, dry_run: bool = True
-    ) -> Tuple[int, List[str]]:
+    def purge_orphaned_preprocessed(self, dry_run: bool = True) -> Tuple[int, List[str]]:
         """Delete preprocessed_jobs with job_id not in jobs table."""
         try:
             cursor = self.conn.cursor()
@@ -91,9 +85,7 @@ class DataPurger:
             self.conn.execute("BEGIN TRANSACTION")
             try:
                 cursor.execute(
-                    "DELETE FROM preprocessed_jobs WHERE job_id IN ({})".format(
-                        ",".join("?" * len(orphaned))
-                    ),
+                    "DELETE FROM preprocessed_jobs WHERE job_id IN ({})".format(",".join("?" * len(orphaned))),
                     orphaned,
                 )
                 self.conn.commit()
@@ -107,9 +99,7 @@ class DataPurger:
             logger.error(f"Error purging orphaned preprocessed: {e}")
             return 0, []
 
-    def purge_malformed_recommendations(
-        self, dry_run: bool = True
-    ) -> Tuple[int, List[str]]:
+    def purge_malformed_recommendations(self, dry_run: bool = True) -> Tuple[int, List[str]]:
         """Set recommendations to NULL for records with invalid JSON."""
         import json
 
@@ -137,9 +127,7 @@ class DataPurger:
                 return 0, []
 
             if dry_run:
-                logger.info(
-                    f"[DRY RUN] Would set {len(malformed_ids)} malformed recommendations to NULL"
-                )
+                logger.info(f"[DRY RUN] Would set {len(malformed_ids)} malformed recommendations to NULL")
                 return len(malformed_ids), malformed_ids
 
             self.conn.execute("BEGIN TRANSACTION")
@@ -188,9 +176,7 @@ class DataPurger:
             self.conn.execute("BEGIN TRANSACTION")
             try:
                 cursor.execute(
-                    "DELETE FROM job_assessments WHERE job_id IN ({})".format(
-                        ",".join("?" * len(invalid))
-                    ),
+                    "DELETE FROM job_assessments WHERE job_id IN ({})".format(",".join("?" * len(invalid))),
                     invalid,
                 )
                 self.conn.commit()
@@ -224,10 +210,7 @@ class DataPurger:
                 return 0, []
 
             if dry_run:
-                logger.info(
-                    f"[DRY RUN] Would delete {orphan_count} orphaned FTS entries "
-                    f"and rebuild index"
-                )
+                logger.info(f"[DRY RUN] Would delete {orphan_count} orphaned FTS entries and rebuild index")
                 return orphan_count, []
 
             self.conn.execute("BEGIN TRANSACTION")
@@ -249,9 +232,7 @@ class DataPurger:
                 # Vacuum to reclaim space (must be outside transaction)
                 self.conn.execute("VACUUM")
 
-                logger.info(
-                    f"Deleted {deleted_count} orphaned FTS entries and rebuilt index"
-                )
+                logger.info(f"Deleted {deleted_count} orphaned FTS entries and rebuilt index")
                 return deleted_count, []
             except Exception as e:
                 self.conn.rollback()
@@ -261,9 +242,7 @@ class DataPurger:
             logger.error(f"Error purging FTS orphans: {e}")
             return 0, []
 
-    def cascade_delete_job(
-        self, job_id: str, dry_run: bool = True
-    ) -> Tuple[int, List[str]]:
+    def cascade_delete_job(self, job_id: str, dry_run: bool = True) -> Tuple[int, List[str]]:
         """Delete job and all related records (assessments, preprocessed, cost_tracking, reviews)."""
         try:
             cursor = self.conn.cursor()
@@ -318,9 +297,7 @@ class DataPurger:
             logger.error(f"Error in cascade_delete_job: {e}")
             return 0, []
 
-    def purge_by_date_range(
-        self, start_date: str, end_date: str, dry_run: bool = True
-    ) -> Tuple[int, List[str]]:
+    def purge_by_date_range(self, start_date: str, end_date: str, dry_run: bool = True) -> Tuple[int, List[str]]:
         """Delete assessments created within date range."""
         try:
             cursor = self.conn.cursor()
@@ -338,9 +315,7 @@ class DataPurger:
                 return 0, []
 
             if dry_run:
-                logger.info(
-                    f"[DRY RUN] Would delete {len(matching)} assessments between {start_date} and {end_date}"
-                )
+                logger.info(f"[DRY RUN] Would delete {len(matching)} assessments between {start_date} and {end_date}")
                 return len(matching), matching
 
             self.conn.execute("BEGIN TRANSACTION")
@@ -366,9 +341,7 @@ class DataPurger:
             cursor = self.conn.cursor()
 
             # Check if job_reviews table exists
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='job_reviews'"
-            )
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='job_reviews'")
             if not cursor.fetchone():
                 logger.info("job_reviews table not found, nothing to purge")
                 return 0, []
@@ -387,9 +360,7 @@ class DataPurger:
                 return 0, []
 
             if dry_run:
-                logger.info(
-                    f"[DRY RUN] Would delete {len(orphaned)} orphaned job_reviews"
-                )
+                logger.info(f"[DRY RUN] Would delete {len(orphaned)} orphaned job_reviews")
                 return len(orphaned), orphaned
 
             self.conn.execute("BEGIN TRANSACTION")
@@ -500,9 +471,7 @@ class DataPurger:
                 # First, delete duplicate assessments
                 if duplicates:
                     cursor.execute(
-                        "DELETE FROM job_assessments WHERE rowid IN ({})".format(
-                            ",".join("?" * len(duplicates))
-                        ),
+                        "DELETE FROM job_assessments WHERE rowid IN ({})".format(",".join("?" * len(duplicates))),
                         duplicates,
                     )
                     logger.info(f"Deleted {len(duplicates)} duplicate assessments")

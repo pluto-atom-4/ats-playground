@@ -38,9 +38,7 @@ def calculate_semantic_f1(extracted_reqs, expected_reqs):
     matched_expected = set()
 
     for expected in expected_reqs:
-        best_match, score = normalizer.find_matching_requirement(
-            expected, extracted_reqs, threshold=0.75
-        )
+        best_match, score = normalizer.find_matching_requirement(expected, extracted_reqs, threshold=0.75)
         if best_match and score >= 0.75:
             matched_extracted.add(best_match)
             matched_expected.add(expected)
@@ -51,11 +49,7 @@ def calculate_semantic_f1(extracted_reqs, expected_reqs):
 
     precision = len(matched_extracted) / len(extracted_reqs) if extracted_reqs else 0
     recall = correct / len(expected_reqs) if expected_reqs else 0
-    f1 = (
-        2 * (precision * recall) / (precision + recall)
-        if (precision + recall) > 0
-        else 0
-    )
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
     return {
         "f1": round(f1, 2),
@@ -64,7 +58,7 @@ def calculate_semantic_f1(extracted_reqs, expected_reqs):
         "correct": correct,
         "missing": missing,
         "extra": extra,
-        "matched_pairs": list(zip(sorted(matched_expected), sorted(matched_extracted)))
+        "matched_pairs": list(zip(sorted(matched_expected), sorted(matched_extracted))),
     }
 
 
@@ -99,8 +93,12 @@ def main():
     semantic_result = calculate_semantic_f1(extracted_reqs, expected_reqs)
 
     print(f"Exact Match:    F1={f1_exact:.2f} (P={precision_exact:.2f}, R={recall_exact:.2f})")
-    print(f"Semantic Match: F1={semantic_result['f1']:.2f} (P={semantic_result['precision']:.2f}, R={semantic_result['recall']:.2f})")
-    print(f"Improvement: +{(semantic_result['f1'] - f1_exact):.2f} F1 ({(semantic_result['correct'] - len(correct_exact))} more matched)")
+    print(
+        f"Semantic Match: F1={semantic_result['f1']:.2f} (P={semantic_result['precision']:.2f}, R={semantic_result['recall']:.2f})"
+    )
+    print(
+        f"Improvement: +{(semantic_result['f1'] - f1_exact):.2f} F1 ({(semantic_result['correct'] - len(correct_exact))} more matched)"
+    )
 
     print("\nSemantic Matches:")
     for exp, ext in semantic_result["matched_pairs"][:5]:
@@ -137,8 +135,12 @@ def main():
     semantic_result_bo = calculate_semantic_f1(extracted_reqs_bo, expected_reqs_bo)
 
     print(f"Exact Match:    F1={f1_exact_bo:.2f} (P={precision_exact_bo:.2f}, R={recall_exact_bo:.2f})")
-    print(f"Semantic Match: F1={semantic_result_bo['f1']:.2f} (P={semantic_result_bo['precision']:.2f}, R={semantic_result_bo['recall']:.2f})")
-    print(f"Improvement: +{(semantic_result_bo['f1'] - f1_exact_bo):.2f} F1 ({(semantic_result_bo['correct'] - len(correct_exact_bo))} more matched)")
+    print(
+        f"Semantic Match: F1={semantic_result_bo['f1']:.2f} (P={semantic_result_bo['precision']:.2f}, R={semantic_result_bo['recall']:.2f})"
+    )
+    print(
+        f"Improvement: +{(semantic_result_bo['f1'] - f1_exact_bo):.2f} F1 ({(semantic_result_bo['correct'] - len(correct_exact_bo))} more matched)"
+    )
 
 
 if __name__ == "__main__":

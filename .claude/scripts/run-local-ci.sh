@@ -50,9 +50,36 @@ fi
 echo "✅ Pre-commit config valid"
 echo
 
-# Step 3: Run pre-commit hooks on staged files
-echo "🔍 Step 2/5: Running pre-commit hooks (staged files)..."
-if ! uv run pre-commit run --from-ref HEAD~1 --to-ref HEAD 2>&1 | tee /tmp/precommit.log; then
+# Step 3: Run pre-commit hooks over the full branch diff vs main
+echo "🔍 Step 2/5: Running pre-commit hooks (branch diff vs main)..."
+
+# Resolve a base ref to diff against (prefer local main, fall back to origin/main).
+BASE_REF=""
+for candidate in main origin/main; do
+    if git rev-parse --verify "$candidate" > /dev/null 2>&1; then
+        BASE_REF="$candidate"
+        break
+    fi
+done
+
+FROM_REF="HEAD~1"
+if [ -n "$BASE_REF" ]; then
+    if MERGE_BASE=$(git merge-base "$BASE_REF" HEAD 2>/dev/null); then
+        if [ "$MERGE_BASE" = "$(git rev-parse HEAD)" ]; then
+            # HEAD has no divergent commits vs the base (e.g. running on main itself).
+            # Diffing HEAD..HEAD would check nothing, so fall back to the last commit.
+            echo "⚠️  HEAD has no commits ahead of $BASE_REF; falling back to HEAD~1"
+        else
+            FROM_REF="$MERGE_BASE"
+        fi
+    else
+        echo "⚠️  No merge-base found with $BASE_REF; falling back to HEAD~1 (only last commit will be linted)"
+    fi
+else
+    echo "⚠️  Could not resolve local 'main' or 'origin/main'; falling back to HEAD~1 (only last commit will be linted)"
+fi
+
+if ! uv run pre-commit run --from-ref "$FROM_REF" --to-ref HEAD 2>&1 | tee /tmp/precommit.log; then
     echo "❌ Pre-commit hooks failed"
     cat /tmp/precommit.log
     exit 1

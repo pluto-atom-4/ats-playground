@@ -42,11 +42,7 @@ def compare_extractions(extracted: dict, expected: dict) -> Any:
 
         precision = len(correct) / len(extracted_set) if extracted_set else 0
         recall = len(correct) / len(expected_set) if expected_set else 0
-        f1 = (
-            2 * (precision * recall) / (precision + recall)
-            if (precision + recall) > 0
-            else 0
-        )
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
         results[category] = {
             "precision": round(precision, 2),

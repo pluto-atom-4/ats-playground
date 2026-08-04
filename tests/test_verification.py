@@ -138,13 +138,9 @@ class TestJobReviewer:
         """Test retrieving confirmed jobs."""
         reviewer = JobReviewer(db_path=temp_db)
 
-        reviewer.save_review(
-            "job_1", "Engineer", "SF", "confirmed", tokens=100, estimated_cost=0.0003
-        )
+        reviewer.save_review("job_1", "Engineer", "SF", "confirmed", tokens=100, estimated_cost=0.0003)
         reviewer.save_review("job_2", "Designer", "NYC", "rejected", reason="location")
-        reviewer.save_review(
-            "job_3", "Manager", "LA", "confirmed", tokens=80, estimated_cost=0.0002
-        )
+        reviewer.save_review("job_3", "Manager", "LA", "confirmed", tokens=80, estimated_cost=0.0002)
 
         confirmed = reviewer.get_confirmed_jobs()
         assert len(confirmed) == 2

@@ -62,11 +62,7 @@ def validate_model(model_id: str) -> None:
     if resolved_id not in SUPPORTED_MODELS:
         aliases = ", ".join(MODEL_ALIASES.keys())
         supported = ", ".join(SUPPORTED_MODELS.keys())
-        raise ValueError(
-            f"Invalid model: {model_id}\n"
-            f"  Aliases: {aliases}\n"
-            f"  Full IDs: {supported}"
-        )
+        raise ValueError(f"Invalid model: {model_id}\n  Aliases: {aliases}\n  Full IDs: {supported}")
 
 
 def get_model_pricing(model_id: str) -> Tuple[float, float]:

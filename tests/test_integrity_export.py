@@ -238,7 +238,7 @@ def test_json_with_special_characters(exporter, tmp_path):
     records = [
         {
             "issue_type": "test",
-            "details": 'Contains "quotes" and \'single quotes\' and special chars: é, ñ',
+            "details": "Contains \"quotes\" and 'single quotes' and special chars: é, ñ",
             "record_id": "job_special_chars_@#$",
         }
     ]

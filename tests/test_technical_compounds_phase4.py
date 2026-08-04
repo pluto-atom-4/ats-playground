@@ -47,10 +47,18 @@ class TestCompoundDetectionAccuracy:
     def test_single_word_no_false_positives(self):
         """Test single words don't create false positives."""
         single_words = [
-            "python", "java", "javascript",
-            "docker", "kubernetes", "aws",
-            "leadership", "communication", "teamwork",
-            "software", "data", "system",  # Keywords alone should NOT match
+            "python",
+            "java",
+            "javascript",
+            "docker",
+            "kubernetes",
+            "aws",
+            "leadership",
+            "communication",
+            "teamwork",
+            "software",
+            "data",
+            "system",  # Keywords alone should NOT match
         ]
 
         for word in single_words:
@@ -71,8 +79,7 @@ class TestCompoundDetectionAccuracy:
             is_detected = is_technical_compound(phrase)
             if is_detected:
                 confidence = get_confidence_score(phrase)
-                assert confidence >= 0.5, \
-                    f"Confidence too low for partial match: {phrase} ({confidence})"
+                assert confidence >= 0.5, f"Confidence too low for partial match: {phrase} ({confidence})"
 
     def test_detection_rate_metrics(self):
         """Validate overall detection rate on test corpus."""
@@ -133,9 +140,7 @@ class TestMetricsImprovement:
         tech_lower = [t.lower() for t in technologies]
 
         # Verify compounds moved to tech
-        has_compounds_in_tech = any(
-            "software" in t and "development" in t for t in tech_lower
-        ) or any(
+        has_compounds_in_tech = any("software" in t and "development" in t for t in tech_lower) or any(
             "data" in t and "processing" in t for t in tech_lower
         )
 
@@ -188,26 +193,20 @@ Technologies: Python, Docker, Kubernetes, REST API.
         ]
 
         total_compounds_found = 0
-        total_compounds_expected = sum(
-            len(job["expected_compounds"]) for job in test_jobs
-        )
+        total_compounds_expected = sum(len(job["expected_compounds"]) for job in test_jobs)
 
         for job in test_jobs:
             skills, technologies, requirements = preprocessor.extract_entities(job["text"])
 
             tech_lower = [t.lower() for t in technologies]
-            found_compounds = [
-                c for c in job["expected_compounds"]
-                if any(c in t for t in tech_lower)
-            ]
+            found_compounds = [c for c in job["expected_compounds"] if any(c in t for t in tech_lower)]
             total_compounds_found += len(found_compounds)
 
             print(f"\n{job['title']}:")
             print(f"  Expected compounds: {job['expected_compounds']}")
             print(f"  Found in technologies: {found_compounds}")
 
-        detection_rate = (total_compounds_found / total_compounds_expected * 100
-                         if total_compounds_expected > 0 else 0)
+        detection_rate = total_compounds_found / total_compounds_expected * 100 if total_compounds_expected > 0 else 0
         print(f"\nOverall compound detection rate: {detection_rate:.1f}%")
 
 
@@ -277,8 +276,8 @@ class TestEdgeCases:
         """Test confidence thresholds at boundary values."""
         # Test various thresholds
         threshold_tests = [
-            ("software development", 0.0, True),   # High confidence ≥ 0.0
-            ("software development", 0.5, True),   # High confidence ≥ 0.5
+            ("software development", 0.0, True),  # High confidence ≥ 0.0
+            ("software development", 0.5, True),  # High confidence ≥ 0.5
             ("software development", 0.95, True),  # High confidence ≥ 0.95
             ("python", 0.5, False),  # No confidence, threshold=0.5
             ("python", 1.0, False),  # No confidence, threshold=1.0
@@ -286,8 +285,7 @@ class TestEdgeCases:
 
         for phrase, threshold, expected in threshold_tests:
             result = reclassify_compound(phrase, confidence_threshold=threshold)
-            assert result == expected, \
-                f"Threshold test failed for '{phrase}' with threshold={threshold}"
+            assert result == expected, f"Threshold test failed for '{phrase}' with threshold={threshold}"
 
     def test_partial_substring_matching(self, preprocessor):
         """Test that partial matches work correctly."""
@@ -316,8 +314,9 @@ class TestConfidenceScoreValidation:
 
         for phrase, min_confidence, max_confidence in test_cases:
             score = get_confidence_score(phrase)
-            assert min_confidence <= score <= max_confidence, \
+            assert min_confidence <= score <= max_confidence, (
                 f"Score for '{phrase}' outside range [{min_confidence}, {max_confidence}]: {score}"
+            )
             print(f"'{phrase}': {score:.2f}")
 
     def test_confidence_scores_ordered(self):
@@ -331,12 +330,11 @@ class TestConfidenceScoreValidation:
         # Non-matches should have zero confidence
         no_match_score = get_confidence_score("python")
 
-        assert exact_score >= 0.8, \
-            f"Exact match score should be >= 0.8, got {exact_score}"
-        assert keyword_score > no_match_score, \
+        assert exact_score >= 0.8, f"Exact match score should be >= 0.8, got {exact_score}"
+        assert keyword_score > no_match_score, (
             f"Keyword score ({keyword_score}) should exceed non-match ({no_match_score})"
-        assert no_match_score == 0.0, \
-            f"Non-match should have 0.0 confidence, got {no_match_score}"
+        )
+        assert no_match_score == 0.0, f"Non-match should have 0.0 confidence, got {no_match_score}"
 
         print("Confidence ordering (correct):")
         print(f"  Exact match: {exact_score:.2f}")
@@ -362,18 +360,27 @@ class TestValidationSummary:
             confidence = get_confidence_score(compound)
 
             assert is_detected, f"Issue #191 compound not detected: {compound}"
-            assert confidence >= 0.8, \
-                f"Issue #191 compound has low confidence: {compound} ({confidence})"
+            assert confidence >= 0.8, f"Issue #191 compound has low confidence: {compound} ({confidence})"
 
             print(f"✓ '{compound}': detected with confidence {confidence:.2f}")
 
     def test_no_hard_technology_false_positives(self):
         """Verify no hard technologies flagged as compounds."""
         hard_techs = [
-            "python", "javascript", "java", "c#",
-            "docker", "kubernetes", "aws", "azure",
-            "postgresql", "mongodb", "redis",
-            "react", "angular", "vue",
+            "python",
+            "javascript",
+            "java",
+            "c#",
+            "docker",
+            "kubernetes",
+            "aws",
+            "azure",
+            "postgresql",
+            "mongodb",
+            "redis",
+            "react",
+            "angular",
+            "vue",
         ]
 
         false_positives = []
@@ -381,18 +388,23 @@ class TestValidationSummary:
             if is_technical_compound(tech):
                 false_positives.append(tech)
 
-        assert len(false_positives) == 0, \
-            f"False positives for hard technologies: {false_positives}"
+        assert len(false_positives) == 0, f"False positives for hard technologies: {false_positives}"
 
         print(f"✓ No false positives among {len(hard_techs)} hard technologies")
 
     def test_no_soft_skill_false_positives(self):
         """Verify no soft skills flagged as compounds."""
         soft_skills = [
-            "leadership", "communication", "teamwork",
-            "problem-solving", "analytical thinking",
-            "adaptability", "creativity", "collaboration",
-            "critical thinking", "time management",
+            "leadership",
+            "communication",
+            "teamwork",
+            "problem-solving",
+            "analytical thinking",
+            "adaptability",
+            "creativity",
+            "collaboration",
+            "critical thinking",
+            "time management",
         ]
 
         false_positives = []
@@ -400,7 +412,6 @@ class TestValidationSummary:
             if is_technical_compound(skill):
                 false_positives.append(skill)
 
-        assert len(false_positives) == 0, \
-            f"False positives for soft skills: {false_positives}"
+        assert len(false_positives) == 0, f"False positives for soft skills: {false_positives}"
 
         print(f"✓ No false positives among {len(soft_skills)} soft skills")

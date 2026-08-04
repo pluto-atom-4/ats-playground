@@ -130,9 +130,7 @@ def test_integrity_check_with_orphan(test_db):
 
 def test_integrity_check_json_format(test_db):
     """Check command should support JSON format."""
-    result = runner.invoke(
-        app, ["integrity", "check", "--format", "json", "--db", test_db]
-    )
+    result = runner.invoke(app, ["integrity", "check", "--format", "json", "--db", test_db])
     assert result.exit_code == 0
 
     # JSON is embedded in output, find and extract it
@@ -154,9 +152,7 @@ def test_integrity_check_json_format(test_db):
 def test_integrity_check_save_to_file(test_db, tmp_path):
     """Check command should save report to file."""
     output_file = str(tmp_path / "report.md")
-    result = runner.invoke(
-        app, ["integrity", "check", "--output", output_file, "--db", test_db]
-    )
+    result = runner.invoke(app, ["integrity", "check", "--output", output_file, "--db", test_db])
     assert result.exit_code == 0
     assert Path(output_file).exists()
     assert "Database Integrity Report" in Path(output_file).read_text()
@@ -182,9 +178,7 @@ def test_integrity_purge_dry_run(test_db):
     )
     conn.commit()
 
-    result = runner.invoke(
-        app, ["integrity", "purge", "--type", "orphaned_assessments", "--db", test_db]
-    )
+    result = runner.invoke(app, ["integrity", "purge", "--type", "orphaned_assessments", "--db", test_db])
     assert result.exit_code == 0
     assert "[DRY RUN]" in result.stdout
     assert "Would delete" in result.stdout
@@ -229,8 +223,6 @@ def test_integrity_repair_dry_run(test_db):
 
 def test_integrity_repair_requires_force(test_db):
     """Repair command should require --force for actual repair."""
-    result = runner.invoke(
-        app, ["integrity", "repair", "--no-dry-run", "--db", test_db]
-    )
+    result = runner.invoke(app, ["integrity", "repair", "--no-dry-run", "--db", test_db])
     # Should still work with no repairs, or fail if force required
     assert result.exit_code in [0, 1]

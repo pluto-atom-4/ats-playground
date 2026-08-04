@@ -83,13 +83,17 @@ def main():
     print("COMPARISON TABLE")
     print("=" * 90)
 
-    print(f"\n{'Company':<20} {'Total Req':<12} {'Avg/Job':<12} {'High Conf ≥0.90':<18} {'Medium 0.80-0.90':<18} {'Low <0.80':<12}")
+    print(
+        f"\n{'Company':<20} {'Total Req':<12} {'Avg/Job':<12} {'High Conf ≥0.90':<18} {'Medium 0.80-0.90':<18} {'Low <0.80':<12}"
+    )
     print("-" * 90)
 
     for company in companies:
         if company in requirement_stats:
             stats = requirement_stats[company]
-            print(f"{company:<20} {stats['total']:<12} {stats['avg_per_job']:<12} {stats['high_conf']:<18} {stats['medium_conf']:<18} {stats['low_conf']:<12}")
+            print(
+                f"{company:<20} {stats['total']:<12} {stats['avg_per_job']:<12} {stats['high_conf']:<18} {stats['medium_conf']:<18} {stats['low_conf']:<12}"
+            )
 
     # Key insights
     print("\n\n" + "=" * 90)

@@ -62,7 +62,9 @@ def main():
 
             print(f"\nJob {job_idx}: {title}")
             print(f"  Description: {desc_len:,} chars | Domain: {domain}")
-            print(f"  Extracted: {skills_count} skills, {techs_count} tech, {reqs_count} requirements (density: {density:.1f}/100 chars)")
+            print(
+                f"  Extracted: {skills_count} skills, {techs_count} tech, {reqs_count} requirements (density: {density:.1f}/100 chars)"
+            )
             print(f"  Confidence: Skills={avg_skill_conf:.2f}, Tech={avg_tech_conf:.2f}, Req={avg_req_conf:.2f}")
 
             # Show best extractions by confidence
@@ -76,26 +78,30 @@ def main():
                 techs_str = ", ".join(f"{t['value'][:20]}({t['confidence']:.2f})" for t in best_techs)
                 print(f"  Top tech: {techs_str}")
 
-            all_jobs.append({
-                "company": company,
-                "title": title,
-                "domain": domain,
-                "desc_len": desc_len,
-                "skills": skills_count,
-                "tech": techs_count,
-                "req": reqs_count,
-                "skill_conf": avg_skill_conf,
-                "tech_conf": avg_tech_conf,
-                "req_conf": avg_req_conf,
-                "density": density,
-            })
+            all_jobs.append(
+                {
+                    "company": company,
+                    "title": title,
+                    "domain": domain,
+                    "desc_len": desc_len,
+                    "skills": skills_count,
+                    "tech": techs_count,
+                    "req": reqs_count,
+                    "skill_conf": avg_skill_conf,
+                    "tech_conf": avg_tech_conf,
+                    "req_conf": avg_req_conf,
+                    "density": density,
+                }
+            )
 
     # Summary
     print("\n\n" + "=" * 90)
     print("OVERALL STATISTICS")
     print("=" * 90)
 
-    print(f"\n{'Company':<20} {'Jobs':<6} {'Avg Desc (chars)':<18} {'Skills':<10} {'Tech':<10} {'Req':<10} {'Density':<10}")
+    print(
+        f"\n{'Company':<20} {'Jobs':<6} {'Avg Desc (chars)':<18} {'Skills':<10} {'Tech':<10} {'Req':<10} {'Density':<10}"
+    )
     print("-" * 90)
 
     by_company = {}
@@ -115,7 +121,9 @@ def main():
         avg_req = sum(j["req"] for j in jobs) / len(jobs)
         avg_density = sum(j["density"] for j in jobs) / len(jobs)
 
-        print(f"{company:<20} {len(jobs):<6} {avg_desc:<18.0f} {avg_skills:<10.1f} {avg_tech:<10.1f} {avg_req:<10.1f} {avg_density:<10.2f}")
+        print(
+            f"{company:<20} {len(jobs):<6} {avg_desc:<18.0f} {avg_skills:<10.1f} {avg_tech:<10.1f} {avg_req:<10.1f} {avg_density:<10.2f}"
+        )
 
     # Extraction capability by domain
     print("\n\nExtraction Capability by Domain:")
@@ -146,9 +154,13 @@ def main():
     low_extraction = sum(1 for j in all_jobs if j["skills"] < 5)
     empty_reqs = sum(1 for j in all_jobs if j["req"] == 0)
 
-    print(f"Jobs with high extraction (15+ skills): {high_extraction}/{total_jobs} ({100*high_extraction/total_jobs:.0f}%)")
-    print(f"Jobs with low extraction (<5 skills): {low_extraction}/{total_jobs} ({100*low_extraction/total_jobs:.0f}%)")
-    print(f"Jobs with no requirements extracted: {empty_reqs}/{total_jobs} ({100*empty_reqs/total_jobs:.0f}%)")
+    print(
+        f"Jobs with high extraction (15+ skills): {high_extraction}/{total_jobs} ({100 * high_extraction / total_jobs:.0f}%)"
+    )
+    print(
+        f"Jobs with low extraction (<5 skills): {low_extraction}/{total_jobs} ({100 * low_extraction / total_jobs:.0f}%)"
+    )
+    print(f"Jobs with no requirements extracted: {empty_reqs}/{total_jobs} ({100 * empty_reqs / total_jobs:.0f}%)")
 
     # Save results
     output_file = project_root / ".claude/prototypes/quality_analysis_results.json"
@@ -162,7 +174,7 @@ def main():
                     "high_extraction_jobs": high_extraction,
                     "low_extraction_jobs": low_extraction,
                     "no_requirements_jobs": empty_reqs,
-                }
+                },
             },
             f,
             indent=2,

@@ -53,9 +53,7 @@ class TestColorSchemeSupport:
         css = panel.DEFAULT_CSS
 
         # Should use semantic tokens like $primary, $accent, $boost
-        assert (
-            "$primary" in css or "$accent" in css or "$boost" in css
-        ), "CSS must use semantic color tokens"
+        assert "$primary" in css or "$accent" in css or "$boost" in css, "CSS must use semantic color tokens"
 
     def test_dashboard_color_support(self) -> None:
         """Dashboard CSS includes color definitions."""
@@ -120,9 +118,7 @@ class TestAccessibility:
     def test_error_messages_clear(self, state_manager: StateManager) -> None:
         """Error messages are informative."""
         state_manager.start_phase("crawl", total_items=5)
-        state_manager.increment_phase_progress(
-            "crawl", tokens=0, error="Connection timeout: timeout=30s"
-        )
+        state_manager.increment_phase_progress("crawl", tokens=0, error="Connection timeout: timeout=30s")
 
         errors = state_manager.current_errors
         assert len(errors) > 0, "Errors should be recorded"
@@ -153,10 +149,7 @@ class TestContentOverflow:
 
     def test_many_top_matches_limited(self, state_manager: StateManager) -> None:
         """Top matches capped at 5 regardless of input."""
-        jobs = [
-            {"id": f"j{i}", "title": f"Job {i}", "overall_score": 100 - i}
-            for i in range(100)
-        ]
+        jobs = [{"id": f"j{i}", "title": f"Job {i}", "overall_score": 100 - i} for i in range(100)]
 
         state_manager.update_top_matches(jobs)
 
@@ -167,9 +160,7 @@ class TestContentOverflow:
         state_manager.start_phase("crawl", total_items=100)
 
         for i in range(20):
-            state_manager.increment_phase_progress(
-                "crawl", tokens=0, error=f"Error number {i}"
-            )
+            state_manager.increment_phase_progress("crawl", tokens=0, error=f"Error number {i}")
 
         assert len(state_manager.current_errors) == 20
         assert "Error number 0" in state_manager.current_errors

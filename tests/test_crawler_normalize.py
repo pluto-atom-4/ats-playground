@@ -107,10 +107,7 @@ class TestMarkdownSectionHeaderSynthesis:
     def test_bold_qualifications_line_becomes_h2(self):
         """A bold-only 'Qualifications' line (no real <h2>) becomes '## Qualifications'."""
         crawler = Crawler()
-        html = (
-            "<p><strong>Qualifications</strong></p>"
-            "<ul><li>5+ years experience</li><li>Bachelor's degree</li></ul>"
-        )
+        html = "<p><strong>Qualifications</strong></p><ul><li>5+ years experience</li><li>Bachelor's degree</li></ul>"
         result = crawler._normalize_description(html)
         assert "## Qualifications" in result
 
@@ -124,10 +121,7 @@ class TestMarkdownSectionHeaderSynthesis:
     def test_bold_subsection_followed_by_list_becomes_h3(self):
         """A bold standalone line followed by a bullet list becomes a '### Subsection'."""
         crawler = Crawler()
-        html = (
-            "<p><strong>Team Culture</strong></p>"
-            "<ul><li>We value transparency</li><li>We move fast</li></ul>"
-        )
+        html = "<p><strong>Team Culture</strong></p><ul><li>We value transparency</li><li>We move fast</li></ul>"
         result = crawler._normalize_description(html)
         assert "### Team Culture" in result
 
@@ -187,10 +181,7 @@ class TestMarkdownSectionDividers:
         line of the document gets no leading blank line / '---' (nothing
         precedes it to separate)."""
         crawler = Crawler()
-        html = (
-            "<p><strong>Qualifications</strong></p>"
-            "<ul><li>5+ years experience</li><li>Bachelor's degree</li></ul>"
-        )
+        html = "<p><strong>Qualifications</strong></p><ul><li>5+ years experience</li><li>Bachelor's degree</li></ul>"
         result = crawler._normalize_description(html)
         lines = result.split("\n")
         assert lines[0] == "## Qualifications"
@@ -200,10 +191,7 @@ class TestMarkdownSectionDividers:
         """A synthesized '### Team Culture' header that is the very first
         line of the document also gets no leading divider."""
         crawler = Crawler()
-        html = (
-            "<p><strong>Team Culture</strong></p>"
-            "<ul><li>We value transparency</li><li>We move fast</li></ul>"
-        )
+        html = "<p><strong>Team Culture</strong></p><ul><li>We value transparency</li><li>We move fast</li></ul>"
         result = crawler._normalize_description(html)
         lines = result.split("\n")
         assert lines[0] == "### Team Culture"

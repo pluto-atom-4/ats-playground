@@ -26,11 +26,7 @@ def calculate_metrics(extracted: set, expected: set) -> Any:
     correct = extracted & expected
     precision = len(correct) / len(extracted) if extracted else 0
     recall = len(correct) / len(expected) if expected else 0
-    f1 = (
-        2 * (precision * recall) / (precision + recall)
-        if (precision + recall) > 0
-        else 0
-    )
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
     return {
         "f1": round(f1, 2),
         "precision": round(precision, 2),
@@ -79,7 +75,9 @@ def main():
             print(f"  Skills: {len(extracted_skills)} extracted")
             print(f"  Tech: {len(extracted_techs)} extracted")
             print(f"  Req: {len(extracted_reqs)} extracted")
-            print(f"  Avg confidence: Skills={result['metrics']['avg_skills_confidence']:.2f}, Tech={result['metrics']['avg_tech_confidence']:.2f}, Req={result['metrics']['avg_req_confidence']:.2f}")
+            print(
+                f"  Avg confidence: Skills={result['metrics']['avg_skills_confidence']:.2f}, Tech={result['metrics']['avg_tech_confidence']:.2f}, Req={result['metrics']['avg_req_confidence']:.2f}"
+            )
 
             # Show top extractions
             if extracted_skills:
@@ -87,16 +85,18 @@ def main():
             if extracted_techs:
                 print(f"  Top tech: {', '.join(sorted(extracted_techs)[:3])}")
 
-            company_results.append({
-                "title": title,
-                "domain": domain,
-                "skills_count": len(extracted_skills),
-                "tech_count": len(extracted_techs),
-                "req_count": len(extracted_reqs),
-                "avg_skill_conf": result['metrics']['avg_skills_confidence'],
-                "avg_tech_conf": result['metrics']['avg_tech_confidence'],
-                "avg_req_conf": result['metrics']['avg_req_confidence'],
-            })
+            company_results.append(
+                {
+                    "title": title,
+                    "domain": domain,
+                    "skills_count": len(extracted_skills),
+                    "tech_count": len(extracted_techs),
+                    "req_count": len(extracted_reqs),
+                    "avg_skill_conf": result["metrics"]["avg_skills_confidence"],
+                    "avg_tech_conf": result["metrics"]["avg_tech_confidence"],
+                    "avg_req_conf": result["metrics"]["avg_req_confidence"],
+                }
+            )
 
         results_by_company[company] = company_results
         all_results.extend(company_results)
@@ -133,7 +133,11 @@ def main():
     print(f"\n\n{'Category':<15} {'Average Confidence':<20} {'Range':<40}")
     print("-" * 90)
 
-    for category, key in [("Skills", "avg_skill_conf"), ("Technologies", "avg_tech_conf"), ("Requirements", "avg_req_conf")]:
+    for category, key in [
+        ("Skills", "avg_skill_conf"),
+        ("Technologies", "avg_tech_conf"),
+        ("Requirements", "avg_req_conf"),
+    ]:
         values = [r[key] for r in all_results]
         avg = sum(values) / len(values) if values else 0
         min_val = min(values) if values else 0

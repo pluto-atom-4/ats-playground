@@ -40,8 +40,7 @@ class JobNERExtractor:
             self.nlp = spacy.load(model)
         except OSError as err:
             raise RuntimeError(
-                f"spaCy model '{model}' not found. Install with: "
-                f"python -m spacy download {model}"
+                f"spaCy model '{model}' not found. Install with: python -m spacy download {model}"
             ) from err
 
         self.company_name = company_name
@@ -270,10 +269,13 @@ class JobNERExtractor:
         for req in reqs:
             if req not in requirements_with_conf:
                 # Determine if this is from a structured section or pattern
-                is_structured = any(
-                    pattern in req.lower()
-                    for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
-                ) and len(req) > 20
+                is_structured = (
+                    any(
+                        pattern in req.lower()
+                        for pattern in ["bachelor", "clearance", "citizenship", "drug", "codevue", "u.s. person"]
+                    )
+                    and len(req) > 20
+                )
 
                 if is_structured:
                     method = ExtractionMethod.STRUCTURED_BULLET
@@ -449,13 +451,11 @@ class JobNERExtractor:
         """Extract advanced degree requirements."""
         degree_reqs = set()
         advanced_degree_match = re.search(
-            r"(?:M\.S\.|MS|Master|PhD|Ph\.D\.)\s+(?:or|\/)\s+(?:PhD|Ph\.D\.)",
-            text,
-            re.IGNORECASE
+            r"(?:M\.S\.|MS|Master|PhD|Ph\.D\.)\s+(?:or|\/)\s+(?:PhD|Ph\.D\.)", text, re.IGNORECASE
         )
         if advanced_degree_match:
             # Check if marked as preferred
-            context = text[max(0, advanced_degree_match.start() - 100):advanced_degree_match.end() + 100]
+            context = text[max(0, advanced_degree_match.start() - 100) : advanced_degree_match.end() + 100]
             if "preferred" in context.lower():
                 degree_reqs.add("Advanced degree (M.S. or Ph.D.) in a relevant engineering field (Preferred)")
             else:
@@ -567,8 +567,7 @@ class JobNERExtractor:
 
         # Build result with confidence scores
         def build_confident_list(
-            values: set[str],
-            conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]
+            values: set[str], conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]
         ) -> list[dict[str, float | str]]:
             """Build list of dicts with value and confidence."""
             result: list[dict[str, float | str]] = []
@@ -594,7 +593,7 @@ class JobNERExtractor:
                 "avg_skills_confidence": round(average_confidence(build_confident_list(skills, skills_with_conf)), 2),
                 "avg_tech_confidence": round(average_confidence(build_confident_list(techs, techs_with_conf)), 2),
                 "avg_req_confidence": round(average_confidence(build_confident_list(reqs, reqs_with_conf)), 2),
-            }
+            },
         }
 
     def extract_all(self, text: str) -> dict:

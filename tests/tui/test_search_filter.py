@@ -37,9 +37,7 @@ class TestFilterBar:
 class TestJobTableFilterLogic:
     """Tests for job table search and filter logic (no Textual context required)."""
 
-    def _filter_by_search(
-        self, jobs: list[dict], query: str
-    ) -> list[dict]:
+    def _filter_by_search(self, jobs: list[dict], query: str) -> list[dict]:
         """Simple business logic filter: search by title/company/location."""
         if not query:
             return jobs
@@ -52,9 +50,7 @@ class TestJobTableFilterLogic:
             or query_lower in j.get("location", "").lower()
         ]
 
-    def _filter_by_status(
-        self, jobs: list[dict], status: str | None
-    ) -> list[dict]:
+    def _filter_by_status(self, jobs: list[dict], status: str | None) -> list[dict]:
         """Simple business logic filter: filter by status."""
         if status is None:
             return jobs

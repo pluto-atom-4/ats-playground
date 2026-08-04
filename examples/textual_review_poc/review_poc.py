@@ -69,14 +69,11 @@ class ReviewPoCApp(App):
         for i, (job_id, title, company, description) in enumerate(self.jobs, 1):
             # Update status
             status.update(
-                f"[bold]Job {i}/{len(self.jobs)}: {title}[/bold]\n"
-                f"Use Tab to navigate, Enter to select, Escape to skip"
+                f"[bold]Job {i}/{len(self.jobs)}: {title}[/bold]\nUse Tab to navigate, Enter to select, Escape to skip"
             )
 
             # Show dialog and wait for decision
-            decision = await self.app.push_screen_wait(
-                ReviewDialog(job_id, title, company, description)
-            )
+            decision = await self.app.push_screen_wait(ReviewDialog(job_id, title, company, description))
 
             # Record decision
             self.state.record_decision(job_id, decision)
@@ -126,6 +123,7 @@ def main():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Restore terminal state (critical after TUI exit)

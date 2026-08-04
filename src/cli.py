@@ -43,11 +43,7 @@ class ResultItem(TypedDict):
 # ============================================================================
 
 
-
-
-def load_companies_config(
-    config: Optional[str] = None, config_dir: Optional[str] = None
-) -> dict[str, Any]:
+def load_companies_config(config: Optional[str] = None, config_dir: Optional[str] = None) -> dict[str, Any]:
     """Load companies from config file or directory."""
     if config:
         return load_companies_from_file(Path(config))
@@ -123,6 +119,7 @@ def filter_enabled_companies(companies: dict[str, Any]) -> tuple[dict[str, Any],
             enabled[company_name] = company_data
 
     return enabled, disabled
+
 
 app = typer.Typer(
     name="ats-cli",
@@ -321,9 +318,7 @@ def _build_preprocess_clean_text(job: dict) -> str:
     return clean_text
 
 
-def _preprocess_job_for_phase(
-    job: dict, idx: int, chunker: Any, counter: Any
-) -> Tuple[Optional[dict], int, float]:
+def _preprocess_job_for_phase(job: dict, idx: int, chunker: Any, counter: Any) -> Tuple[Optional[dict], int, float]:
     """Preprocess a single job.
 
     Args:
@@ -365,9 +360,7 @@ def _preprocess_job_for_phase(
         return None, 0, 0.0
 
 
-def _preprocess_jobs_file(
-    job_file: Path, chunker: Any, counter: Any
-) -> Tuple[list, int, int, float]:
+def _preprocess_jobs_file(job_file: Path, chunker: Any, counter: Any) -> Tuple[list, int, int, float]:
     """Process all jobs in a file.
 
     Args:
@@ -722,7 +715,7 @@ def _run_phase_assess_jobs_loop(
             logger.error(f"Assessment failed for job {idx}: {e}", exc_info=True)
             failed += 1
             title = job.get("title", "Unknown")
-            typer.echo(f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n" f"   Error: {e}\n")
+            typer.echo(f"❌ Job {idx}/{len(confirmed_jobs)}: {title}\n   Error: {e}\n")
 
     return assessment_list, failed, total_cost, total_tokens
 
@@ -1052,9 +1045,7 @@ def all(
         help="Use TUI dashboard (auto-detected from TTY if not specified)",
     ),
     no_tui: bool = typer.Option(False, help="Force text output, disable TUI"),
-    interactive: bool = typer.Option(
-        False, help="Enable interactive job review (prompt for each job)"
-    ),
+    interactive: bool = typer.Option(False, help="Enable interactive job review (prompt for each job)"),
     merge_all: bool = typer.Option(
         False,
         "--merge-all",
@@ -1115,9 +1106,7 @@ def all(
 # ============================================================================
 
 
-def _load_and_validate_config(
-    config: Optional[str], config_dir: Optional[str]
-) -> dict[str, Any]:
+def _load_and_validate_config(config: Optional[str], config_dir: Optional[str]) -> dict[str, Any]:
     """Load and validate companies config from file or directory.
 
     Tries config_dir → config → default with fallbacks.
@@ -1381,9 +1370,7 @@ def _preprocess_job_file(
             jobs_data = json.load(f)
 
         for i, job_dict in enumerate(jobs_data, 1):
-            result = _preprocess_single_job(
-                job_dict, chunker, counter, preprocessor, pricing_date, show_estimates, i
-            )
+            result = _preprocess_single_job(job_dict, chunker, counter, preprocessor, pricing_date, show_estimates, i)
             if result:
                 prep_job, tokens, cost = result
                 preprocessed_jobs.append(prep_job)
@@ -1504,9 +1491,7 @@ def preprocess(
 COST_THRESHOLD = 0.10
 
 
-def _resolve_extracted_files(
-    merge_all: bool, extracted: Optional[str], extracted_dir: Path
-) -> list[Path]:
+def _resolve_extracted_files(merge_all: bool, extracted: Optional[str], extracted_dir: Path) -> list[Path]:
     """Resolve extracted job file paths based on merge_all flag.
 
     Args:
@@ -1527,24 +1512,17 @@ def _resolve_extracted_files(
         if not extracted_files:
             typer.echo("❌ No extracted job files found in data/extracted_jobs/", err=True)
             raise typer.Exit(1)
-        logger.info(
-            f"Processing {len(extracted_files)} extracted files: {[f.name for f in extracted_files]}"
-        )
+        logger.info(f"Processing {len(extracted_files)} extracted files: {[f.name for f in extracted_files]}")
         return extracted_files
 
     # Legacy mode: use provided path or hardcoded default
     if extracted is None:
         extracted = "data/extracted_jobs/carbonrobotics_jobs.json"
-        logger.warning(
-            "⚠️  Using hardcoded default for review. "
-            "For multi-company workflows, use: review --merge-all"
-        )
+        logger.warning("⚠️  Using hardcoded default for review. For multi-company workflows, use: review --merge-all")
     return [Path(extracted)]
 
 
-def _recalculate_costs_for_model(
-    model: str, preprocessed: str, stats: Any
-) -> float:
+def _recalculate_costs_for_model(model: str, preprocessed: str, stats: Any) -> float:
     """Recalculate LLM costs for a specific model using preprocessed jobs.
 
     Args:
@@ -1613,9 +1591,7 @@ def _check_cost_threshold(total_cost: float, cost_limit: Optional[float]) -> Non
 
 @app.command()
 def review(
-    extracted: Optional[str] = typer.Option(
-        None, help="Path to extracted jobs JSON (auto-detected if not specified)"
-    ),
+    extracted: Optional[str] = typer.Option(None, help="Path to extracted jobs JSON (auto-detected if not specified)"),
     preprocessed: str = typer.Option(
         "data/extracted_jobs/preprocessed_jobs.json", help="Path to preprocessed jobs JSON"
     ),
@@ -1637,15 +1613,9 @@ def review(
     skip_rejected: bool = typer.Option(
         True, "--skip-rejected", help="Skip jobs with 'rejected' status (default: True)"
     ),
-    skip_assessed: bool = typer.Option(
-        True, "--skip-assessed", help="Skip jobs already assessed (default: True)"
-    ),
-    show_stats: bool = typer.Option(
-        False, "--show-stats", help="Display pipeline statistics before review"
-    ),
-    allow_re_review: bool = typer.Option(
-        False, "--allow-re-review", help="Show prior decisions and allow re-review"
-    ),
+    skip_assessed: bool = typer.Option(True, "--skip-assessed", help="Skip jobs already assessed (default: True)"),
+    show_stats: bool = typer.Option(False, "--show-stats", help="Display pipeline statistics before review"),
+    allow_re_review: bool = typer.Option(False, "--allow-re-review", help="Show prior decisions and allow re-review"),
     cost_limit: Optional[float] = typer.Option(
         None, "--cost-limit", help="Warn if estimated LLM cost exceeds this USD amount"
     ),
@@ -1809,7 +1779,7 @@ def _validate_job_statuses(jobs: List[dict], skip_unconfirmed: bool) -> None:
             f"❌ Found {unconfirmed_count}/{total_count} unconfirmed jobs:\n"
             f"   Use --skip-unconfirmed to proceed anyway\n"
             f"   Or run 'review' phase to confirm all jobs",
-            err=True
+            err=True,
         )
         logger.error(f"Assessment blocked: {unconfirmed_count} unconfirmed jobs found")
         raise typer.Exit(1)
@@ -1867,15 +1837,13 @@ def _validate_preprocessed_jobs(jobs: List[dict]) -> None:
         f"   Job IDs: {', '.join(unpreprocessed[:5])}"
         f"{'...' if len(unpreprocessed) > 5 else ''}\n"
         f"   Run 'preprocess' phase before assessment",
-        err=True
+        err=True,
     )
     logger.error(f"Assessment blocked: {unpreprocessed_count} unpreprocessed jobs found")
     raise typer.Exit(1)
 
 
-def _filter_jobs_by_mode(
-    jobs: List[dict], mode: str, assessment_store: Any
-) -> List[dict]:
+def _filter_jobs_by_mode(jobs: List[dict], mode: str, assessment_store: Any) -> List[dict]:
     """Apply mode filter to jobs (new-only vs all).
 
     Args:
@@ -1895,10 +1863,7 @@ def _filter_jobs_by_mode(
 
     if mode == "new-only":
         original_count = len(jobs)
-        jobs = [
-            j for j in jobs
-            if not assessment_store.get_assessment_by_id(j.get("job_id", ""))
-        ]
+        jobs = [j for j in jobs if not assessment_store.get_assessment_by_id(j.get("job_id", ""))]
         typer.echo(f"📊 Mode filter (new-only): {original_count} → {len(jobs)} jobs\n")
 
     return jobs
@@ -1974,6 +1939,7 @@ def _filter_jobs_by_date(jobs: List[dict], since: Optional[str]) -> List[dict]:
     # Validate date format
     try:
         from datetime import datetime
+
         datetime.fromisoformat(since)
     except ValueError as e:
         typer.echo(
@@ -2006,9 +1972,7 @@ def _filter_jobs_by_date(jobs: List[dict], since: Optional[str]) -> List[dict]:
     return jobs
 
 
-def _verify_assessment_cost(
-    jobs: List[dict], cv_text: str, verify_cost: bool
-) -> bool:
+def _verify_assessment_cost(jobs: List[dict], cv_text: str, verify_cost: bool) -> bool:
     """Estimate and verify assessment cost.
 
     Args:
@@ -2032,6 +1996,7 @@ def _verify_assessment_cost(
         job_desc = job.get("description") or job.get("title", "")
         try:
             from src.tokenization.counter import TokenCounter
+
             counter = TokenCounter()
             est_tokens = counter.count_tokens(cv_text + "\n" + job_desc) + 200
             est_cost = est_tokens * 0.000003
@@ -2039,10 +2004,7 @@ def _verify_assessment_cost(
         except Exception:
             estimated_total += 0.01
 
-    typer.echo(
-        f"💰 Estimated total cost for {len(jobs)} jobs: "
-        f"${estimated_total:.6f}\n"
-    )
+    typer.echo(f"💰 Estimated total cost for {len(jobs)} jobs: ${estimated_total:.6f}\n")
     if not typer.confirm("Proceed with assessment?"):
         typer.echo("Aborted.")
         raise typer.Exit(0)
@@ -2131,26 +2093,17 @@ def _assess_single_job(
         )
 
     except anthropic.RateLimitError as e:
-        typer.echo(
-            f"⏱️  [{idx}/{total}] Rate limited on {title}\n"
-            f"   Continuing with remaining jobs...\n"
-        )
+        typer.echo(f"⏱️  [{idx}/{total}] Rate limited on {title}\n   Continuing with remaining jobs...\n")
         logger.warning(f"[{idx}/{total}] Rate limited on {job_id}: {e}")
         return False, None, {"job_id": job_id, "title": title, "reason": "rate_limited"}
 
     except json.JSONDecodeError as e:
-        typer.echo(
-            f"⚠️  [{idx}/{total}] Failed to parse response for {title}\n"
-            f"   Skipping job...\n"
-        )
+        typer.echo(f"⚠️  [{idx}/{total}] Failed to parse response for {title}\n   Skipping job...\n")
         logger.error(f"[{idx}/{total}] Parse error for {job_id}: {e}")
         return False, None, {"job_id": job_id, "title": title, "reason": "parse_error"}
 
     except Exception as e:
-        typer.echo(
-            f"❌ [{idx}/{total}] {title}\n"
-            f"   Error: {type(e).__name__}: {e}\n"
-        )
+        typer.echo(f"❌ [{idx}/{total}] {title}\n   Error: {type(e).__name__}: {e}\n")
         logger.exception(f"[{idx}/{total}] Assessment failed for {job_id}")
         return (
             False,
@@ -2203,8 +2156,7 @@ def _display_assessment_summary(
         for i, result_item in enumerate(top_results, 1):
             entity_score = result_item.get("entity_score", 0)
             typer.echo(
-                f"   {i}. {result_item['title']} "
-                f"(LLM: {result_item['llm_score']:.0f}, Entity: {entity_score:.0f})"
+                f"   {i}. {result_item['title']} (LLM: {result_item['llm_score']:.0f}, Entity: {entity_score:.0f})"
             )
 
     typer.echo("\n✅ Assessment complete!\n")
@@ -2268,9 +2220,7 @@ def assess(
 
         # Apply filters in sequence
         confirmed_jobs = _filter_jobs_by_mode(confirmed_jobs, mode, assessment_store)
-        confirmed_jobs = _filter_jobs_by_score_threshold(
-            confirmed_jobs, score_threshold, assessment_store
-        )
+        confirmed_jobs = _filter_jobs_by_score_threshold(confirmed_jobs, score_threshold, assessment_store)
         confirmed_jobs = _filter_jobs_by_date(confirmed_jobs, since)
 
         # Apply job limit
@@ -2303,9 +2253,7 @@ def assess(
                     failed_jobs.append(error)
 
         # Display summary
-        _display_assessment_summary(
-            results, failed_jobs, total_cost, total_tokens, successful, len(confirmed_jobs)
-        )
+        _display_assessment_summary(results, failed_jobs, total_cost, total_tokens, successful, len(confirmed_jobs))
 
         logger.info(
             f"Assessment complete: {successful} successful, "
@@ -2345,9 +2293,7 @@ def _validate_score_range(min_score: int, max_score: int) -> None:
         raise typer.Exit(1)
 
 
-def _parse_date_filters(
-    from_date: Optional[str], to_date: Optional[str]
-) -> Tuple[Optional[date], Optional[date]]:
+def _parse_date_filters(from_date: Optional[str], to_date: Optional[str]) -> Tuple[Optional[date], Optional[date]]:
     """Parse and validate date filter parameters.
 
     Args:
@@ -2376,9 +2322,7 @@ def _parse_date_filters(
     return date_from, date_to
 
 
-def _build_filter_message(
-    min_score: int, max_score: int, from_date: Optional[str], to_date: Optional[str]
-) -> str:
+def _build_filter_message(min_score: int, max_score: int, from_date: Optional[str], to_date: Optional[str]) -> str:
     """Build human-readable filter message for output.
 
     Args:
@@ -2397,9 +2341,7 @@ def _build_filter_message(
     return filter_msg
 
 
-def _generate_and_save_report(
-    exporter: MarkdownExporter, output: str, template: str
-) -> Path:
+def _generate_and_save_report(exporter: MarkdownExporter, output: str, template: str) -> Path:
     """Generate report and save to file.
 
     Args:
@@ -2410,9 +2352,7 @@ def _generate_and_save_report(
     Returns:
         Path object for the output file
     """
-    report = (
-        exporter.generate_summary() if template == "summary" else exporter.generate_report()
-    )
+    report = exporter.generate_summary() if template == "summary" else exporter.generate_report()
 
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2421,9 +2361,7 @@ def _generate_and_save_report(
     return output_path
 
 
-def _display_export_summary(
-    output_path: Path, filtered_count: int, total_count: int, template: str
-) -> None:
+def _display_export_summary(output_path: Path, filtered_count: int, total_count: int, template: str) -> None:
     """Display export summary information to user.
 
     Args:
@@ -2643,9 +2581,7 @@ def _validate_and_parse_purge_dates(
     return before_parsed, after_parsed
 
 
-def _show_purge_preview(
-    affected_count: int, total: int, before_date: Optional[str], after_date: Optional[str]
-) -> None:
+def _show_purge_preview(affected_count: int, total: int, before_date: Optional[str], after_date: Optional[str]) -> None:
     """Show preview of what will be purged.
 
     Args:
@@ -2760,10 +2696,7 @@ def purge(
         if not dry_run:
             if not confirm:
                 typer.echo("❌ Destructive operation requires --confirm flag", err=True)
-                example = (
-                    "uv run python -m src.cli purge --before-date 2026-04-01 "
-                    "--no-dry-run --confirm"
-                )
+                example = "uv run python -m src.cli purge --before-date 2026-04-01 --no-dry-run --confirm"
                 typer.echo(f"   Example: {example}", err=True)
                 raise typer.Exit(1)
 
@@ -2815,16 +2748,12 @@ def query(
                 filter_info += f", company={company}"
             filter_info += f", limit {limit})"
             typer.echo(f"🔍 Searching for {filter_info}...\n")
-            results = store.search_by_keyword(
-                keyword, min_score=min_s, max_score=max_s, company=company, limit=limit
-            )
+            results = store.search_by_keyword(keyword, min_score=min_s, max_score=max_s, company=company, limit=limit)
         else:
             # Company-only search (no keyword)
             filter_info = f"(company={company}, score {min_s}-{max_s}, limit {limit})"
             typer.echo(f"🔍 Listing jobs at {filter_info}...\n")
-            results = store.get_assessments_by_score(
-                min_score=min_s, max_score=max_s, company=company
-            )
+            results = store.get_assessments_by_score(min_score=min_s, max_score=max_s, company=company)
             results = results[:limit]
 
         if not results:
@@ -2849,9 +2778,7 @@ def query(
                 tech = int(job.get("tech_score", 0))
                 seniority = int(job.get("seniority_score", 0))
 
-                typer.echo(
-                    f" {idx:2d}  │ {company} │ {title} │ {overall:3d}   │ {tech:3d}  │ {seniority:3d}"
-                )
+                typer.echo(f" {idx:2d}  │ {company} │ {title} │ {overall:3d}   │ {tech:3d}  │ {seniority:3d}")
 
             # Stats
             typer.echo("")
@@ -2986,9 +2913,7 @@ def check(
 # ============================================================================
 
 
-def _map_issue_type_to_purger_method(
-    purger: DataPurger, issue_type: str, dry_run: bool
-) -> Tuple[int, List[str]]:
+def _map_issue_type_to_purger_method(purger: DataPurger, issue_type: str, dry_run: bool) -> Tuple[int, List[str]]:
     """Map issue type to purger method and execute.
 
     Args:
@@ -3020,9 +2945,7 @@ def _map_issue_type_to_purger_method(
     return result
 
 
-def _show_integrity_dry_run_result(
-    issue_type: str, count: int, affected_ids: List[str]
-) -> None:
+def _show_integrity_dry_run_result(issue_type: str, count: int, affected_ids: List[str]) -> None:
     """Show dry run preview of records to be deleted.
 
     Args:
@@ -3132,9 +3055,7 @@ def purge_integrity(
             raise typer.Exit(1)
 
         purger = DataPurger(db_path)
-        count, affected_ids = _map_issue_type_to_purger_method(
-            purger, issue_type, dry_run
-        )
+        count, affected_ids = _map_issue_type_to_purger_method(purger, issue_type, dry_run)
 
         if count == 0:
             typer.echo(f"ℹ️  No {issue_type} records found")
@@ -3250,31 +3171,37 @@ def _generate_integrity_markdown(report: Any) -> str:
         )
         lines.append(f"| {issue_type} | {count} | {severity} |")
 
-    lines.extend([
-        "",
-        "## Issue Details",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Issue Details",
+            "",
+        ]
+    )
 
     severity_order = {"error": 0, "warning": 1, "info": 2}
     for issue in sorted(
         report.issues_found,
         key=lambda x: (severity_order[x.severity], x.issue_type),
     ):
-        lines.extend([
-            f"### {issue.issue_type} ({issue.severity})",
-            f"- **Table**: {issue.table}",
-            f"- **Record ID**: {issue.record_id}",
-            f"- **Details**: {issue.details}",
-            f"- **Action**: {issue.suggested_action}",
-            "",
-        ])
+        lines.extend(
+            [
+                f"### {issue.issue_type} ({issue.severity})",
+                f"- **Table**: {issue.table}",
+                f"- **Record ID**: {issue.record_id}",
+                f"- **Details**: {issue.details}",
+                f"- **Action**: {issue.suggested_action}",
+                "",
+            ]
+        )
 
     if report.purge_recommendations:
-        lines.extend([
-            "## Recommended Actions",
-            "",
-        ])
+        lines.extend(
+            [
+                "## Recommended Actions",
+                "",
+            ]
+        )
         for rec in report.purge_recommendations:
             lines.append(f"- {rec}")
 

@@ -37,16 +37,23 @@ def categorize_requirement(req: str) -> str:
 
     # Generic categories (not specific requirements)
     generic_categories = {
-        "software engineering", "software architecture and design",
-        "software configuration management", "software life cycle management",
-        "college of arts", "college of arts and sciences"
+        "software engineering",
+        "software architecture and design",
+        "software configuration management",
+        "software life cycle management",
+        "college of arts",
+        "college of arts and sciences",
     }
     if req_lower in generic_categories:
         return "GENERIC_CATEGORY"
 
     # Regulations/policies/benefits
-    if req in ("Federal Motor Carrier Safety Regulations", "Commercial Motor Vehicles",
-               "Pre-IPO Stock Options", "Alcohol Testing"):
+    if req in (
+        "Federal Motor Carrier Safety Regulations",
+        "Commercial Motor Vehicles",
+        "Pre-IPO Stock Options",
+        "Alcohol Testing",
+    ):
         return "POLICY_BENEFIT"
 
     # Responsibilities (action phrases)
@@ -89,13 +96,22 @@ def main():
     print(f"Total requirements: {len(all_reqs)}")
     print()
 
-    problematic = ["FRAGMENT", "POSSESSIVE", "FRAGMENT_START", "FRAGMENT_INCOMPLETE",
-                   "LOCATION_PROPER", "JOB_TITLE", "GENERIC_CATEGORY", "POLICY_BENEFIT",
-                   "RESPONSIBILITY", "UNCLEAR_ABBREV"]
+    problematic = [
+        "FRAGMENT",
+        "POSSESSIVE",
+        "FRAGMENT_START",
+        "FRAGMENT_INCOMPLETE",
+        "LOCATION_PROPER",
+        "JOB_TITLE",
+        "GENERIC_CATEGORY",
+        "POLICY_BENEFIT",
+        "RESPONSIBILITY",
+        "UNCLEAR_ABBREV",
+    ]
 
     total_problematic = sum(len(categories[cat]) for cat in problematic)
-    print(f"Problematic items: {total_problematic} ({total_problematic/len(all_reqs)*100:.1f}%)")
-    print(f"Valid items: {len(categories['VALID'])} ({len(categories['VALID'])/len(all_reqs)*100:.1f}%)")
+    print(f"Problematic items: {total_problematic} ({total_problematic / len(all_reqs) * 100:.1f}%)")
+    print(f"Valid items: {len(categories['VALID'])} ({len(categories['VALID']) / len(all_reqs) * 100:.1f}%)")
     print()
 
     for category in problematic:

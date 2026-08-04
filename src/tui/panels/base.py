@@ -72,10 +72,7 @@ class BasePanelWidget(Container):
         status = self.state.phase_status[self.phase]
         metrics = self.state.phase_metrics[self.phase]
 
-        header = (
-            f"{self.get_status_emoji()} {self.get_phase_title()} "
-            f"| {status.value.upper()}"
-        )
+        header = f"{self.get_status_emoji()} {self.get_phase_title()} | {status.value.upper()}"
 
         if metrics.total_items > 0:
             header += f" | {metrics.processed_items}/{metrics.total_items}"

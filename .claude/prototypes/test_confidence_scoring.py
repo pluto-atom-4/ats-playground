@@ -35,12 +35,12 @@ def main():
     print(f"\nSkills (avg confidence: {result_bo['metrics']['avg_skills_confidence']})")
     for item in result_bo["skills"][:5]:
         print(f"  [{item['confidence']:.2f}] {item['value']}")
-    print(f"  ... and {len(result_bo['skills'])-5} more")
+    print(f"  ... and {len(result_bo['skills']) - 5} more")
 
     print(f"\nTechnologies (avg confidence: {result_bo['metrics']['avg_tech_confidence']})")
     for item in result_bo["technologies"][:5]:
         print(f"  [{item['confidence']:.2f}] {item['value']}")
-    print(f"  ... and {len(result_bo['technologies'])-5} more")
+    print(f"  ... and {len(result_bo['technologies']) - 5} more")
 
     print(f"\nRequirements (avg confidence: {result_bo['metrics']['avg_req_confidence']})")
     for item in result_bo["requirements"][:5]:
@@ -57,7 +57,7 @@ def main():
     print(f"\nSkills (avg confidence: {result_b['metrics']['avg_skills_confidence']})")
     for item in result_b["skills"][:5]:
         print(f"  [{item['confidence']:.2f}] {item['value']}")
-    print(f"  ... and {len(result_b['skills'])-5} more")
+    print(f"  ... and {len(result_b['skills']) - 5} more")
 
     print(f"\nTechnologies (avg confidence: {result_b['metrics']['avg_tech_confidence']})")
     for item in result_b["technologies"][:5]:
@@ -73,8 +73,12 @@ def main():
     print("=" * 80)
     print(f"{'Company':<20} {'Skills':<15} {'Tech':<15} {'Req':<15}")
     print("-" * 80)
-    print(f"{'Blue Origin':<20} {result_bo['metrics']['avg_skills_confidence']:<15} {result_bo['metrics']['avg_tech_confidence']:<15} {result_bo['metrics']['avg_req_confidence']:<15}")
-    print(f"{'Boeing':<20} {result_b['metrics']['avg_skills_confidence']:<15} {result_b['metrics']['avg_tech_confidence']:<15} {result_b['metrics']['avg_req_confidence']:<15}")
+    print(
+        f"{'Blue Origin':<20} {result_bo['metrics']['avg_skills_confidence']:<15} {result_bo['metrics']['avg_tech_confidence']:<15} {result_bo['metrics']['avg_req_confidence']:<15}"
+    )
+    print(
+        f"{'Boeing':<20} {result_b['metrics']['avg_skills_confidence']:<15} {result_b['metrics']['avg_tech_confidence']:<15} {result_b['metrics']['avg_req_confidence']:<15}"
+    )
 
 
 if __name__ == "__main__":

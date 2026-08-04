@@ -74,24 +74,23 @@ class TestHTMLParsingIntegration:
             skills, tech, reqs = preprocessor.extract_entities(test_case["text"])
 
             # Verify minimum expected technologies extracted
-            assert len(tech) >= test_case.get("expected_tech_min", 1), \
+            assert len(tech) >= test_case.get("expected_tech_min", 1), (
                 f"{test_case['name']}: Expected at least {test_case.get('expected_tech_min', 1)} tech, got {len(tech)}"
+            )
 
             # Verify reasonable skill extraction
             assert len(skills) >= 0, f"{test_case['name']}: Skills extraction failed"
 
             # Verify no excessive fragments (quality score)
             all_entities = skills + tech + reqs
-            fragment_count = sum(
-                1 for e in all_entities
-                if preprocessor._is_suspicious_multi_word_fragment(e)
-            )
+            fragment_count = sum(1 for e in all_entities if preprocessor._is_suspicious_multi_word_fragment(e))
 
             # Check fragment count is below maximum if specified
             if "max_fragments" in test_case:
                 max_frags = test_case["max_fragments"]
-                assert fragment_count <= max_frags, \
+                assert fragment_count <= max_frags, (
                     f"{test_case['name']}: Too many fragments ({fragment_count}), expected <={max_frags}"
+                )
 
     def test_fragment_reduction_target(self, preprocessor):
         """Test that fragment reduction meets Phase 4 target (75%+ reduction)."""
@@ -115,15 +114,11 @@ class TestHTMLParsingIntegration:
         all_entities = skills + tech + reqs
 
         # Count actual fragments in results
-        actual_fragments = [
-            e for e in all_entities
-            if preprocessor._is_suspicious_multi_word_fragment(e)
-        ]
+        actual_fragments = [e for e in all_entities if preprocessor._is_suspicious_multi_word_fragment(e)]
 
         # Should remove at least 75% of problematic fragments
         fragment_reduction = 1 - (len(actual_fragments) / len(baseline_fragments))
-        assert fragment_reduction >= 0.75, \
-            f"Fragment reduction {fragment_reduction * 100:.1f}% below target of 75%"
+        assert fragment_reduction >= 0.75, f"Fragment reduction {fragment_reduction * 100:.1f}% below target of 75%"
 
     def test_quality_score_target(self, preprocessor):
         """Test that quality score meets Phase 4 target (99%+)."""
@@ -140,15 +135,11 @@ class TestHTMLParsingIntegration:
         if len(all_entities) == 0:
             quality_score = 100.0
         else:
-            fragment_count = sum(
-                1 for e in all_entities
-                if preprocessor._is_suspicious_multi_word_fragment(e)
-            )
+            fragment_count = sum(1 for e in all_entities if preprocessor._is_suspicious_multi_word_fragment(e))
             quality_score = ((len(all_entities) - fragment_count) / len(all_entities)) * 100
 
         # Target 99%+ quality
-        assert quality_score >= 99.0, \
-            f"Quality score {quality_score:.1f}% below target of 99%"
+        assert quality_score >= 99.0, f"Quality score {quality_score:.1f}% below target of 99%"
 
     def test_performance_target(self, preprocessor):
         """Test that extraction performance is <100ms per job."""
@@ -173,8 +164,7 @@ class TestHTMLParsingIntegration:
         elapsed_ms = (time.time() - start_time) * 1000
 
         # Target <100ms per job
-        assert elapsed_ms < 100, \
-            f"Extraction took {elapsed_ms:.1f}ms, exceeds target of 100ms"
+        assert elapsed_ms < 100, f"Extraction took {elapsed_ms:.1f}ms, exceeds target of 100ms"
 
     def test_soft_skills_preserved(self, preprocessor):
         """Verify soft skills extraction (Issue #190) still works."""
@@ -205,8 +195,7 @@ class TestHTMLParsingIntegration:
 
         # machine learning type compounds should be in tech
         has_ml_compounds = any("learning" in t or "processing" in t for t in tech_lower)
-        assert has_ml_compounds or len(tech) > 0, \
-            "No technical compounds detected in tech category"
+        assert has_ml_compounds or len(tech) > 0, "No technical compounds detected in tech category"
 
     def test_backward_compatibility(self, preprocessor):
         """Ensure Phase 6 changes don't break existing extraction."""
@@ -289,14 +278,12 @@ class TestHTMLParsingIntegration:
 
         # Should extract common keywords
         keywords_to_check = ["python", "go", "rust", "aws", "gcp", "docker", "kubernetes"]
-        extracted_keywords = sum(
-            1 for kw in keywords_to_check
-            if any(kw in t for t in tech_lower)
-        )
+        extracted_keywords = sum(1 for kw in keywords_to_check if any(kw in t for t in tech_lower))
 
         # Should extract at least 50% of keywords
-        assert extracted_keywords >= len(keywords_to_check) * 0.5, \
+        assert extracted_keywords >= len(keywords_to_check) * 0.5, (
             f"Only {extracted_keywords} of {len(keywords_to_check)} keywords extracted"
+        )
 
 
 class TestPerformanceMetrics:
@@ -327,12 +314,12 @@ class TestPerformanceMetrics:
         avg_ms_per_job = elapsed_ms / len(jobs)
 
         # Average should be <100ms per job
-        assert avg_ms_per_job < 100, \
-            f"Average {avg_ms_per_job:.1f}ms per job exceeds target of 100ms"
+        assert avg_ms_per_job < 100, f"Average {avg_ms_per_job:.1f}ms per job exceeds target of 100ms"
 
         # All jobs should have extracted something
-        assert all(len(skills) + len(tech) + len(reqs) > 0 for skills, tech, reqs in results), \
+        assert all(len(skills) + len(tech) + len(reqs) > 0 for skills, tech, reqs in results), (
             "Some jobs produced no results"
+        )
 
 
 class TestMarkdownDividerIntegration:
@@ -369,19 +356,14 @@ class TestMarkdownDividerIntegration:
         # (preprocessor.py:974-978) exists to handle, constructed directly
         # against `_add_markdown_section_headers` (the real production
         # method Task 1 modified) to precisely control line adjacency.
-        markdown_in = (
-            "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
-        )
+        markdown_in = "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
         result = crawler._add_markdown_section_headers(markdown_in)
 
         # "## Skills" is the very first line of the document, so it gets
         # no leading blank/divider. "## Benefits" follows ordinary content
         # ("Kubernetes"), so it gets a blank line + "---" immediately
         # before it.
-        assert result == (
-            "## Skills\nPython\nKubernetes\n\n"
-            "---\n## Benefits\n401k match\nHealth insurance"
-        )
+        assert result == ("## Skills\nPython\nKubernetes\n\n---\n## Benefits\n401k match\nHealth insurance")
 
     def test_divider_bearing_output_splits_sections_without_bleed(self, preprocessor):
         """Section boundaries are correct even with no blank line before the next header.
@@ -392,9 +374,7 @@ class TestMarkdownDividerIntegration:
         header, no blank-line separator.
         """
         crawler = Crawler()
-        markdown_in = (
-            "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
-        )
+        markdown_in = "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
         crawler_output = crawler._add_markdown_section_headers(markdown_in)
         assert "---" in crawler_output  # sanity: divider path is actually exercised below
 
@@ -418,9 +398,7 @@ class TestMarkdownDividerIntegration:
         results.
         """
         crawler = Crawler()
-        markdown_in = (
-            "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
-        )
+        markdown_in = "**Skills**\nPython\nKubernetes\n**Benefits**\n401k match\nHealth insurance"
         crawler_output = crawler._add_markdown_section_headers(markdown_in)
         assert "---" in crawler_output
 

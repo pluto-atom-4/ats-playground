@@ -84,9 +84,7 @@ def _create_tokens_from_text(text, words):
 
         parent = None
         if dep == "compound" and i + 1 < len(words):
-            parent = _create_mock_token(
-                words[i + 1].lower(), "NOUN", "nmod", words[i + 1].lower()
-            )
+            parent = _create_mock_token(words[i + 1].lower(), "NOUN", "nmod", words[i + 1].lower())
 
         token = _create_mock_token(word.lower(), pos, dep, word.lower(), head=parent)
         tokens.append(token)
@@ -99,10 +97,7 @@ def _process_text_to_doc(text):
 
     # Sentence segmentation
     sentences = text.split(". ")
-    doc.sents = [
-        Mock(text=sent.strip() + ("." if not sent.endswith(".") else ""))
-        for sent in sentences
-    ]
+    doc.sents = [Mock(text=sent.strip() + ("." if not sent.endswith(".") else "")) for sent in sentences]
 
     # Tokens
     words = text.split()

@@ -75,16 +75,10 @@ class AssessPanel(BasePanelWidget):
             return
 
         # Filter jobs that have been assessed (have overall_score)
-        assessed_jobs = [
-            job
-            for job in self.state.jobs.values()
-            if job.get("overall_score") is not None
-        ]
+        assessed_jobs = [job for job in self.state.jobs.values() if job.get("overall_score") is not None]
 
         # Sort by score descending
-        assessed_jobs.sort(
-            key=lambda j: j.get("overall_score", 0), reverse=True
-        )
+        assessed_jobs.sort(key=lambda j: j.get("overall_score", 0), reverse=True)
 
         self.job_table.update_rows(assessed_jobs)
 

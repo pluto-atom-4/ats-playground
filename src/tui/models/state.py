@@ -86,9 +86,7 @@ class StateManager:
             "assess": PhaseStatus.IDLE,
             "export": PhaseStatus.IDLE,
         }
-        self.phase_metrics: Dict[str, PhaseMetrics] = {
-            phase: PhaseMetrics() for phase in self.phase_status
-        }
+        self.phase_metrics: Dict[str, PhaseMetrics] = {phase: PhaseMetrics() for phase in self.phase_status}
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self.top_matches: List[Dict[str, Any]] = []
         self.current_errors: List[str] = []

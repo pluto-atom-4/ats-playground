@@ -115,9 +115,7 @@ Description here.
 ### [3] Analyst (Score: 50)
 Description here.
 """
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".md", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             f.write(report_content)
             f.flush()
             yield f.name
@@ -144,16 +142,12 @@ Description here.
 
     def test_view_with_template_summary(self, sample_report_file):
         """Test view command with summary template."""
-        result = runner.invoke(
-            app, ["view", "--report", sample_report_file, "--template", "summary"]
-        )
+        result = runner.invoke(app, ["view", "--report", sample_report_file, "--template", "summary"])
         assert result.exit_code == 0
 
     def test_view_with_template_topn(self, sample_report_file):
         """Test view command with topn template."""
-        result = runner.invoke(
-            app, ["view", "--report", sample_report_file, "--template", "topn", "--topn", "2"]
-        )
+        result = runner.invoke(app, ["view", "--report", sample_report_file, "--template", "topn", "--topn", "2"])
         assert result.exit_code == 0
 
     def test_view_with_score_filters(self, sample_report_file):
@@ -174,16 +168,12 @@ Description here.
 
     def test_view_with_no_highlight(self, sample_report_file):
         """Test view command with highlighting disabled."""
-        result = runner.invoke(
-            app, ["view", "--report", sample_report_file, "--no-highlight"]
-        )
+        result = runner.invoke(app, ["view", "--report", sample_report_file, "--no-highlight"])
         assert result.exit_code == 0
 
     def test_view_with_no_pager(self, sample_report_file):
         """Test view command with pager disabled."""
-        result = runner.invoke(
-            app, ["view", "--report", sample_report_file, "--no-pager"]
-        )
+        result = runner.invoke(app, ["view", "--report", sample_report_file, "--no-pager"])
         assert result.exit_code == 0
 
     def test_view_help(self):

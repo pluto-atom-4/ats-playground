@@ -107,10 +107,7 @@ class TestHTMLParsingBaseline:
         skills, tech, reqs = preprocessor.extract_entities(text)
         all_entities = skills + tech + reqs
 
-        quality_score = self._calculate_quality_score(
-            self._count_suspicious_fragments(all_entities),
-            len(all_entities)
-        )
+        quality_score = self._calculate_quality_score(self._count_suspicious_fragments(all_entities), len(all_entities))
 
         # Store for Phase 4 comparison
         pytest.quality_score_baseline = quality_score
@@ -138,22 +135,13 @@ class TestHTMLParsingBaseline:
     def _has_suspicious_pattern(entity: str) -> bool:
         """Check if entity has suspicious patterns indicating HTML parsing issues."""
         # MixedCase transitions (e.g., "differCulture")
-        mixed_case = any(
-            entity[i].isupper() and entity[i-1].islower()
-            for i in range(1, len(entity))
-        )
+        mixed_case = any(entity[i].isupper() and entity[i - 1].islower() for i in range(1, len(entity)))
 
         # Multiple case transitions (e.g., "may differCulture StatementDon't")
-        case_transitions = sum(
-            1 for i in range(1, len(entity))
-            if entity[i].isupper() != entity[i-1].isupper()
-        )
+        case_transitions = sum(1 for i in range(1, len(entity)) if entity[i].isupper() != entity[i - 1].isupper())
 
         # Unclosed punctuation
-        has_unclosed_punc = (
-            entity.count("(") != entity.count(")")
-            or entity.count("[") != entity.count("]")
-        )
+        has_unclosed_punc = entity.count("(") != entity.count(")") or entity.count("[") != entity.count("]")
 
         # Very short multi-word with odd spacing
         words = entity.split()
@@ -164,10 +152,7 @@ class TestHTMLParsingBaseline:
     @staticmethod
     def _count_suspicious_fragments(entities: list) -> int:
         """Count entities with suspicious patterns."""
-        return sum(
-            1 for entity in entities
-            if TestHTMLParsingBaseline._has_suspicious_pattern(entity)
-        )
+        return sum(1 for entity in entities if TestHTMLParsingBaseline._has_suspicious_pattern(entity))
 
     @staticmethod
     def _calculate_quality_score(suspicious_count: int, total_count: int) -> float:
@@ -251,5 +236,6 @@ class TestEnhancedFragmentDetection:
         all_entities = skills + tech + reqs
         for entity in all_entities:
             # Verify no obvious fragments are in results
-            assert not preprocessor._is_suspicious_multi_word_fragment(entity), \
+            assert not preprocessor._is_suspicious_multi_word_fragment(entity), (
                 f"Fragment detected in results: {entity}"
+            )
