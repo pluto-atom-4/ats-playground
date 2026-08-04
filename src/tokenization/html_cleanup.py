@@ -32,6 +32,9 @@ LEGAL_COMPLIANCE_PATTERNS = [
 ]
 
 # Category 2: Section headers
+# Note: These patterns target section-header artifacts (header: content).
+# Patterns use word boundaries \b to avoid false positives.
+# "Experience" is NOT included here (too broad) - it appears in body text.
 SECTION_HEADER_PATTERNS = [
     r"(?i)\bjd\s*[:|-]",
     r"(?i)\bjob\s+description\s*[:|-]",
@@ -59,10 +62,11 @@ COMPANY_BOILERPLATE_PATTERNS = [
 ]
 
 # Category 4: Time references (employment type)
+# Note: "contract" uses negative lookahead to avoid matching "contractor", "contracting"
 TIME_REFERENCE_PATTERNS = [
     r"(?i)full[\s-]?time",
     r"(?i)part[\s-]?time",
-    r"(?i)contract",
+    r"(?i)\bcontract\b(?!or|ing)",  # Matches "contract" but not "contractor", "contracting"
     r"(?i)temporary",
     r"(?i)permanent",
     r"(?i)interim",
