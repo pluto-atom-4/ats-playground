@@ -46,6 +46,9 @@ repos:
         name: Lint with ruff
         args: [--fix, --show-fixes]
         types: [python]
+      - id: ruff-format
+        name: Check formatting with ruff format
+        types: [python]
 
   # mypy type checker
   - repo: https://github.com/pre-commit/mirrors-mypy
