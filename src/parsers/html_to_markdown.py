@@ -274,7 +274,7 @@ def normalize_description(description: str) -> str:
 
 
 def clean_html(
-    html: str,
+    html: str | None,
     include_section_headers: bool = True,
     skip_boilerplate_categories: Optional[Set[str]] = None,
 ) -> str:
