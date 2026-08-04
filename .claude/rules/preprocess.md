@@ -46,6 +46,7 @@ Show estimate before assessment. Track actual vs estimated in cost_tracking tabl
 - **Chunk sizes vary intentionally**: Semantic boundaries, not token-aligned. Don't force uniform counts.
 - **Cost estimates pre-API**: tiktoken estimates differ slightly from Claude's actual token count.
 - **Fallback parsing**: If MarkItDown fails, BeautifulSoup activates automatically. Check logs if content missing.
+- **Section skip-list (Issue #221)**: `Preprocessor.SKIP_SECTIONS` (`preprocessor.py`) excludes benefits/legal/hiring-process sections (e.g. `e-verify`, `union`, `technical assessment`, `contingent upon award`) from entity extraction. `technical assessment` closes a real gap: it contains "technical", one of `skills_section_keywords`, so without an explicit skip entry such a section risked being misrouted into skills instead of skipped.
 
 ## Implementation Details (Phases 5–7)
 
