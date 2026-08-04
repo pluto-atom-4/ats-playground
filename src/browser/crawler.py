@@ -331,23 +331,25 @@ class Crawler:
 
     @staticmethod
     def _insert_section_dividers(lines: List[str]) -> List[str]:
-        """Step 4: insert '---' immediately after every synthesized header.
+        """Step 4: insert a blank line + '---' immediately before every
+        synthesized header.
 
-        Skips insertion if the following line is already '---' or another
-        header, to avoid doubled/redundant dividers on consecutive headers.
-        Returns a new list (unlike the mutate-in-place synthesis passes)
-        since insertion changes list length.
+        Skips insertion if the header is the very first line of the
+        document (nothing precedes it, so there's nothing to separate) or
+        if the immediately preceding emitted line is already '---' or
+        another header, to avoid doubled/redundant dividers on consecutive
+        headers. Returns a new list (unlike the mutate-in-place synthesis
+        passes) since insertion changes list length.
         """
         header_re = re.compile(r"^#{2,3}\s")
         result: List[str] = []
-        for i, line in enumerate(lines):
+        for line in lines:
+            if header_re.match(line) and result:
+                prev_line = result[-1].strip()
+                if prev_line != "---" and not header_re.match(prev_line):
+                    result.append("")
+                    result.append("---")
             result.append(line)
-            if not header_re.match(line):
-                continue
-            next_line = lines[i + 1].strip() if i + 1 < len(lines) else None
-            if next_line is not None and (next_line == "---" or header_re.match(next_line)):
-                continue
-            result.append("---")
         return result
 
     def _add_markdown_section_headers(self, markdown: str) -> str:
@@ -364,8 +366,10 @@ class Crawler:
            non-header content become "### <Subsection>".
         3. Remaining non-header lines ending in ":" become
            "### <Subsection>".
-        4. A "---" divider is inserted immediately after every "##"/"###"
-           header produced above, activating the preprocessor's
+        4. A blank line + "---" divider is inserted immediately before
+           every "##"/"###" header produced above (skipped when the header
+           is the first line of the document, or immediately follows
+           another header/divider), activating the preprocessor's
            divider-aware section splitting.
         """
         lines = markdown.split("\n")

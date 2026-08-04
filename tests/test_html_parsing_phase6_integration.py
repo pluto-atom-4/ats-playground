@@ -339,12 +339,15 @@ class TestMarkdownDividerIntegration:
     """Issue #211 / Phase 10: crawler '---' dividers -> preprocessor section split.
 
     Prior to Issue #211, `Crawler._add_markdown_section_headers` synthesized
-    "## "/"### " headers but never emitted a "---" divider after them, even
+    "## "/"### " headers but never emitted a "---" divider near them, even
     though `Preprocessor._extract_markdown_sections` already had divider-aware
     boundary handling (dead code with real crawled input: nothing ever
     produced a "---" line). These tests feed real crawler output -- including
     the adversarial case of section content with no trailing blank line
     before the next header -- through the real preprocessor pipeline.
+
+    Issue #224: the divider (preceded by a blank line) is inserted
+    immediately *before* each synthesized header, not after it.
     """
 
     @pytest.fixture
@@ -352,8 +355,9 @@ class TestMarkdownDividerIntegration:
         """Initialize Preprocessor with real spaCy model."""
         return Preprocessor(model="en_core_web_md")
 
-    def test_crawler_output_contains_dividers_after_headers(self):
-        """Real crawler header-synthesis output contains '---' after each header.
+    def test_crawler_output_contains_dividers_before_headers(self):
+        """Real crawler header-synthesis output contains '---' before each
+        non-first header.
 
         This assertion alone fails if Task 1's divider-insertion pass is
         reverted -- `_add_markdown_section_headers` would then only emit
@@ -370,9 +374,13 @@ class TestMarkdownDividerIntegration:
         )
         result = crawler._add_markdown_section_headers(markdown_in)
 
+        # "## Skills" is the very first line of the document, so it gets
+        # no leading blank/divider. "## Benefits" follows ordinary content
+        # ("Kubernetes"), so it gets a blank line + "---" immediately
+        # before it.
         assert result == (
-            "## Skills\n---\nPython\nKubernetes\n"
-            "## Benefits\n---\n401k match\nHealth insurance"
+            "## Skills\nPython\nKubernetes\n\n"
+            "---\n## Benefits\n401k match\nHealth insurance"
         )
 
     def test_divider_bearing_output_splits_sections_without_bleed(self, preprocessor):
