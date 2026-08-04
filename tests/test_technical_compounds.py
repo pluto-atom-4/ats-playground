@@ -44,35 +44,50 @@ class TestTechnicalCompoundDetection:
         }
 
         for compound, min_score in compounds.items():
-            assert is_technical_compound(compound), \
-                f"Core compound not detected: {compound}"
+            assert is_technical_compound(compound), f"Core compound not detected: {compound}"
             score = get_confidence_score(compound)
-            assert score >= min_score, \
-                f"Confidence too low for {compound}: {score} < {min_score}"
+            assert score >= min_score, f"Confidence too low for {compound}: {score} < {min_score}"
 
     def test_no_false_positives_hard_tech(self):
         """Verify hard technologies are NOT flagged."""
         hard_techs = [
-            "python", "java", "javascript", "c#", "go", "rust",
-            "docker", "kubernetes", "aws", "azure", "gcp",
-            "postgresql", "mongodb", "redis", "elasticsearch",
+            "python",
+            "java",
+            "javascript",
+            "c#",
+            "go",
+            "rust",
+            "docker",
+            "kubernetes",
+            "aws",
+            "azure",
+            "gcp",
+            "postgresql",
+            "mongodb",
+            "redis",
+            "elasticsearch",
         ]
 
         for tech in hard_techs:
-            assert not is_technical_compound(tech), \
-                f"False positive: {tech} flagged as compound"
+            assert not is_technical_compound(tech), f"False positive: {tech} flagged as compound"
 
     def test_no_false_positives_soft_skills(self):
         """Verify soft skills are NOT flagged."""
         soft_skills = [
-            "leadership", "communication", "teamwork", "collaboration",
-            "problem-solving", "analytical thinking", "adaptability",
-            "creativity", "critical thinking", "time management",
+            "leadership",
+            "communication",
+            "teamwork",
+            "collaboration",
+            "problem-solving",
+            "analytical thinking",
+            "adaptability",
+            "creativity",
+            "critical thinking",
+            "time management",
         ]
 
         for skill in soft_skills:
-            assert not is_technical_compound(skill), \
-                f"False positive: {skill} flagged as compound"
+            assert not is_technical_compound(skill), f"False positive: {skill} flagged as compound"
 
     def test_single_word_non_compounds(self):
         """Test single-word phrases are correctly handled."""
@@ -87,8 +102,7 @@ class TestTechnicalCompoundDetection:
 
         for word, expected in single_words.items():
             result = is_technical_compound(word)
-            assert result == expected, \
-                f"Single word '{word}' detection incorrect"
+            assert result == expected, f"Single word '{word}' detection incorrect"
 
     def test_multi_word_tech_patterns(self):
         """Test multi-word technical patterns are detected."""
@@ -103,8 +117,7 @@ class TestTechnicalCompoundDetection:
         for pattern in tech_patterns:
             is_detected = is_technical_compound(pattern)
             score = get_confidence_score(pattern)
-            assert is_detected or score > 0, \
-                f"Multi-word pattern not detected: {pattern}"
+            assert is_detected or score > 0, f"Multi-word pattern not detected: {pattern}"
 
 
 class TestConfidenceScoring:
@@ -122,8 +135,7 @@ class TestConfidenceScoring:
 
         for match in exact_matches:
             score = get_confidence_score(match)
-            assert 0.8 <= score <= 1.0, \
-                f"Exact match score out of range: {match} = {score}"
+            assert 0.8 <= score <= 1.0, f"Exact match score out of range: {match} = {score}"
 
     def test_keyword_patterns_medium_confidence(self):
         """Keyword matches get medium confidence (>0)."""
@@ -136,32 +148,36 @@ class TestConfidenceScoring:
         for match in keyword_matches:
             score = get_confidence_score(match)
             # Just verify these are detected and scored above 0
-            assert score > 0, \
-                f"Keyword match should have positive score: {match} = {score}"
+            assert score > 0, f"Keyword match should have positive score: {match} = {score}"
 
     def test_non_matches_zero_confidence(self):
         """Non-matches get 0.0 confidence."""
         non_matches = [
-            "python", "java", "leadership",
-            "communication", "ability",
+            "python",
+            "java",
+            "leadership",
+            "communication",
+            "ability",
         ]
 
         for non_match in non_matches:
             score = get_confidence_score(non_match)
-            assert score == 0.0, \
-                f"Non-match should have 0.0 confidence: {non_match} = {score}"
+            assert score == 0.0, f"Non-match should have 0.0 confidence: {non_match} = {score}"
 
     def test_score_range_validity(self):
         """All scores are in valid range [0.0, 1.0]."""
         test_phrases = [
-            "software development", "python", "microservice",
-            "leadership", "custom tool", "communication skills",
+            "software development",
+            "python",
+            "microservice",
+            "leadership",
+            "custom tool",
+            "communication skills",
         ]
 
         for phrase in test_phrases:
             score = get_confidence_score(phrase)
-            assert 0.0 <= score <= 1.0, \
-                f"Score out of range for '{phrase}': {score}"
+            assert 0.0 <= score <= 1.0, f"Score out of range for '{phrase}': {score}"
 
 
 class TestReclassifyCompound:
@@ -177,19 +193,20 @@ class TestReclassifyCompound:
         ]
 
         for compound in compounds:
-            assert reclassify_compound(compound), \
-                f"Should reclassify: {compound}"
+            assert reclassify_compound(compound), f"Should reclassify: {compound}"
 
     def test_no_reclassify_single_words(self):
         """Single words should NOT be reclassified."""
         single_words = [
-            "python", "java", "leadership",
-            "communication", "docker",
+            "python",
+            "java",
+            "leadership",
+            "communication",
+            "docker",
         ]
 
         for word in single_words:
-            assert not reclassify_compound(word), \
-                f"Should not reclassify: {word}"
+            assert not reclassify_compound(word), f"Should not reclassify: {word}"
 
     def test_confidence_threshold_parameter(self):
         """Threshold parameter works correctly."""
@@ -222,8 +239,7 @@ class TestTechnicalCompoundsHelper:
         ]
 
         for compound in expected:
-            assert compound in compounds, \
-                f"Missing compound: {compound}"
+            assert compound in compounds, f"Missing compound: {compound}"
 
     def test_get_compound_categories_structure(self):
         """get_compound_categories() returns organized dict."""
@@ -232,8 +248,11 @@ class TestTechnicalCompoundsHelper:
         assert len(categories) > 5
 
         expected_categories = [
-            "development", "data", "infrastructure",
-            "architecture", "engineering",
+            "development",
+            "data",
+            "infrastructure",
+            "architecture",
+            "engineering",
         ]
 
         for cat in expected_categories:
@@ -263,9 +282,7 @@ Lead software development. Skills: software development, Python, JavaScript.
         skills, technologies, requirements = preprocessor.extract_entities(text)
 
         tech_lower = [t.lower() for t in technologies]
-        has_compound = any(
-            ("software" in t and "development" in t) for t in tech_lower
-        )
+        has_compound = any(("software" in t and "development" in t) for t in tech_lower)
 
         assert has_compound, f"Compound not in tech: {technologies}"
 
@@ -335,8 +352,7 @@ class TestEdgeCasesComprehensive:
         ]
 
         for variant in variants:
-            assert is_technical_compound(variant), \
-                f"Case sensitivity failure: {variant}"
+            assert is_technical_compound(variant), f"Case sensitivity failure: {variant}"
 
     def test_whitespace_normalization(self):
         """Extra whitespace handled correctly."""
@@ -363,8 +379,7 @@ class TestEdgeCasesComprehensive:
 
         for phrase, expected in phrases.items():
             result = is_technical_compound(phrase)
-            assert result == expected or \
-                (result and get_confidence_score(phrase) > 0.5)
+            assert result == expected or (result and get_confidence_score(phrase) > 0.5)
 
     def test_special_characters(self):
         """Special characters handled."""
@@ -422,10 +437,7 @@ class TestQualityMetrics:
             "kubernetes": False,
         }
 
-        correct = sum(
-            1 for phrase, expected in test_set.items()
-            if is_technical_compound(phrase) == expected
-        )
+        correct = sum(1 for phrase, expected in test_set.items() if is_technical_compound(phrase) == expected)
 
         accuracy = (correct / len(test_set)) * 100
         assert accuracy >= 90, f"Accuracy below 90%: {accuracy}%"
@@ -433,15 +445,22 @@ class TestQualityMetrics:
     def test_false_positive_rate_low(self):
         """False positive rate on hard techs and soft skills < 5%."""
         tech_and_skills = [
-            "python", "java", "javascript", "c++",
-            "docker", "kubernetes", "aws", "azure",
-            "leadership", "communication", "teamwork",
-            "problem-solving", "analytical thinking",
+            "python",
+            "java",
+            "javascript",
+            "c++",
+            "docker",
+            "kubernetes",
+            "aws",
+            "azure",
+            "leadership",
+            "communication",
+            "teamwork",
+            "problem-solving",
+            "analytical thinking",
         ]
 
-        false_positives = [
-            t for t in tech_and_skills if is_technical_compound(t)
-        ]
+        false_positives = [t for t in tech_and_skills if is_technical_compound(t)]
 
         rate = (len(false_positives) / len(tech_and_skills)) * 100
         assert rate < 5, f"False positive rate too high: {rate}%"
@@ -457,12 +476,10 @@ class TestQualityMetrics:
         ]
 
         for compound in issue_191:
-            assert is_technical_compound(compound), \
-                f"Issue #191 compound not detected: {compound}"
+            assert is_technical_compound(compound), f"Issue #191 compound not detected: {compound}"
 
             score = get_confidence_score(compound)
-            assert score >= 0.8, \
-                f"Issue #191 compound low score: {compound} = {score}"
+            assert score >= 0.8, f"Issue #191 compound low score: {compound} = {score}"
 
     def test_no_regression_on_common_patterns(self):
         """Common patterns still work."""
@@ -504,8 +521,7 @@ class TestComprehensiveSummary:
         assert isinstance(skills, (list, tuple)), "Phase 3: Integration broken"
 
         # Phase 4: Validation
-        assert is_technical_compound("software development"), \
-            "Phase 4: Validation failed"
+        assert is_technical_compound("software development"), "Phase 4: Validation failed"
 
         # Phase 5: This test
         assert True, "Phase 5: Comprehensive tests running"
@@ -520,9 +536,6 @@ class TestComprehensiveSummary:
         from src.tokenization import technical_compounds
 
         # Check for docstrings
-        assert technical_compounds.is_technical_compound.__doc__, \
-            "is_technical_compound missing docstring"
-        assert technical_compounds.get_confidence_score.__doc__, \
-            "get_confidence_score missing docstring"
-        assert technical_compounds.reclassify_compound.__doc__, \
-            "reclassify_compound missing docstring"
+        assert technical_compounds.is_technical_compound.__doc__, "is_technical_compound missing docstring"
+        assert technical_compounds.get_confidence_score.__doc__, "get_confidence_score missing docstring"
+        assert technical_compounds.reclassify_compound.__doc__, "reclassify_compound missing docstring"

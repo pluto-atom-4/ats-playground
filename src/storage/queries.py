@@ -10,9 +10,7 @@ class JobQueries:
     """Common SQL queries for job data."""
 
     @staticmethod
-    def get_all_jobs(
-        status: Optional[str] = None, company: Optional[str] = None, limit: int = 100
-    ) -> str:
+    def get_all_jobs(status: Optional[str] = None, company: Optional[str] = None, limit: int = 100) -> str:
         """
         Get jobs with optional filtering.
 

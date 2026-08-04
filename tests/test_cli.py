@@ -21,8 +21,7 @@ class TestPreprocessSingleJobFieldMapping:
             "company": "Acme Corp",
             "location": "Remote",
             "description": (
-                "# Senior Python Developer\n\n"
-                "We need a strong backend engineer with Python and FastAPI experience."
+                "# Senior Python Developer\n\nWe need a strong backend engineer with Python and FastAPI experience."
             ),
             "requirements": ["Python", "FastAPI"],
         }

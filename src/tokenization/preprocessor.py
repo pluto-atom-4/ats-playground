@@ -26,17 +26,56 @@ class Preprocessor:
     # `Preprocessor.SKIP_SECTIONS` directly rather than re-declaring its own
     # copy that can silently drift out of sync.
     SKIP_SECTIONS: Set[str] = {
-        "benefits", "compensation", "salary", "pay range", "401", "retirement",
-        "insurance", "health", "dental", "vision", "pto", "vacation",
-        "about", "company", "culture", "commitment", "team", "our",
-        "equal opportunity", "eoe", "affirmative action", "disability",
-        "background check", "export control", "security clearance", "visa",
-        "apply", "posting date", "posted", "application close", "codevue",
-        "shift", "location", "work location", "travel", "working condition",
-        "fte", "temporary", "education:", "hiring practice",
-        "bargaining", "conflict of interest", "drug free", "e-verify",
-        "right to work", "safety sensitive", "technical assessment",
-        "total rewards", "union", "contingent upon award"
+        "benefits",
+        "compensation",
+        "salary",
+        "pay range",
+        "401",
+        "retirement",
+        "insurance",
+        "health",
+        "dental",
+        "vision",
+        "pto",
+        "vacation",
+        "about",
+        "company",
+        "culture",
+        "commitment",
+        "team",
+        "our",
+        "equal opportunity",
+        "eoe",
+        "affirmative action",
+        "disability",
+        "background check",
+        "export control",
+        "security clearance",
+        "visa",
+        "apply",
+        "posting date",
+        "posted",
+        "application close",
+        "codevue",
+        "shift",
+        "location",
+        "work location",
+        "travel",
+        "working condition",
+        "fte",
+        "temporary",
+        "education:",
+        "hiring practice",
+        "bargaining",
+        "conflict of interest",
+        "drug free",
+        "e-verify",
+        "right to work",
+        "safety sensitive",
+        "technical assessment",
+        "total rewards",
+        "union",
+        "contingent upon award",
     }
 
     def __init__(self, model: str = "en_core_web_md"):
@@ -177,15 +216,15 @@ class Preprocessor:
 
             # 5. Filter entities (remove noise, duplicates, short fragments)
             # Pass pre-computed POS tags to avoid double NLP processing (Phase 3 optimization)
-            skills = set(self._filter_entities(
-                reclassified_skills, entity_type="skills", entity_pos_tags=entity_pos_tags
-            ))
-            technologies = set(self._filter_entities(
-                list(technologies), entity_type="technologies", entity_pos_tags=entity_pos_tags
-            ))
-            requirements = set(self._filter_entities(
-                list(requirements), entity_type="requirements", entity_pos_tags=entity_pos_tags
-            ))
+            skills = set(
+                self._filter_entities(reclassified_skills, entity_type="skills", entity_pos_tags=entity_pos_tags)
+            )
+            technologies = set(
+                self._filter_entities(list(technologies), entity_type="technologies", entity_pos_tags=entity_pos_tags)
+            )
+            requirements = set(
+                self._filter_entities(list(requirements), entity_type="requirements", entity_pos_tags=entity_pos_tags)
+            )
 
             logger.debug(
                 f"Extracted {len(skills)} skills, "
@@ -213,26 +252,25 @@ class Preprocessor:
         return get_all_keywords()
 
     @staticmethod
-    def _extract_from_ner(
-        doc: Any, tech_keywords: Set[str], technologies: Set[str], requirements: Set[str]
-    ) -> None:
+    def _extract_from_ner(doc: Any, tech_keywords: Set[str], technologies: Set[str], requirements: Set[str]) -> None:
         """Extract entities from named entity recognition."""
         for ent in doc.ents:
             entity_text = ent.text.strip()
             if not entity_text or ent.label_ not in ("PRODUCT", "ORG"):
                 continue
 
-            if any(
-                keyword in entity_text.lower() for keyword in tech_keywords
-            ):
+            if any(keyword in entity_text.lower() for keyword in tech_keywords):
                 technologies.add(entity_text)
             else:
                 requirements.add(entity_text)
 
     @staticmethod
     def _extract_from_tokens(
-        doc: Any, tech_keywords: Set[str], skills: Set[str], technologies: Set[str],
-        entity_pos_tags: Optional[dict[str, str]] = None
+        doc: Any,
+        tech_keywords: Set[str],
+        skills: Set[str],
+        technologies: Set[str],
+        entity_pos_tags: Optional[dict[str, str]] = None,
     ) -> None:
         """Extract skills and tech from tokens (Phase 3: POS tag optimization).
 
@@ -262,11 +300,7 @@ class Preprocessor:
                 entity_pos_tags[token.text] = token.pos_
 
             # Extract noun compounds as skills
-            if (
-                token.pos_ in ("NOUN", "PROPN")
-                and token.dep_ in ("compound", "nmod", "attr")
-                and len(token_text) > 3
-            ):
+            if token.pos_ in ("NOUN", "PROPN") and token.dep_ in ("compound", "nmod", "attr") and len(token_text) > 3:
                 parent = token.head
                 if parent.pos_ in ("NOUN", "PROPN"):
                     # Collect only meaningful tokens (not punctuation or conjunctions)
@@ -333,18 +367,11 @@ class Preprocessor:
                 # 2. Is a stopword but in preserve list
                 # 3. Is named entity
                 # 4. Is punctuation (keep for structure)
-                if (
-                    not token.is_stop
-                    or token.lemma_.lower() in preserve_terms
-                    or token.ent_type_
-                    or token.is_punct
-                ):
+                if not token.is_stop or token.lemma_.lower() in preserve_terms or token.ent_type_ or token.is_punct:
                     filtered_tokens.append(token.text)
 
             result = " ".join(filtered_tokens).strip()
-            logger.debug(
-                f"Removed stopwords: {len(doc)} tokens → {len(filtered_tokens)} tokens"
-            )
+            logger.debug(f"Removed stopwords: {len(doc)} tokens → {len(filtered_tokens)} tokens")
             return result
 
         except Exception as e:
@@ -494,9 +521,7 @@ class Preprocessor:
 
         return False
 
-    def _is_possessive_or_article(
-        self, entity_clean: str, words: list[str]
-    ) -> bool:
+    def _is_possessive_or_article(self, entity_clean: str, words: list[str]) -> bool:
         """Check if entity is a possessive form, article, or artifact colon.
 
         Args:
@@ -520,9 +545,7 @@ class Preprocessor:
 
         return False
 
-    def _is_generic_or_incomplete_phrase(
-        self, entity_clean: str, entity_lower: str, words: list[str]
-    ) -> bool:
+    def _is_generic_or_incomplete_phrase(self, entity_clean: str, entity_lower: str, words: list[str]) -> bool:
         """Check if entity is a fragment, incomplete phrase, or generic phrase.
 
         Args:
@@ -558,26 +581,29 @@ class Preprocessor:
             True if entity is a job title or category, False otherwise
         """
         job_titles = {
-            "design and verification engineer", "software lead",
-            "technical leadership", "technical oversight and authority of a range of software solutions"
+            "design and verification engineer",
+            "software lead",
+            "technical leadership",
+            "technical oversight and authority of a range of software solutions",
         }
         if entity_lower in job_titles:
             return True
 
         generic_categories = {
-            "software engineering", "software architecture and design",
-            "software configuration management", "software life cycle management",
-            "college of arts", "college of arts and sciences",
-            "computer science"
+            "software engineering",
+            "software architecture and design",
+            "software configuration management",
+            "software life cycle management",
+            "college of arts",
+            "college of arts and sciences",
+            "computer science",
         }
         if entity_lower in generic_categories:
             return True
 
         return False
 
-    def _is_policy_or_responsibility(
-        self, entity_lower: str, words: list[str]
-    ) -> bool:
+    def _is_policy_or_responsibility(self, entity_lower: str, words: list[str]) -> bool:
         """Check if entity is a policy keyword or responsibility phrase.
 
         Args:
@@ -589,8 +615,13 @@ class Preprocessor:
         """
         # Skip policy/benefit/regulation keywords
         policy_patterns = {
-            "alcohol", "commercial motor", "federal motor carrier",
-            "pre-ipo", "pre-IPO", "stock option", "regulation"
+            "alcohol",
+            "commercial motor",
+            "federal motor carrier",
+            "pre-ipo",
+            "pre-IPO",
+            "stock option",
+            "regulation",
         }
         if any(pattern in entity_lower for pattern in policy_patterns):
             return True
@@ -647,9 +678,7 @@ class Preprocessor:
 
         return False
 
-    def _should_skip_requirement(
-        self, entity_clean: str, entity_lower: str, words: list[str]
-    ) -> bool:
+    def _should_skip_requirement(self, entity_clean: str, entity_lower: str, words: list[str]) -> bool:
         """Check if requirement entity should be skipped.
 
         Args:
@@ -671,9 +700,14 @@ class Preprocessor:
         )
 
     def _should_skip_skill(
-        self, entity_clean: str, entity_lower: str, words: list[str], generic_skills: Set[str],
-        company_names: Set[str], pos_tag: Optional[str] = None,
-        tech_keywords: Optional[Set[str]] = None
+        self,
+        entity_clean: str,
+        entity_lower: str,
+        words: list[str],
+        generic_skills: Set[str],
+        company_names: Set[str],
+        pos_tag: Optional[str] = None,
+        tech_keywords: Optional[Set[str]] = None,
     ) -> bool:
         """Check if skill entity should be skipped (Phase 3: POS-aware filtering).
 
@@ -852,8 +886,7 @@ class Preprocessor:
         return False
 
     def _filter_entities(
-        self, entities: list[str], entity_type: str = "skills",
-        entity_pos_tags: Optional[dict[str, str]] = None
+        self, entities: list[str], entity_type: str = "skills", entity_pos_tags: Optional[dict[str, str]] = None
     ) -> list[str]:
         """Filter extracted entities to remove noise and short fragments (Phase 3: POS optimization).
 
@@ -905,13 +938,52 @@ class Preprocessor:
 
         # Generic/low-signal skills that are too broad
         generic_skills: Set[str] = {
-            "company", "data", "time", "level", "market", "process", "industry",
-            "role", "work", "job", "experience", "position", "area", "field",
-            "range", "option", "form", "base", "suite", "tech", "able",
-            "available", "dollar", "pay", "year", "cost", "product", "service",
-            "employee", "employees", "culture", "team", "person", "people",
-            "value", "values", "benefit", "benefits", "compensation", "salary",
-            "state", "location", "place", "site", "office", "center",
+            "company",
+            "data",
+            "time",
+            "level",
+            "market",
+            "process",
+            "industry",
+            "role",
+            "work",
+            "job",
+            "experience",
+            "position",
+            "area",
+            "field",
+            "range",
+            "option",
+            "form",
+            "base",
+            "suite",
+            "tech",
+            "able",
+            "available",
+            "dollar",
+            "pay",
+            "year",
+            "cost",
+            "product",
+            "service",
+            "employee",
+            "employees",
+            "culture",
+            "team",
+            "person",
+            "people",
+            "value",
+            "values",
+            "benefit",
+            "benefits",
+            "compensation",
+            "salary",
+            "state",
+            "location",
+            "place",
+            "site",
+            "office",
+            "center",
         }
 
         # Company names, publications, brands (Issue #194 Phase 7: use expanded taxonomy)
@@ -942,8 +1014,13 @@ class Preprocessor:
                 # Get pre-computed POS tag for this entity (Phase 3 optimization)
                 pos_tag = entity_pos_tags.get(entity_clean, None)
                 if self._should_skip_skill(
-                    entity_clean, entity_lower, words, generic_skills, company_names,
-                    pos_tag=pos_tag, tech_keywords=self._get_tech_keywords()
+                    entity_clean,
+                    entity_lower,
+                    words,
+                    generic_skills,
+                    company_names,
+                    pos_tag=pos_tag,
+                    tech_keywords=self._get_tech_keywords(),
                 ):
                     continue
 
@@ -1062,11 +1139,11 @@ class Preprocessor:
             "on target earning",
         }
         content_lines = []
-        for line in section_content.split('\n'):
+        for line in section_content.split("\n"):
             line_lower = line.lower()
             if not any(phrase in line_lower for phrase in boilerplate_phrases):
                 content_lines.append(line)
-        return '\n'.join(content_lines)
+        return "\n".join(content_lines)
 
     @staticmethod
     def _determine_section_type(
@@ -1087,9 +1164,7 @@ class Preprocessor:
         section_lower = section_name.lower()
         is_skills_section = any(kw in section_lower for kw in skills_section_keywords)
         is_req_section = any(kw in section_lower for kw in req_section_keywords)
-        is_description_section = any(
-            kw in section_lower for kw in ("description", "overview", "summary", "about")
-        )
+        is_description_section = any(kw in section_lower for kw in ("description", "overview", "summary", "about"))
         return is_skills_section, is_req_section, is_description_section
 
     @staticmethod
@@ -1306,12 +1381,17 @@ class Preprocessor:
 
         skip_sections = self.SKIP_SECTIONS
 
-        skills_section_keywords = (
-            "skill", "technical", "core", "competency", "ability", "expertise", "proficiency"
-        )
+        skills_section_keywords = ("skill", "technical", "core", "competency", "ability", "expertise", "proficiency")
         req_section_keywords = (
-            "requirement", "qualif", "needed", "essential", "must", "knowledge",
-            "experience", "responsibility", "duty"
+            "requirement",
+            "qualif",
+            "needed",
+            "essential",
+            "must",
+            "knowledge",
+            "experience",
+            "responsibility",
+            "duty",
         )
 
         skip_ent_types = {"ORG", "PRODUCT", "QUANTITY", "CARDINAL", "DATE", "TIME", "MONEY"}
@@ -1405,9 +1485,6 @@ class Preprocessor:
             if token.pos_ in ("ADJ", "NOUN"):
                 parent = token.head
                 if parent.pos_ in ("NOUN", "ADJ") and parent != token:
-                    phrase = " ".join(
-                        child.text for child in tokens_list
-                        if child.head == parent or child == parent
-                    )
+                    phrase = " ".join(child.text for child in tokens_list if child.head == parent or child == parent)
                     if 3 < len(phrase) < 50 and phrase.lower() in soft_skills_list:
                         soft_skills.add(phrase)

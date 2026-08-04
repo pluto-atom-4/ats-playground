@@ -31,12 +31,8 @@ class JobPosting(BaseModel):
     salary_min: Optional[float] = Field(None, description="Minimum salary")
     salary_max: Optional[float] = Field(None, description="Maximum salary")
     posted_date: Optional[datetime] = Field(None, description="When posted")
-    crawled_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), description="When crawled"
-    )
-    status: str = Field(
-        default="pending_review", description="Status: pending_review, confirmed, rejected"
-    )
+    crawled_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="When crawled")
+    status: str = Field(default="pending_review", description="Status: pending_review, confirmed, rejected")
 
 
 class PreprocessedJob(BaseModel):
@@ -59,18 +55,14 @@ class PreprocessedJob(BaseModel):
     title: Optional[str] = Field(None, description="Job title (preserved from crawled data)")
     company: Optional[str] = Field(None, description="Company name")
     clean_text: str = Field(..., description="Cleaned HTML -> text")
-    markdown_description: Optional[str] = Field(
-        None, description="Markdown-formatted description"
-    )
+    markdown_description: Optional[str] = Field(None, description="Markdown-formatted description")
     sentences: List[str] = Field(..., description="Sentence-segmented text")
     chunks: List[str] = Field(..., description="Semantic chunks")
     skills: List[str] = Field(default_factory=list, description="Extracted skills (NLP)")
     technologies: List[str] = Field(default_factory=list, description="Extracted technologies (NLP)")
     requirements: List[str] = Field(default_factory=list, description="Extracted requirements (NLP)")
     token_count: int = Field(..., description="Total tokens")
-    estimated_cost: float = Field(
-        ..., description="Estimated LLM cost in USD (model-specific)"
-    )
+    estimated_cost: float = Field(..., description="Estimated LLM cost in USD (model-specific)")
     model_name: str = Field(
         default="claude-sonnet-5",
         description="LLM model used for cost estimation (e.g., claude-sonnet-5, claude-haiku-4-5-20251001)",

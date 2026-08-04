@@ -122,8 +122,13 @@ class Crawler:
             return []
 
     async def _extract_job_from_container(
-        self, page: Page, container: Any, company_name: str, selectors: Dict[str, str],
-        base_url: str = "", crawler_config: Optional[Dict[str, Any]] = None
+        self,
+        page: Page,
+        container: Any,
+        company_name: str,
+        selectors: Dict[str, str],
+        base_url: str = "",
+        crawler_config: Optional[Dict[str, Any]] = None,
     ) -> Optional[JobPosting]:
         """Extract job details from a single job container element."""
         try:
@@ -150,9 +155,7 @@ class Crawler:
             logger.debug(f"fetch_detail={fetch_detail}, link exists={link is not None}")
             if fetch_detail and link:
                 logger.debug(f"Calling _fetch_job_detail for {link}")
-                description, requirements = await self._fetch_job_detail(
-                    link, selectors
-                )
+                description, requirements = await self._fetch_job_detail(link, selectors)
             else:
                 logger.debug(f"Skipping detail fetch (fetch_detail={fetch_detail}, link={link is not None})")
 
@@ -181,6 +184,7 @@ class Crawler:
         except Exception as e:
             logger.warning(f"Error extracting job from container: {e}")
             import traceback
+
             logger.debug(f"Exception traceback: {traceback.format_exc()}")
             return None
 
@@ -418,9 +422,7 @@ class Crawler:
             logger.debug(f"Error extracting link with selector {selector}: {e}")
         return None
 
-    async def _fetch_job_detail(
-        self, job_url: str, selectors: Dict[str, str]
-    ) -> tuple[str, Optional[str]]:
+    async def _fetch_job_detail(self, job_url: str, selectors: Dict[str, str]) -> tuple[str, Optional[str]]:
         """Fetch job description and requirements from detail page."""
         if not self.context:
             logger.debug("No context available")
@@ -475,6 +477,7 @@ class Crawler:
         except Exception as e:
             logger.debug(f"Error fetching job detail: {e}")
             import traceback
+
             logger.info(f"DEBUG: Traceback: {traceback.format_exc()}")
             return "", None
         finally:
@@ -523,9 +526,7 @@ class Crawler:
             logger.debug(f"Error accessing iframe via frame API: {e}")
             return ""
 
-    async def crawl_multiple(
-        self, companies: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, List[JobPosting]]:
+    async def crawl_multiple(self, companies: Dict[str, Dict[str, Any]]) -> Dict[str, List[JobPosting]]:
         """
         Crawl multiple companies concurrently.
 

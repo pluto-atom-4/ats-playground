@@ -120,10 +120,7 @@ class TestExtractEntities:
 
     def test_extract_all_three_types(self, preprocessor_with_mock):
         """Extract can identify all three entity types simultaneously."""
-        text = (
-            "Senior Python developer needed. Must know Django and PostgreSQL. "
-            "Work at Google or Amazon."
-        )
+        text = "Senior Python developer needed. Must know Django and PostgreSQL. Work at Google or Amazon."
         skills, tech, reqs = preprocessor_with_mock.extract_entities(text)
         assert isinstance(skills, list)
         assert isinstance(tech, list)
@@ -216,9 +213,7 @@ class TestPreprocessorIntegration:
         )
 
         job_text = (
-            "Senior Python Developer. "
-            "Requirements: Python, Django, PostgreSQL, AWS. "
-            "Nice to have: React, Docker."
+            "Senior Python Developer. Requirements: Python, Django, PostgreSQL, AWS. Nice to have: React, Docker."
         )
 
         cv_skills, cv_tech, cv_reqs = preprocessor_with_mock.extract_entities(cv_text)
@@ -630,16 +625,12 @@ class TestNoiseFilteringAdditions:
     def test_should_skip_entity_common_markdown_header_artifact(self, preprocessor_with_mock):
         """A stray '# Requirements' markdown-header artifact is skipped."""
         entity = "# Requirements"
-        assert preprocessor_with_mock._should_skip_entity_common(
-            entity, entity.lower(), "requirements", set()
-        ) is True
+        assert preprocessor_with_mock._should_skip_entity_common(entity, entity.lower(), "requirements", set()) is True
 
     def test_should_skip_entity_common_normal_entity_not_skipped(self, preprocessor_with_mock):
         """Regression guard: a normal entity without a leading '#' is not skipped."""
         entity = "Python"
-        assert preprocessor_with_mock._should_skip_entity_common(
-            entity, entity.lower(), "skills", set()
-        ) is False
+        assert preprocessor_with_mock._should_skip_entity_common(entity, entity.lower(), "skills", set()) is False
 
     def test_filter_entities_drug_test_filtered_from_requirements(self, preprocessor_with_mock):
         """'drug test' is filtered out of requirements via boilerplate_keywords."""
@@ -684,13 +675,24 @@ class TestTechKeywordAdjExemption:
     def test_should_skip_skill_exempts_tech_keyword_adj(self, preprocessor_with_mock):
         """Direct unit test of `_should_skip_skill`'s tech_keywords ADJ exemption."""
         tech_keywords = {"agile", "lean", "azure"}
-        assert preprocessor_with_mock._should_skip_skill(
-            "lean", "lean", ["lean"], generic_skills=set(), company_names=set(),
-            pos_tag="ADJ", tech_keywords=tech_keywords
-        ) is False
+        assert (
+            preprocessor_with_mock._should_skip_skill(
+                "lean",
+                "lean",
+                ["lean"],
+                generic_skills=set(),
+                company_names=set(),
+                pos_tag="ADJ",
+                tech_keywords=tech_keywords,
+            )
+            is False
+        )
 
     def test_should_skip_skill_without_tech_keywords_param_unaffected(self, preprocessor_with_mock):
         """Regression guard: omitting tech_keywords preserves prior ADJ-filtering behavior."""
-        assert preprocessor_with_mock._should_skip_skill(
-            "lean", "lean", ["lean"], generic_skills=set(), company_names=set(), pos_tag="ADJ"
-        ) is True
+        assert (
+            preprocessor_with_mock._should_skip_skill(
+                "lean", "lean", ["lean"], generic_skills=set(), company_names=set(), pos_tag="ADJ"
+            )
+            is True
+        )

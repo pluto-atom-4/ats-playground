@@ -204,9 +204,7 @@ class TestJobTimeline:
 
         # Parse timestamps
         crawled = datetime.fromisoformat(timeline["crawled_at"].replace("Z", "+00:00"))
-        preprocessed = datetime.fromisoformat(
-            timeline["preprocessed_at"].replace("Z", "+00:00")
-        )
+        preprocessed = datetime.fromisoformat(timeline["preprocessed_at"].replace("Z", "+00:00"))
         reviewed = datetime.fromisoformat(timeline["reviewed_at"].replace("Z", "+00:00"))
         assessed = datetime.fromisoformat(timeline["assessed_at"].replace("Z", "+00:00"))
 
@@ -221,9 +219,7 @@ class TestJobTimeline:
         timeline_1 = reviewer_with_jobs.get_job_timeline(job_id)
 
         # Save a new review (should preserve timeline fields)
-        reviewer_with_jobs.save_review(
-            job_id, "Python Dev (Updated)", "Remote", "confirmed", company="TechCorp"
-        )
+        reviewer_with_jobs.save_review(job_id, "Python Dev (Updated)", "Remote", "confirmed", company="TechCorp")
 
         # Get timeline again
         timeline_2 = reviewer_with_jobs.get_job_timeline(job_id)
@@ -250,9 +246,7 @@ class TestTimelineIntegration:
         job_id = "lifecycle_test"
 
         # Step 1: Save initial review (with crawled_at)
-        reviewer.save_review(
-            job_id, "Test Job", "Remote", "pending_review", company="TestCorp"
-        )
+        reviewer.save_review(job_id, "Test Job", "Remote", "pending_review", company="TestCorp")
         reviewer.set_crawled_at(job_id, "2026-07-01T08:00:00+00:00")
 
         # Step 2: Preprocess
@@ -286,15 +280,11 @@ class TestTimelineIntegration:
         job_id = "multi_review_job"
 
         # First review
-        reviewer.save_review(
-            job_id, "Job Title", "Remote", "confirmed", company="Corp1"
-        )
+        reviewer.save_review(job_id, "Job Title", "Remote", "confirmed", company="Corp1")
         first_reviewed = reviewer.get_prior_review(job_id)
 
         # Re-review
-        reviewer.save_review(
-            job_id, "Job Title", "Remote", "rejected", reason="location", company="Corp1"
-        )
+        reviewer.save_review(job_id, "Job Title", "Remote", "rejected", reason="location", company="Corp1")
         second_reviewed = reviewer.get_prior_review(job_id)
 
         # Both should have reviewed_at set

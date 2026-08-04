@@ -279,10 +279,7 @@ class MarkdownExporter:
         tech = job.get("tech_score", 0)
         seniority = job.get("seniority_score", 0)
         location = job.get("location_score", 0)
-        lines.append(
-            f"- **Overall Score:** {overall} | "
-            f"Tech: {tech} | Seniority: {seniority} | Location: {location}"
-        )
+        lines.append(f"- **Overall Score:** {overall} | Tech: {tech} | Seniority: {seniority} | Location: {location}")
         lines.append("")
 
         # Location
@@ -352,8 +349,7 @@ class MarkdownExporter:
             "",
             f"**Generated:** {self.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
             "",
-            "⚠️ **No jobs found** matching filters "
-            f"(score: {self.config.min_score}-{self.config.max_score})",
+            f"⚠️ **No jobs found** matching filters (score: {self.config.min_score}-{self.config.max_score})",
             "",
             "Try adjusting score range or running without filters.",
         ]

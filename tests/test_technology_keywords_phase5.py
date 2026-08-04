@@ -21,18 +21,44 @@ class TestPhase5KeywordsPresent:
         """Verify all 33 new keywords from Phase 5 are in the keyword set."""
         phase5_keywords = {
             # Engineering Tools (9)
-            "ansys", "nastran", "optistruct", "creo", "solidworks", "catia",
-            "windchill", "simulink", "comsol",
+            "ansys",
+            "nastran",
+            "optistruct",
+            "creo",
+            "solidworks",
+            "catia",
+            "windchill",
+            "simulink",
+            "comsol",
             # Signal Processing (4)
-            "fft", "ifft", "cordic", "mac",
+            "fft",
+            "ifft",
+            "cordic",
+            "mac",
             # Cloud/DevOps (5)
-            "argocd", "flux", "gitops", "harbor", "quay",
+            "argocd",
+            "flux",
+            "gitops",
+            "harbor",
+            "quay",
             # Data (6)
-            "timescaledb", "clickhouse", "dvc", "pydantic", "sqlalchemy", "celery",
+            "timescaledb",
+            "clickhouse",
+            "dvc",
+            "pydantic",
+            "sqlalchemy",
+            "celery",
             # IoT/Protocols (4)
-            "mqtt", "amqp", "websocket", "coap",
+            "mqtt",
+            "amqp",
+            "websocket",
+            "coap",
             # Manufacturing (5)
-            "cam", "cnc", "plm", "erp", "mrp",
+            "cam",
+            "cnc",
+            "plm",
+            "erp",
+            "mrp",
         }
         current_keywords = get_all_keywords()
         missing = phase5_keywords - current_keywords
@@ -64,8 +90,7 @@ class TestPhase5KeywordsPresent:
         for category, expected_count in expected_counts.items():
             actual_count = len(get_keywords_by_category(category))
             assert actual_count == expected_count, (
-                f"Category '{category}': expected {expected_count}, "
-                f"got {actual_count}"
+                f"Category '{category}': expected {expected_count}, got {actual_count}"
             )
 
 
@@ -191,9 +216,7 @@ class TestNoDuplicates:
         for category, keywords in TECH_KEYWORDS.items():
             # Convert to list to check for duplicates
             kw_list = list(keywords)
-            assert len(kw_list) == len(set(kw_list)), (
-                f"Duplicates found in category '{category}'"
-            )
+            assert len(kw_list) == len(set(kw_list)), f"Duplicates found in category '{category}'"
 
     def test_no_duplicates_across_categories(self):
         """Ensure no keyword appears in multiple categories."""
@@ -257,8 +280,18 @@ class TestKeywordsIntegration:
     def test_aerospace_keywords_coverage(self):
         """Verify aerospace/defense keywords are well covered."""
         aerospace_keywords = {
-            "ansys", "nastran", "optistruct", "creo", "windchill",
-            "cordic", "fft", "ifft", "dsp", "cam", "cnc", "plm"
+            "ansys",
+            "nastran",
+            "optistruct",
+            "creo",
+            "windchill",
+            "cordic",
+            "fft",
+            "ifft",
+            "dsp",
+            "cam",
+            "cnc",
+            "plm",
         }
         all_kw = get_all_keywords()
         # Most aerospace keywords should be present (dsp is not, but others are)
@@ -267,10 +300,7 @@ class TestKeywordsIntegration:
 
     def test_devops_keywords_coverage(self):
         """Verify DevOps keywords are well covered."""
-        devops_keywords = {
-            "argocd", "flux", "gitops", "harbor", "quay",
-            "kubernetes", "docker", "helm", "terraform"
-        }
+        devops_keywords = {"argocd", "flux", "gitops", "harbor", "quay", "kubernetes", "docker", "helm", "terraform"}
         all_kw = get_all_keywords()
         assert devops_keywords.issubset(all_kw)
 
@@ -284,17 +314,20 @@ class TestKeywordsIntegration:
 class TestPhase5KeywordExtraction:
     """Test that new keywords would be extracted from sample text."""
 
-    @pytest.mark.parametrize("keyword,text", [
-        ("ansys", "We use ANSYS for finite element analysis"),
-        ("creo", "Must have experience with Creo CAD"),
-        ("windchill", "PLM experience using Windchill required"),
-        ("simulink", "Develop control systems in Simulink"),
-        ("fft", "Experience with FFT algorithms"),
-        ("argocd", "Deploy using ArgoCD GitOps"),
-        ("mqtt", "MQTT protocol implementation required"),
-        ("pydantic", "Data validation using Pydantic"),
-        ("plm", "Product lifecycle management (PLM) tools"),
-    ])
+    @pytest.mark.parametrize(
+        "keyword,text",
+        [
+            ("ansys", "We use ANSYS for finite element analysis"),
+            ("creo", "Must have experience with Creo CAD"),
+            ("windchill", "PLM experience using Windchill required"),
+            ("simulink", "Develop control systems in Simulink"),
+            ("fft", "Experience with FFT algorithms"),
+            ("argocd", "Deploy using ArgoCD GitOps"),
+            ("mqtt", "MQTT protocol implementation required"),
+            ("pydantic", "Data validation using Pydantic"),
+            ("plm", "Product lifecycle management (PLM) tools"),
+        ],
+    )
     def test_keyword_in_text(self, keyword, text):
         """Verify keywords would be detected in sample aerospace/defense text."""
         all_kw = get_all_keywords()

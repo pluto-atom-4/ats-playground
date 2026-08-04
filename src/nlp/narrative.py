@@ -51,10 +51,7 @@ class NarrativeRequirementExtractor:
                 continue
 
             # Check if sentence contains requirement trigger
-            has_trigger = any(
-                re.search(trigger, sent_text, re.IGNORECASE)
-                for trigger in requirement_triggers
-            )
+            has_trigger = any(re.search(trigger, sent_text, re.IGNORECASE) for trigger in requirement_triggers)
 
             if has_trigger:
                 # Extract requirement from sentence
@@ -75,13 +72,13 @@ class NarrativeRequirementExtractor:
         text = sent.text.strip()
 
         # Remove parenthetical clarifications at end
-        text = re.sub(r'\s*\([^)]*\)\s*$', '', text)
+        text = re.sub(r"\s*\([^)]*\)\s*$", "", text)
 
         # Remove trailing punctuation
-        text = re.sub(r'[,;.!?]+$', '', text)
+        text = re.sub(r"[,;.!?]+$", "", text)
 
         # Collapse multiple spaces
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"\s+", " ", text)
 
         return text if text else ""
 

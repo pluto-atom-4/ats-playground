@@ -79,11 +79,7 @@ class ReviewDialog(ModalScreen):
         """Build dialog UI."""
         with Vertical(id="dialog-box"):
             with Static(id="job-info"):
-                yield Static(
-                    f"[b]Job Review[/b]\n"
-                    f"Title: {self.title}\n"
-                    f"Company: {self.company}"
-                )
+                yield Static(f"[b]Job Review[/b]\nTitle: {self.title}\nCompany: {self.company}")
 
             yield Static(
                 self.description[:300] + ("..." if len(self.description) > 300 else ""),

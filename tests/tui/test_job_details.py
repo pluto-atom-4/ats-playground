@@ -191,10 +191,7 @@ class TestAssessmentViewingWorkflow:
         )
 
         # Filter only assessed
-        assessed = [
-            j for j in state_manager.jobs.values()
-            if j.get("overall_score") is not None
-        ]
+        assessed = [j for j in state_manager.jobs.values() if j.get("overall_score") is not None]
 
         assert len(assessed) == 1
         assert assessed[0]["title"] == "Already Assessed"

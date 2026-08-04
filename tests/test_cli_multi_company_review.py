@@ -273,8 +273,9 @@ class TestMultiCompanyReview:
             assert company is not None, f"Company should not be None for job {job_id}"
 
             # Save to database (same as real code)
-            self.save_review(job_id, title, location, status="confirmed", tokens=tokens,
-                           estimated_cost=cost, company=company)
+            self.save_review(
+                job_id, title, location, status="confirmed", tokens=tokens, estimated_cost=cost, company=company
+            )
 
             stats.total += 1
             stats.add_confirmed(tokens, cost)

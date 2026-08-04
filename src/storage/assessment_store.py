@@ -60,13 +60,8 @@ class AssessmentStore:
         cursor.execute(self.ASSESSMENT_FTS_SQL)
 
         # Create indices
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_job_assessments_score "
-            "ON job_assessments(overall_score DESC)"
-        )
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_job_assessments_job_id " "ON job_assessments(job_id)"
-        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_assessments_score ON job_assessments(overall_score DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_assessments_job_id ON job_assessments(job_id)")
 
         self.conn.commit()
         logger.info("Initialized assessment database")
@@ -416,12 +411,7 @@ class AssessmentStore:
             else:
                 cursor.execute("""SELECT title, summary FROM job_assessments""")
 
-            text = " ".join(
-                [
-                    (row["title"] or "") + " " + (row["summary"] or "")
-                    for row in cursor.fetchall()
-                ]
-            )
+            text = " ".join([(row["title"] or "") + " " + (row["summary"] or "") for row in cursor.fetchall()])
 
             if not text.strip():
                 return []
@@ -443,9 +433,7 @@ class AssessmentStore:
                     keywords_freq[word] = keywords_freq.get(word, 0) + 1
 
             # Sort by frequency, return top N
-            sorted_keywords = sorted(
-                keywords_freq.items(), key=lambda x: x[1], reverse=True
-            )
+            sorted_keywords = sorted(keywords_freq.items(), key=lambda x: x[1], reverse=True)
             return sorted_keywords[:limit]
         except sqlite3.OperationalError:
             return []
@@ -461,9 +449,7 @@ class AssessmentStore:
             return {}
 
         cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT recommendations FROM job_assessments WHERE recommendations IS NOT NULL"
-        )
+        cursor.execute("SELECT recommendations FROM job_assessments WHERE recommendations IS NOT NULL")
 
         recommendations_summary: Dict[str, int] = {}
 
@@ -851,9 +837,7 @@ class AssessmentStore:
 
         try:
             # Try job_reviews table first (has status field)
-            cursor.execute(
-                "SELECT status, COUNT(*) as count FROM job_reviews GROUP BY status"
-            )
+            cursor.execute("SELECT status, COUNT(*) as count FROM job_reviews GROUP BY status")
             for row in cursor.fetchall():
                 status = row["status"]
                 count = row["count"]
@@ -874,9 +858,7 @@ class AssessmentStore:
 
         return stats
 
-    def _fetch_jobs_for_filter_stats(
-        self, cursor: sqlite3.Cursor
-    ) -> list[Any]:
+    def _fetch_jobs_for_filter_stats(self, cursor: sqlite3.Cursor) -> list[Any]:
         """Fetch jobs for filter stats, trying multiple query variants."""
         queries = [
             # Try job_reviews.crawled_at first (test fixture schema)

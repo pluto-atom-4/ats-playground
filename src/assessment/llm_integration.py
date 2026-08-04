@@ -70,9 +70,7 @@ class LLMProvider:
             "total_cost_usd": input_cost + output_cost,
         }
 
-    def _call_api_with_retries(
-        self, prompt: str, max_retries: int
-    ) -> tuple[Message, int]:
+    def _call_api_with_retries(self, prompt: str, max_retries: int) -> tuple[Message, int]:
         """Call Claude API with retry logic.
 
         Args:
@@ -106,21 +104,16 @@ class LLMProvider:
                 if attempt == max_retries - 1:
                     logger.error(f"Rate limited after {max_retries} attempts: {e}")
                     raise
-                backoff_seconds = 2 ** attempt
-                logger.warning(
-                    f"Rate limited (attempt {attempt + 1}/{max_retries}). "
-                    f"Retrying in {backoff_seconds}s"
-                )
+                backoff_seconds = 2**attempt
+                logger.warning(f"Rate limited (attempt {attempt + 1}/{max_retries}). Retrying in {backoff_seconds}s")
                 time.sleep(backoff_seconds)
 
             except anthropic.APIStatusError as e:
                 if e.status_code in (500, 502, 503):
                     if attempt == max_retries - 1:
-                        logger.error(
-                            f"Server error {e.status_code} after {max_retries} attempts: {e}"
-                        )
+                        logger.error(f"Server error {e.status_code} after {max_retries} attempts: {e}")
                         raise
-                    backoff_seconds = 2 ** attempt
+                    backoff_seconds = 2**attempt
                     logger.warning(
                         f"Server error {e.status_code} (attempt {attempt + 1}/{max_retries}). "
                         f"Retrying in {backoff_seconds}s"
@@ -163,10 +156,7 @@ class LLMProvider:
 
         # Estimate cost
         estimate = self.estimate_cost(prompt)
-        logger.info(
-            f"Assessment estimate: {estimate['input_tokens']} input tokens, "
-            f"${estimate['total_cost_usd']:.6f}"
-        )
+        logger.info(f"Assessment estimate: {estimate['input_tokens']} input tokens, ${estimate['total_cost_usd']:.6f}")
 
         # Call API with retries
         message, elapsed_ms = self._call_api_with_retries(prompt, max_retries)
@@ -183,9 +173,7 @@ class LLMProvider:
             actual_input = message.usage.input_tokens
             actual_output = message.usage.output_tokens
             pricing = MODEL_PRICING.get(self.model, MODEL_PRICING["claude-3-5-sonnet-20241022"])
-            actual_cost = (
-                (actual_input * pricing["input"] + actual_output * pricing["output"]) / 1_000_000
-            )
+            actual_cost = (actual_input * pricing["input"] + actual_output * pricing["output"]) / 1_000_000
 
             logger.info(
                 f"Assessment complete: score={assessment.get('overall_score', '?')}, "

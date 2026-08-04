@@ -230,10 +230,7 @@ class TestIdGeneration:
         location = "Mountain View, CA"
         url = "https://techcorp.com/careers/jobs/sf-engineer-001"
 
-        ids = [
-            generate_job_id(company, title, location, url)
-            for _ in range(5)
-        ]
+        ids = [generate_job_id(company, title, location, url) for _ in range(5)]
 
         assert len(set(ids)) == 1, "ID should be identical across runs"
 

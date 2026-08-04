@@ -23,9 +23,7 @@ class PoCStateManager:
 
     def add_job(self, job_id: str, title: str, company: str) -> None:
         """Add mock job."""
-        self.jobs[job_id] = JobDecision(
-            job_id=job_id, title=title, company=company, decision=None
-        )
+        self.jobs[job_id] = JobDecision(job_id=job_id, title=title, company=company, decision=None)
 
     def record_decision(self, job_id: str, decision: Optional[str]) -> None:
         """Save decision for job."""
@@ -48,6 +46,5 @@ class PoCStateManager:
             f"\n"
             f"Details:\n"
         ) + "\n".join(
-            f"  {j.job_id}: {j.title} ({j.company}) → {j.decision or 'no decision'}"
-            for j in self.jobs.values()
+            f"  {j.job_id}: {j.title} ({j.company}) → {j.decision or 'no decision'}" for j in self.jobs.values()
         )

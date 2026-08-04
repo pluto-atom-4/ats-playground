@@ -12,9 +12,7 @@ from src.assessment.types import AssessmentResult
 @pytest.fixture
 def mock_assessor() -> Assessor:
     """Fixture: Assessor with mocked LLMProvider and Preprocessor."""
-    with patch("src.assessment.assessor.LLMProvider"), patch(
-        "src.assessment.assessor.Preprocessor"
-    ):
+    with patch("src.assessment.assessor.LLMProvider"), patch("src.assessment.assessor.Preprocessor"):
         assessor = Assessor()
     return assessor
 
@@ -239,9 +237,7 @@ class TestAssessmentIntegration:
 
     @patch("src.assessment.assessor.Preprocessor")
     @patch("src.assessment.assessor.LLMProvider")
-    def test_assess_job_success(
-        self, mock_llm_class: MagicMock, mock_preprocessor_class: MagicMock
-    ) -> None:
+    def test_assess_job_success(self, mock_llm_class: MagicMock, mock_preprocessor_class: MagicMock) -> None:
         """Successful assessment returns AssessmentResult."""
         # Mock preprocessor
         mock_preprocessor = MagicMock()
@@ -403,9 +399,7 @@ class TestAssessmentIntegration:
 
     @patch("src.assessment.assessor.Preprocessor")
     @patch("src.assessment.assessor.LLMProvider")
-    def test_assess_job_metadata_included(
-        self, mock_llm_class: MagicMock, mock_preprocessor_class: MagicMock
-    ) -> None:
+    def test_assess_job_metadata_included(self, mock_llm_class: MagicMock, mock_preprocessor_class: MagicMock) -> None:
         """Metadata from LLM included in result."""
         mock_preprocessor = MagicMock()
         mock_preprocessor.extract_entities.return_value = ([], [], [])
@@ -551,17 +545,13 @@ class TestEdgeCases:
         assessor.preprocessor = mock_preprocessor
         assessor.llm_provider = mock_llm
 
-        result = assessor.assess_job(
-            "C++ & Python Developer ($100k)", "Rust/Go expert (100% remote)"
-        )
+        result = assessor.assess_job("C++ & Python Developer ($100k)", "Rust/Go expert (100% remote)")
 
         assert "assessment" in result
 
     @patch("src.assessment.assessor.Preprocessor")
     @patch("src.assessment.assessor.LLMProvider")
-    def test_assess_job_very_long_text(
-        self, mock_llm_class: MagicMock, mock_preprocessor_class: MagicMock
-    ) -> None:
+    def test_assess_job_very_long_text(self, mock_llm_class: MagicMock, mock_preprocessor_class: MagicMock) -> None:
         """Handles very long CV and job descriptions."""
         mock_preprocessor = MagicMock()
         mock_preprocessor.extract_entities.return_value = ([], [], [])

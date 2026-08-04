@@ -35,7 +35,9 @@ if min_qual_match:
     print(f"Section length: {len(min_qual_section)} chars")
 
     # Extract years from this section only
-    years_pattern = r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|focused\s+on|involving|related\s+to)\s+([^\.\n]+))?"
+    years_pattern = (
+        r"(\d+)\+?\s+years\s+(?:of\s+)?experience(?:\s+(?:in|with|focused\s+on|involving|related\s+to)\s+([^\.\n]+))?"
+    )
     for match in re.finditer(years_pattern, min_qual_section, re.IGNORECASE):
         years = match.group(1)
         domain = match.group(2)

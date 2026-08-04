@@ -12,31 +12,74 @@ def categorize_skill(skill: str) -> str:
 
     # Tech skills
     tech_keywords = {
-        "python", "java", "javascript", "rust", "go", "c#", "c++",
-        "react", "angular", "vue", "django", "flask", "spring",
-        "aws", "azure", "gcp", "kubernetes", "docker",
-        "postgresql", "mongodb", "redis", "elasticsearch",
-        "tensorflow", "pytorch", "sklearn",
-        "git", "github", "gitlab", "jira",
+        "python",
+        "java",
+        "javascript",
+        "rust",
+        "go",
+        "c#",
+        "c++",
+        "react",
+        "angular",
+        "vue",
+        "django",
+        "flask",
+        "spring",
+        "aws",
+        "azure",
+        "gcp",
+        "kubernetes",
+        "docker",
+        "postgresql",
+        "mongodb",
+        "redis",
+        "elasticsearch",
+        "tensorflow",
+        "pytorch",
+        "sklearn",
+        "git",
+        "github",
+        "gitlab",
+        "jira",
     }
     if any(kw in skill_lower for kw in tech_keywords):
         return "TECH"
 
     # Soft skills / methods
     soft_keywords = {
-        "communication", "leadership", "problem solving", "team",
-        "agile", "scrum", "kanban", "project management",
-        "mentoring", "collaboration", "organization",
+        "communication",
+        "leadership",
+        "problem solving",
+        "team",
+        "agile",
+        "scrum",
+        "kanban",
+        "project management",
+        "mentoring",
+        "collaboration",
+        "organization",
     }
     if any(kw in skill_lower for kw in soft_keywords):
         return "SOFT"
 
     # Suspicious patterns (potential junk)
     suspicious = {
-        "and", "or", "with", "for", "able", "skills",
-        "experience", "years", "years of", "work",
-        "knowledge", "understanding", "familiarity",
-        "required", "preferred", "able to",
+        "and",
+        "or",
+        "with",
+        "for",
+        "able",
+        "skills",
+        "experience",
+        "years",
+        "years of",
+        "work",
+        "knowledge",
+        "understanding",
+        "familiarity",
+        "required",
+        "preferred",
+        "able to",
     }
     if any(kw in skill_lower for kw in suspicious):
         return "SUSPICIOUS"
@@ -47,8 +90,22 @@ def categorize_skill(skill: str) -> str:
 
     # Generic words
     generic = {
-        "you", "your", "we", "our", "a", "the", "is", "be",
-        "are", "was", "were", "been", "have", "has", "do", "does",
+        "you",
+        "your",
+        "we",
+        "our",
+        "a",
+        "the",
+        "is",
+        "be",
+        "are",
+        "was",
+        "were",
+        "been",
+        "have",
+        "has",
+        "do",
+        "does",
     }
     if skill_lower in generic:
         return "GENERIC"
@@ -94,12 +151,9 @@ def analyze_skills():
                         chunk_source = chunk[:150]
                         break
 
-                issues_by_type[category].append({
-                    "job_idx": job_idx,
-                    "title": title,
-                    "skill": skill,
-                    "chunk_preview": chunk_source or "NOT FOUND"
-                })
+                issues_by_type[category].append(
+                    {"job_idx": job_idx, "title": title, "skill": skill, "chunk_preview": chunk_source or "NOT FOUND"}
+                )
 
     # Print by category
     print(f"\n📊 SKILLS BREAKDOWN ({sum(len(v) for v in all_skills_by_category.values())} total)")

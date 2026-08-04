@@ -27,9 +27,7 @@ class ClaudeClient:
         # TODO: Implement Anthropic client initialization
         logger.info(f"Initializing Claude client with model: {self.model}")
 
-    async def assess_job(
-        self, job_description: str, cv_text: str, assessment_prompt: str
-    ) -> Dict[str, Any]:
+    async def assess_job(self, job_description: str, cv_text: str, assessment_prompt: str) -> Dict[str, Any]:
         """
         Assess CV fit for a job posting.
 

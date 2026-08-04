@@ -116,9 +116,7 @@ class TestCompanyFiltering:
 
     def test_search_by_keyword_company_and_score_filter(self, store):
         """Search with both company and score filters."""
-        results = store.search_by_keyword(
-            "engineer", min_score=85, max_score=100, company="Google"
-        )
+        results = store.search_by_keyword("engineer", min_score=85, max_score=100, company="Google")
         assert len(results) == 2
         assert all(r["company"] == "Google" for r in results)
         assert all(r["overall_score"] >= 85 for r in results)

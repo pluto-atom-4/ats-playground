@@ -370,18 +370,11 @@ def test_cascade_delete_job_dry_run(purger):
         ("job1", "text", "chunk1", 100, 0.01),
     )
     conn.execute(
-        (
-            "INSERT INTO cost_tracking "
-            "(job_id, phase, input_tokens, output_tokens, cost) "
-            "VALUES (?, ?, ?, ?, ?)"
-        ),
+        ("INSERT INTO cost_tracking (job_id, phase, input_tokens, output_tokens, cost) VALUES (?, ?, ?, ?, ?)"),
         ("job1", "assess", 100, 50, 0.01),
     )
     conn.execute(
-        (
-            "INSERT INTO job_reviews "
-            "(job_id, title, location, status) VALUES (?, ?, ?, ?)"
-        ),
+        ("INSERT INTO job_reviews (job_id, title, location, status) VALUES (?, ?, ?, ?)"),
         ("job1", "Title", "Location", "pending"),
     )
     conn.commit()
@@ -426,18 +419,11 @@ def test_cascade_delete_job_actual(purger):
         ("job1", "text", "chunk1", 100, 0.01),
     )
     conn.execute(
-        (
-            "INSERT INTO cost_tracking "
-            "(job_id, phase, input_tokens, output_tokens, cost) "
-            "VALUES (?, ?, ?, ?, ?)"
-        ),
+        ("INSERT INTO cost_tracking (job_id, phase, input_tokens, output_tokens, cost) VALUES (?, ?, ?, ?, ?)"),
         ("job1", "assess", 100, 50, 0.01),
     )
     conn.execute(
-        (
-            "INSERT INTO job_reviews "
-            "(job_id, title, location, status) VALUES (?, ?, ?, ?)"
-        ),
+        ("INSERT INTO job_reviews (job_id, title, location, status) VALUES (?, ?, ?, ?)"),
         ("job1", "Title", "Location", "pending"),
     )
     conn.commit()

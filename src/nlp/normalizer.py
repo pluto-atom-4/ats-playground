@@ -42,19 +42,9 @@ def normalize_requirement(req: str) -> str:
 
     # Standardize phrasing patterns
     # "Demonstrated experience X" → "Experience X"
-    req = re.sub(
-        r"^Demonstrated\s+experience\s+(?:in|with|involving)\s+",
-        "Experience in ",
-        req,
-        flags=re.IGNORECASE
-    )
+    req = re.sub(r"^Demonstrated\s+experience\s+(?:in|with|involving)\s+", "Experience in ", req, flags=re.IGNORECASE)
     # "demonstrated ability to" → "Ability to"
-    req = re.sub(
-        r"^Demonstrated\s+ability\s+to\s+",
-        "Ability to ",
-        req,
-        flags=re.IGNORECASE
-    )
+    req = re.sub(r"^Demonstrated\s+ability\s+to\s+", "Ability to ", req, flags=re.IGNORECASE)
     # "Experience in X as well as Y" → "Experience in X and Y"
     req = re.sub(r"\s+as\s+well\s+as\s+", " and ", req, flags=re.IGNORECASE)
     # "Experience in X, Y, and Z" → standardize commas
@@ -78,9 +68,7 @@ def normalize_requirement(req: str) -> str:
     return req
 
 
-def deduplicate_requirements(
-    requirements: Set[str], similarity_threshold: float = 0.65
-) -> Set[str]:
+def deduplicate_requirements(requirements: Set[str], similarity_threshold: float = 0.65) -> Set[str]:
     """Remove near-duplicate requirements, keeping shortest/best version."""
     reqs = sorted(requirements, key=lambda r: (len(r), r))
     deduplicated = []

@@ -38,11 +38,7 @@ def compare_f1(extracted: dict, expected: dict) -> Any:
         correct = extracted_set & expected_set
         precision = len(correct) / len(extracted_set) if extracted_set else 0
         recall = len(correct) / len(expected_set) if expected_set else 0
-        f1 = (
-            2 * (precision * recall) / (precision + recall)
-            if (precision + recall) > 0
-            else 0
-        )
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
         results[category] = {
             "f1": round(f1, 2),
@@ -69,7 +65,9 @@ def main():
     metrics_bo = compare_f1(result_bo, expected_bo)
 
     print(f"Domain: {domain_bo.value}")
-    print(f"Skills:  F1={metrics_bo['skills']['f1']} | Tech: F1={metrics_bo['technologies']['f1']} | Req: F1={metrics_bo['requirements']['f1']}")
+    print(
+        f"Skills:  F1={metrics_bo['skills']['f1']} | Tech: F1={metrics_bo['technologies']['f1']} | Req: F1={metrics_bo['requirements']['f1']}"
+    )
 
     # Test Boeing CORRECT job
     print("\n\nBoeing - Senior Software Engineer / Boeing Translation Engine (Job 0, Aerospace/Sensor)")
@@ -82,14 +80,20 @@ def main():
     metrics_b = compare_f1(result_b, expected_b)
 
     print(f"Domain: {domain_b.value}")
-    print(f"Skills:  F1={metrics_b['skills']['f1']} | Tech: F1={metrics_b['technologies']['f1']} | Req: F1={metrics_b['requirements']['f1']}")
+    print(
+        f"Skills:  F1={metrics_b['skills']['f1']} | Tech: F1={metrics_b['technologies']['f1']} | Req: F1={metrics_b['requirements']['f1']}"
+    )
 
     # Summary
     print("\n\n=== SUMMARY ===")
     print(f"{'Job':<50} {'Skills':<10} {'Tech':<10} {'Req':<10}")
     print("-" * 80)
-    print(f"{'Blue Origin (Aerospace)':<50} {metrics_bo['skills']['f1']:<10} {metrics_bo['technologies']['f1']:<10} {metrics_bo['requirements']['f1']:<10}")
-    print(f"{'Boeing (BTE - Sensor/ARINC)':<50} {metrics_b['skills']['f1']:<10} {metrics_b['technologies']['f1']:<10} {metrics_b['requirements']['f1']:<10}")
+    print(
+        f"{'Blue Origin (Aerospace)':<50} {metrics_bo['skills']['f1']:<10} {metrics_bo['technologies']['f1']:<10} {metrics_bo['requirements']['f1']:<10}"
+    )
+    print(
+        f"{'Boeing (BTE - Sensor/ARINC)':<50} {metrics_b['skills']['f1']:<10} {metrics_b['technologies']['f1']:<10} {metrics_b['requirements']['f1']:<10}"
+    )
 
 
 if __name__ == "__main__":

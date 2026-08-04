@@ -83,9 +83,7 @@ def test_extract_entities_by_section_routes_responsibilities_ner_entities():
         "Collaborate closely with stakeholders and coordinate with teams "
         "across Europe to deliver quarterly roadmaps.\n"
     )
-    _skills, _technologies, requirements = preprocessor._extract_entities_by_section(
-        markdown_text
-    )
+    _skills, _technologies, requirements = preprocessor._extract_entities_by_section(markdown_text)
     assert "Europe" in requirements
 
 
@@ -118,8 +116,7 @@ def test_extract_entities_by_section_skips_technical_assessment_section(monkeypa
         "_extract_markdown_sections",
         lambda text: {
             "technical assessment": (
-                "Candidates will complete a live Python coding assessment "
-                "during the onsite interview loop."
+                "Candidates will complete a live Python coding assessment during the onsite interview loop."
             )
         },
     )
@@ -136,9 +133,7 @@ def test_extract_entities_by_section_skips_technical_assessment_section(monkeypa
 
     monkeypatch.setattr(preprocessor, "nlp", counting_nlp)
 
-    skills, technologies, requirements = preprocessor._extract_entities_by_section(
-        "placeholder"
-    )
+    skills, technologies, requirements = preprocessor._extract_entities_by_section("placeholder")
     assert nlp_calls == [], "section should have been skipped before spaCy processing"
     assert skills == set()
     assert technologies == set()
@@ -177,10 +172,7 @@ def test_extract_entities_by_section_skips_new_denylist_entries(monkeypatch, sec
         preprocessor,
         "_extract_markdown_sections",
         lambda text: {
-            section_name: (
-                "Candidates will complete a live Python coding assessment "
-                "during the onsite interview loop."
-            )
+            section_name: ("Candidates will complete a live Python coding assessment during the onsite interview loop.")
         },
     )
 
@@ -197,9 +189,7 @@ def test_extract_entities_by_section_skips_new_denylist_entries(monkeypatch, sec
 
     monkeypatch.setattr(preprocessor, "nlp", counting_nlp)
 
-    skills, technologies, requirements = preprocessor._extract_entities_by_section(
-        "placeholder"
-    )
+    skills, technologies, requirements = preprocessor._extract_entities_by_section("placeholder")
     assert nlp_calls == [], "section should have been skipped before spaCy processing"
     assert skills == set()
     assert technologies == set()

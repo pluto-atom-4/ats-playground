@@ -190,9 +190,7 @@ class ATPDashboard(Screen[None]):
 
     def action_quit_app(self) -> None:
         """Exit dashboard."""
-        if any(
-            s == PhaseStatus.RUNNING for s in self.state.phase_status.values()
-        ):
+        if any(s == PhaseStatus.RUNNING for s in self.state.phase_status.values()):
             self.notify(
                 "Workflow still running. Press [p] to pause first.",
                 severity="error",
@@ -349,9 +347,7 @@ class ATPDashboard(Screen[None]):
                     await asyncio.sleep(0.01)
                 except Exception as e:
                     logger.warning(f"Failed to preprocess job {job_id}: {e}")
-                    self.state.increment_phase_progress(
-                        "preprocess", error=f"Preprocess failed: {e}"
-                    )
+                    self.state.increment_phase_progress("preprocess", error=f"Preprocess failed: {e}")
 
             self.state.complete_phase("preprocess")
         except Exception as e:
@@ -409,10 +405,7 @@ class ATPDashboard(Screen[None]):
                 self.state.increment_phase_progress("review")
                 await asyncio.sleep(0.01)
 
-            logger.info(
-                f"Review complete: {confirmed_count} confirmed, "
-                f"{rejected_count} rejected"
-            )
+            logger.info(f"Review complete: {confirmed_count} confirmed, {rejected_count} rejected")
             self.state.complete_phase("review")
 
         except Exception as e:
@@ -470,9 +463,7 @@ class ATPDashboard(Screen[None]):
                     )
 
                     # Update progress with actual tokens and cost
-                    self.state.increment_phase_progress(
-                        "assess", tokens=result.tokens_used, cost=result.actual_cost
-                    )
+                    self.state.increment_phase_progress("assess", tokens=result.tokens_used, cost=result.actual_cost)
 
                     # Update top matches after each assessment
                     matches = [
@@ -490,9 +481,7 @@ class ATPDashboard(Screen[None]):
                     await asyncio.sleep(0.01)
                 except Exception as e:
                     logger.warning(f"Failed to assess job {job_id}: {e}")
-                    self.state.increment_phase_progress(
-                        "assess", tokens=0, error=f"Assessment failed: {e}"
-                    )
+                    self.state.increment_phase_progress("assess", tokens=0, error=f"Assessment failed: {e}")
 
             self.state.complete_phase("assess")
         except Exception as e:
@@ -519,11 +508,7 @@ class ATPDashboard(Screen[None]):
                     "job_id": job_id,
                     "company": job.get("company"),
                     "clean_text": job.get("clean_text", ""),
-                    "sentences": (
-                        job.get("clean_text", "").split("\n")
-                        if job.get("clean_text")
-                        else []
-                    ),
+                    "sentences": (job.get("clean_text", "").split("\n") if job.get("clean_text") else []),
                     "chunks": job.get("chunks", []),
                     "token_count": job.get("total_tokens", 0),
                     "estimated_cost": job.get("estimated_cost", 0.0),
@@ -557,10 +542,7 @@ class ATPDashboard(Screen[None]):
             if self.state.top_matches:
                 lines.append("\n## Top Matches")
                 for i, match in enumerate(self.state.top_matches, 1):
-                    lines.append(
-                        f"\n### {i}. {match.get('title', 'N/A')} @ "
-                        f"{match.get('company', 'N/A')}"
-                    )
+                    lines.append(f"\n### {i}. {match.get('title', 'N/A')} @ {match.get('company', 'N/A')}")
                     lines.append(f"**Overall Score:** {match.get('overall_score', 0):.0f}/100")
 
                     job_id = match.get("id")
@@ -576,19 +558,13 @@ class ATPDashboard(Screen[None]):
             # Add all jobs section (sorted by score)
             lines.append("\n## All Assessed Jobs")
             jobs_sorted = sorted(
-                [
-                    (jid, jdata)
-                    for jid, jdata in self.state.jobs.items()
-                    if jdata.get("overall_score")
-                ],
+                [(jid, jdata) for jid, jdata in self.state.jobs.items() if jdata.get("overall_score")],
                 key=lambda x: x[1].get("overall_score", 0),
                 reverse=True,
             )
 
             for _, job in jobs_sorted:
-                lines.append(
-                    f"\n### {job.get('title', 'N/A')} @ {job.get('company', 'N/A')}"
-                )
+                lines.append(f"\n### {job.get('title', 'N/A')} @ {job.get('company', 'N/A')}")
                 lines.append(f"**Score:** {job.get('overall_score', 0):.0f}/100")
                 if "location" in job:
                     lines.append(f"**Location:** {job['location']}")
@@ -671,9 +647,7 @@ class ATPDashboardApp(App[None]):
 
     def action_quit_app(self) -> None:
         """Exit dashboard."""
-        if any(
-            s == PhaseStatus.RUNNING for s in self.state.phase_status.values()
-        ):
+        if any(s == PhaseStatus.RUNNING for s in self.state.phase_status.values()):
             if self.screen:
                 self.screen.notify(
                     "Workflow still running. Press [p] to pause first.",

@@ -184,15 +184,31 @@ TECHNICAL_COMPOUNDS = {
 
 # Hard technologies that should NOT be reclassified
 HARD_TECHNOLOGIES = {
-    "python", "javascript", "java", "kubernetes",
-    "docker", "postgresql", "redis", "react", "node",
-    "aws", "spark", "kafka", "go", "c++", "linux",
+    "python",
+    "javascript",
+    "java",
+    "kubernetes",
+    "docker",
+    "postgresql",
+    "redis",
+    "react",
+    "node",
+    "aws",
+    "spark",
+    "kafka",
+    "go",
+    "c++",
+    "linux",
 }
 
 # Soft skills that should NOT be reclassified
 SOFT_SKILLS_TO_PRESERVE = {
-    "leadership", "communication", "teamwork",
-    "problem-solving", "analytical", "mentoring",
+    "leadership",
+    "communication",
+    "teamwork",
+    "problem-solving",
+    "analytical",
+    "mentoring",
 }
 
 
@@ -220,8 +236,14 @@ class TestPhase1Baseline:
     def test_hard_technologies_not_flagged(self):
         """Test that hard technologies are NOT flagged as compounds."""
         hard_techs = [
-            "python", "javascript", "react", "kubernetes",
-            "docker", "postgresql", "aws", "rest api",
+            "python",
+            "javascript",
+            "react",
+            "kubernetes",
+            "docker",
+            "postgresql",
+            "aws",
+            "rest api",
         ]
 
         for tech in hard_techs:
@@ -230,8 +252,11 @@ class TestPhase1Baseline:
     def test_soft_skills_not_flagged(self):
         """Test that soft skills are NOT flagged as compounds."""
         soft_skills = [
-            "leadership", "communication", "teamwork",
-            "problem-solving", "analytical skills",
+            "leadership",
+            "communication",
+            "teamwork",
+            "problem-solving",
+            "analytical skills",
         ]
 
         for skill in soft_skills:
@@ -243,8 +268,7 @@ class TestPhase1Baseline:
         skills, technologies, requirements = preprocessor.extract_entities(job["description"])
 
         # Verify extraction happened
-        assert len(skills) > 0 or len(technologies) > 0 or len(requirements) > 0, \
-            "No entities extracted from job_001"
+        assert len(skills) > 0 or len(technologies) > 0 or len(requirements) > 0, "No entities extracted from job_001"
 
         # Log baseline for Phase 1 analysis
         print(f"\nJob {job['id']} baseline extraction:")
@@ -254,8 +278,7 @@ class TestPhase1Baseline:
 
         # Check for some expected hard technologies
         tech_lower = [t.lower() for t in technologies]
-        assert any(t in tech_lower for t in ["python", "javascript"]), \
-            "Expected to extract Python or JavaScript"
+        assert any(t in tech_lower for t in ["python", "javascript"]), "Expected to extract Python or JavaScript"
 
     def test_baseline_extraction_all_jobs(self, preprocessor):
         """Test baseline extraction on all 10 jobs and report metrics."""

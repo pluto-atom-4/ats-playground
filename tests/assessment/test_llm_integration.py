@@ -22,7 +22,7 @@ class TestLLMProviderInit:
         """Initialize with custom model."""
         provider = LLMProvider(
             api_key="sk-test-key",  # pragma: allowlist secret
-            model="claude-3-5-haiku-20241022"
+            model="claude-3-5-haiku-20241022",
         )
         assert provider.model == "claude-3-5-haiku-20241022"
 
@@ -233,9 +233,7 @@ class TestAssessJobErrors:
         """Authentication error raises immediately."""
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
-        mock_client.messages.create.side_effect = AuthenticationError(
-            "Invalid API key", response=MagicMock(), body={}
-        )
+        mock_client.messages.create.side_effect = AuthenticationError("Invalid API key", response=MagicMock(), body={})
 
         provider = LLMProvider(api_key="sk-bad")
 
@@ -256,11 +254,7 @@ class TestAssessJobErrors:
         mock_message.usage.input_tokens = 600
         mock_message.usage.output_tokens = 150
 
-        mock_client.messages.create.side_effect = [
-            rate_limit_error,
-            rate_limit_error,
-            mock_message
-        ]
+        mock_client.messages.create.side_effect = [rate_limit_error, rate_limit_error, mock_message]
 
         provider = LLMProvider(api_key="sk-test")
         result = provider.assess_job("CV", "Job", max_retries=3)
@@ -284,10 +278,7 @@ class TestAssessJobErrors:
         mock_message.usage.input_tokens = 600
         mock_message.usage.output_tokens = 150
 
-        mock_client.messages.create.side_effect = [
-            server_error,
-            mock_message
-        ]
+        mock_client.messages.create.side_effect = [server_error, mock_message]
 
         provider = LLMProvider(api_key="sk-test")
         result = provider.assess_job("CV", "Job", max_retries=2)

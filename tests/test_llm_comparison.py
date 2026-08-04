@@ -12,10 +12,7 @@ from typing import Dict, List, Optional
 import pytest
 
 # Configure logging to show in pytest output
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -37,9 +34,7 @@ class LLMComparator:
         self.client = anthropic.Anthropic(api_key=api_key)
         self.results: dict[str, Optional[Dict]] = {}
 
-    def assess_with_model(
-        self, model_id: str, cv_text: str, job_chunks: list
-    ) -> Optional[Dict]:
+    def assess_with_model(self, model_id: str, cv_text: str, job_chunks: list) -> Optional[Dict]:
         """Run assessment with specific model.
 
         Args:
@@ -122,15 +117,11 @@ class LLMComparator:
                 results[model_name] = None
 
         # Calculate variance from valid results
-        valid_scores = [
-            r["overall_score"]
-            for r in results.values()
-            if r is not None and "overall_score" in r
-        ]
+        valid_scores = [r["overall_score"] for r in results.values() if r is not None and "overall_score" in r]
 
         if not valid_scores:
             logger.error("No valid results from any model")
-            variance = float('inf')
+            variance = float("inf")
             recommendation = "❌ All models failed"
         else:
             variance = max(valid_scores) - min(valid_scores)
@@ -202,7 +193,7 @@ Respond with JSON:
             "usage": {
                 "input_tokens": usage.input_tokens,
                 "output_tokens": usage.output_tokens,
-            }
+            },
         }
 
         # Save to file
@@ -301,9 +292,9 @@ def test_model_comparison(tmp_path):
     with open(report_path, "w") as f:
         json.dump(result, f, indent=2, default=str)
 
-    print(f"\n\n{'='*80}")
+    print(f"\n\n{'=' * 80}")
     print("MODEL COMPARISON RESULTS")
-    print("="*80)
+    print("=" * 80)
 
     # Load job info for context
     with open("data/extracted_jobs/preprocessed_jobs.json") as f:
@@ -313,18 +304,18 @@ def test_model_comparison(tmp_path):
         print(f"Chunks: {len(job_chunks)} | Token count: {job.get('token_count', 'N/A')}")
 
     # Pricing table
-    print("\n" + "-"*80)
+    print("\n" + "-" * 80)
     print("PRICING & COSTS")
-    print("-"*80)
+    print("-" * 80)
     print("Model            Input Price    Output Price   Cost/10k tokens")
     for name, (_, in_price, out_price) in comparator.MODELS.items():
         cost_per_10k = (10000 / 1_000_000) * in_price
         print(f"{name:15} ${in_price:7.2f}/1M    ${out_price:7.2f}/1M     ${cost_per_10k:.4f}")
 
     # Results
-    print("\n" + "-"*80)
+    print("\n" + "-" * 80)
     print("ASSESSMENT SCORES")
-    print("-"*80)
+    print("-" * 80)
 
     for model, scores in result["results"].items():
         if scores is None:
@@ -343,16 +334,16 @@ def test_model_comparison(tmp_path):
         # Calculate cost
         in_price = comparator.MODELS[model][1]
         out_price = comparator.MODELS[model][2]
-        in_cost = (scores['input_tokens'] / 1_000_000) * in_price
-        out_cost = (scores['output_tokens'] / 1_000_000) * out_price
+        in_cost = (scores["input_tokens"] / 1_000_000) * in_price
+        out_cost = (scores["output_tokens"] / 1_000_000) * out_price
         total_cost = in_cost + out_cost
         print(f"  Cost:      ${in_cost:.6f} (input) + ${out_cost:.6f} (output) = ${total_cost:.6f}")
         print(f"  Summary:   {scores['summary'][:70]}...")
 
     # Analysis
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("ANALYSIS")
-    print("="*80)
+    print("=" * 80)
     print(f"Score Variance: {result['variance']:.1f} points (max - min)")
     print("\nDecision Criteria:")
     print("  ✅ ≤5 points   → Use Haiku (95% cost savings)")
@@ -360,7 +351,7 @@ def test_model_comparison(tmp_path):
     print("  ❌ >10 points  → Keep Opus (best accuracy)")
     print(f"\n→ RECOMMENDATION: {result['recommendation']}")
     print(f"\nReport saved: {report_path}")
-    print("="*80)
+    print("=" * 80)
 
 
 if __name__ == "__main__":

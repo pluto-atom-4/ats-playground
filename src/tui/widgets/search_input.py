@@ -28,9 +28,7 @@ class SearchInput(Input):
     }
     """
 
-    def __init__(
-        self, placeholder: str = "Search jobs...", **kwargs: Any
-    ) -> None:
+    def __init__(self, placeholder: str = "Search jobs...", **kwargs: Any) -> None:
         super().__init__(placeholder=placeholder, **kwargs)
 
     def on_input_changed(self, message: Input.Changed) -> None:

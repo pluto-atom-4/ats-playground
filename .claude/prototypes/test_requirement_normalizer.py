@@ -13,7 +13,7 @@ test_cases = [
     (
         "2+ years of experience working with and/or interpreting engineering data or engineering drawings",
         "2+ years of experience interpreting engineering data or drawings",
-        "verbose variant"
+        "verbose variant",
     ),
     (
         (
@@ -21,18 +21,14 @@ test_cases = [
             "data collection, preparation and interpretation"
         ),
         "2+ years of experience performing quantitative or statistical analysis",
-        "truncated variant"
+        "truncated variant",
     ),
     (
         "9+ years of experience software development using either Java, C++, or Python",
         "9+ years of experience with software development using Java, C++, or Python",
-        "missing 'with'"
+        "missing 'with'",
     ),
-    (
-        "Bachelor's Degree",
-        "Bachelor's Degree",
-        "exact match"
-    ),
+    ("Bachelor's Degree", "Bachelor's Degree", "exact match"),
 ]
 
 print("=" * 80)
@@ -62,17 +58,12 @@ print("\n\n2. SEMANTIC MATCHING")
 print("-" * 80)
 
 extracted_reqs = {
-    (
-        "2+ years of experience working with and/or interpreting engineering data or "
-        "engineering drawings"
-    ),
+    ("2+ years of experience working with and/or interpreting engineering data or engineering drawings"),
     (
         "2+ years of experience performing quantitative or statistical analysis, "
         "data collection, preparation and interpretation"
     ),
-    (
-        "9+ years of experience software development using either Java, C++, or Python"
-    ),
+    ("9+ years of experience software development using either Java, C++, or Python"),
     "Bachelor's Degree",
     "Deep experience with ARINC 429, ARINC 717, and ARINC 767 formats (Preferred)",
     "Hands-on experience with Apache Parquet, Apache ORC, HDF5, and Delta Lake (Preferred)",

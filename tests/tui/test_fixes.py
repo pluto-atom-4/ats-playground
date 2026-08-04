@@ -144,11 +144,7 @@ class TestJSONExportSchemaFix:
                 "job_id": job_id,
                 "company": job.get("company"),
                 "clean_text": job.get("clean_text", ""),
-                "sentences": (
-                    job.get("clean_text", "").split("\n")
-                    if job.get("clean_text")
-                    else []
-                ),
+                "sentences": (job.get("clean_text", "").split("\n") if job.get("clean_text") else []),
                 "chunks": job.get("chunks", []),
                 "token_count": job.get("total_tokens", 0),
                 "estimated_cost": job.get("estimated_cost", 0.0),
@@ -189,11 +185,7 @@ class TestJSONExportSchemaFix:
                 "job_id": job_id,
                 "company": job.get("company"),
                 "clean_text": job.get("clean_text", ""),
-                "sentences": (
-                    job.get("clean_text", "").split("\n")
-                    if job.get("clean_text")
-                    else []
-                ),
+                "sentences": (job.get("clean_text", "").split("\n") if job.get("clean_text") else []),
                 "chunks": job.get("chunks", []),
                 "token_count": job.get("total_tokens", 0),
                 "estimated_cost": job.get("estimated_cost", 0.0),

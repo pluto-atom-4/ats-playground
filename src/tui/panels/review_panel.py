@@ -51,9 +51,7 @@ class ReviewPanel(Static):
             bar = "█" * filled + "░" * (bar_width - filled)
 
             lines.append(f"Progress: {bar} {progress_pct:.0f}%")
-            lines.append(
-                f"({metrics.processed_items}/{metrics.total_items} reviewed)"
-            )
+            lines.append(f"({metrics.processed_items}/{metrics.total_items} reviewed)")
 
             if metrics.items_per_second > 0:
                 eta = metrics.eta_seconds

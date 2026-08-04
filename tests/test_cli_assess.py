@@ -112,10 +112,11 @@ def test_assess_single_job(
     temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
 ) -> None:
     """Test assessing a single job."""
-    with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
-         patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
-         patch("src.assessment.assessor.Assessor") as mock_assessor_cls:
-
+    with (
+        patch("src.verification.JobReviewer") as mock_reviewer_cls,
+        patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls,
+        patch("src.assessment.assessor.Assessor") as mock_assessor_cls,
+    ):
         # Mock JobReviewer
         reviewer = MagicMock()
         reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
@@ -149,10 +150,11 @@ def test_assess_multiple_jobs(
     sample_preprocessed_job_2: dict[str, Any],
 ) -> None:
     """Test assessing multiple jobs."""
-    with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
-         patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
-         patch("src.assessment.assessor.Assessor") as mock_assessor_cls:
-
+    with (
+        patch("src.verification.JobReviewer") as mock_reviewer_cls,
+        patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls,
+        patch("src.assessment.assessor.Assessor") as mock_assessor_cls,
+    ):
         # Mock JobReviewer
         reviewer = MagicMock()
         reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job, sample_preprocessed_job_2]
@@ -182,10 +184,11 @@ def test_assess_cost_tracking(
     temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
 ) -> None:
     """Test cost tracking (estimate vs actual)."""
-    with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
-         patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
-         patch("src.assessment.assessor.Assessor") as mock_assessor_cls:
-
+    with (
+        patch("src.verification.JobReviewer") as mock_reviewer_cls,
+        patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls,
+        patch("src.assessment.assessor.Assessor") as mock_assessor_cls,
+    ):
         # Mock JobReviewer
         reviewer = MagicMock()
         reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
@@ -213,8 +216,7 @@ def test_assess_cost_tracking(
 
 def test_assess_empty_jobs(temp_cv_file: str) -> None:
     """Test handling when no confirmed jobs found."""
-    with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
-         patch("src.assessment.assessor.Assessor"):
+    with patch("src.verification.JobReviewer") as mock_reviewer_cls, patch("src.assessment.assessor.Assessor"):
         reviewer = MagicMock()
         reviewer.get_confirmed_jobs.return_value = []
         mock_reviewer_cls.return_value = reviewer
@@ -241,10 +243,11 @@ def test_assess_rate_limit_handling(
     """Test rate limit error handling (non-fatal)."""
     import anthropic
 
-    with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
-         patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
-         patch("src.assessment.assessor.Assessor") as mock_assessor_cls:
-
+    with (
+        patch("src.verification.JobReviewer") as mock_reviewer_cls,
+        patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls,
+        patch("src.assessment.assessor.Assessor") as mock_assessor_cls,
+    ):
         # Mock JobReviewer
         reviewer = MagicMock()
         reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]
@@ -273,10 +276,11 @@ def test_assess_verify_cost_flag(
     temp_cv_file: str, mock_assessor_result: dict[str, Any], sample_preprocessed_job: dict[str, Any]
 ) -> None:
     """Test --verify-cost flag prompts user."""
-    with patch("src.verification.JobReviewer") as mock_reviewer_cls, \
-         patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls, \
-         patch("src.assessment.assessor.Assessor") as mock_assessor_cls:
-
+    with (
+        patch("src.verification.JobReviewer") as mock_reviewer_cls,
+        patch("src.storage.assessment_store.AssessmentStore") as mock_store_cls,
+        patch("src.assessment.assessor.Assessor") as mock_assessor_cls,
+    ):
         # Mock JobReviewer
         reviewer = MagicMock()
         reviewer.get_confirmed_jobs.return_value = [sample_preprocessed_job]

@@ -69,22 +69,13 @@ class Assessor:
 
         # Extract entities
         cv_skills, cv_tech, cv_reqs = self.preprocessor.extract_entities(cv_text)
-        job_skills, job_tech, job_reqs = self.preprocessor.extract_entities(
-            job_description
-        )
+        job_skills, job_tech, job_reqs = self.preprocessor.extract_entities(job_description)
 
-        logger.debug(
-            f"CV entities: {len(cv_skills)} skills, {len(cv_tech)} tech, {len(cv_reqs)} reqs"
-        )
-        logger.debug(
-            f"Job entities: {len(job_skills)} skills, {len(job_tech)} tech, "
-            f"{len(job_reqs)} reqs"
-        )
+        logger.debug(f"CV entities: {len(cv_skills)} skills, {len(cv_tech)} tech, {len(cv_reqs)} reqs")
+        logger.debug(f"Job entities: {len(job_skills)} skills, {len(job_tech)} tech, {len(job_reqs)} reqs")
 
         # Compute entity-based scoring
-        entity_score = self._compute_entity_score(
-            (cv_skills, cv_tech, cv_reqs), (job_skills, job_tech, job_reqs)
-        )
+        entity_score = self._compute_entity_score((cv_skills, cv_tech, cv_reqs), (job_skills, job_tech, job_reqs))
 
         # Prepare semantic chunks
         chunks = self.data_reshaper.chunk_by_sentences(job_description)
@@ -95,17 +86,11 @@ class Assessor:
         logger.debug(f"Baseline tokens (raw): {baseline_tokens}")
 
         # Call LLM
-        llm_result = self.llm_provider.assess_job(
-            cv_text, job_description, use_examples=self.use_examples
-        )
+        llm_result = self.llm_provider.assess_job(cv_text, job_description, use_examples=self.use_examples)
 
         # Measure token savings
         actual_input = llm_result["cost_tracking"]["actual_input"]
-        savings_percent = (
-            (1.0 - (actual_input / baseline_tokens)) * 100
-            if baseline_tokens > 0
-            else 0.0
-        )
+        savings_percent = (1.0 - (actual_input / baseline_tokens)) * 100 if baseline_tokens > 0 else 0.0
 
         logger.info(
             f"Assessment complete: entity_score={entity_score['overall_entity_score']:.1f}, "
@@ -155,22 +140,12 @@ class Assessor:
 
         # Compute individual scores
         skill_match = (
-            (len(cv_skills_lower & job_skills_lower) / len(job_skills_lower) * 100)
-            if job_skills_lower
-            else 100.0
+            (len(cv_skills_lower & job_skills_lower) / len(job_skills_lower) * 100) if job_skills_lower else 100.0
         )
 
-        tech_match = (
-            (len(cv_tech_lower & job_tech_lower) / len(job_tech_lower) * 100)
-            if job_tech_lower
-            else 100.0
-        )
+        tech_match = (len(cv_tech_lower & job_tech_lower) / len(job_tech_lower) * 100) if job_tech_lower else 100.0
 
-        requirements_match = (
-            (len(cv_all_lower & job_all_lower) / len(job_all_lower) * 100)
-            if job_all_lower
-            else 100.0
-        )
+        requirements_match = (len(cv_all_lower & job_all_lower) / len(job_all_lower) * 100) if job_all_lower else 100.0
 
         overall = (skill_match + tech_match + requirements_match) / 3.0
 

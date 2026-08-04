@@ -76,11 +76,7 @@ def main():
     # Calculate F1
     precision = len(correct) / len(extracted_reqs) if extracted_reqs else 0
     recall = len(correct) / len(expected_reqs) if expected_reqs else 0
-    f1 = (
-        2 * (precision * recall) / (precision + recall)
-        if (precision + recall) > 0
-        else 0
-    )
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
     print(f"F1 Score: {f1:.2f} (Precision: {precision:.2f}, Recall: {recall:.2f})")
 

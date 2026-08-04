@@ -132,10 +132,7 @@ class TestJobDataFlow:
 
     def test_top_matches_limited_to_five(self, state_manager: StateManager) -> None:
         """Top matches never exceeds 5 items."""
-        jobs = [
-            {"id": f"j{i}", "title": f"Job {i}", "overall_score": 100 - i}
-            for i in range(10)
-        ]
+        jobs = [{"id": f"j{i}", "title": f"Job {i}", "overall_score": 100 - i} for i in range(10)]
 
         state_manager.update_top_matches(jobs)
 
@@ -199,9 +196,7 @@ class TestErrorHandling:
         assert len(state_manager.current_errors) == 0
 
         state_manager.start_phase("crawl", total_items=1)
-        state_manager.increment_phase_progress(
-            "crawl", tokens=0, error="Selector failed"
-        )
+        state_manager.increment_phase_progress("crawl", tokens=0, error="Selector failed")
 
         assert len(state_manager.current_errors) == 1
         assert "Selector failed" in state_manager.current_errors
@@ -214,9 +209,7 @@ class TestErrorHandling:
             if i % 2 == 0:
                 state_manager.increment_phase_progress("crawl", tokens=100)
             else:
-                state_manager.increment_phase_progress(
-                    "crawl", tokens=0, error=f"Error {i}"
-                )
+                state_manager.increment_phase_progress("crawl", tokens=0, error=f"Error {i}")
 
         metrics = state_manager.phase_metrics["crawl"]
         assert metrics.processed_items == 5

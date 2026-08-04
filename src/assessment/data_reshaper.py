@@ -14,9 +14,7 @@ class DataReshaper:
     """Convert preprocessed data into Claude-friendly formats."""
 
     @staticmethod
-    def chunk_by_sentences(
-        text: str, target_tokens: int = 400
-    ) -> List[str]:
+    def chunk_by_sentences(text: str, target_tokens: int = 400) -> List[str]:
         """Group text into semantic chunks at sentence boundaries.
 
         Splits text at sentence breaks to preserve meaning; does not split
@@ -33,8 +31,7 @@ class DataReshaper:
             return []
 
         # Split on sentence boundaries (period, question mark, exclamation)
-        sentences = [s.strip() for s in text.replace("!", ".").replace("?", ".").split(".")
-                     if s.strip()]
+        sentences = [s.strip() for s in text.replace("!", ".").replace("?", ".").split(".") if s.strip()]
 
         chunks: List[str] = []
         current_chunk: List[str] = []

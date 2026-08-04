@@ -112,9 +112,7 @@ class TestBoundaryConditions:
     def test_very_small_cost_value(self, state_manager: StateManager) -> None:
         """Very small cost values handled precisely."""
         state_manager.start_phase("preprocess", total_items=1)
-        state_manager.increment_phase_progress(
-            "preprocess", tokens=10, cost=0.00000001
-        )
+        state_manager.increment_phase_progress("preprocess", tokens=10, cost=0.00000001)
 
         metrics = state_manager.phase_metrics["preprocess"]
         assert metrics.total_cost_usd > 0
@@ -193,9 +191,7 @@ class TestDataConsistency:
         state_manager.start_phase("crawl", total_items=1000)
 
         for i in range(100):
-            state_manager.increment_phase_progress(
-                "crawl", tokens=0, error=f"Error {i}"
-            )
+            state_manager.increment_phase_progress("crawl", tokens=0, error=f"Error {i}")
 
         # All errors should be recorded
         assert len(state_manager.current_errors) == 100
@@ -277,9 +273,7 @@ class TestRecoveryFromErrors:
             if i % 2 == 0:
                 state_manager.increment_phase_progress("assess", tokens=200)
             else:
-                state_manager.increment_phase_progress(
-                    "assess", tokens=0, error="API error"
-                )
+                state_manager.increment_phase_progress("assess", tokens=0, error="API error")
 
         state_manager.complete_phase("assess")
 

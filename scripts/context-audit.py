@@ -44,6 +44,7 @@ BUDGETS = {
 @dataclass
 class FileMetrics:
     """Metrics for a single context file."""
+
     path: str
     lines: int
     chars: int

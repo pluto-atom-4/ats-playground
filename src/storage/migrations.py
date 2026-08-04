@@ -41,9 +41,7 @@ def migrate_jobs_table_add_crawled_at(conn: sqlite3.Connection) -> bool:
         cursor.execute("UPDATE jobs SET crawled_at = crawled_date WHERE crawled_at IS NULL")
 
         # Create index on crawled_at for query performance
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_jobs_crawled_at ON jobs(crawled_at DESC)"
-        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_crawled_at ON jobs(crawled_at DESC)")
 
         conn.commit()
         logger.info("Migration: successfully added crawled_at to jobs table")

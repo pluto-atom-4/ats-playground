@@ -76,9 +76,7 @@ class AssessmentResult:
 class LLMProvider:
     """Claude LLM provider for CV-to-job assessment."""
 
-    def __init__(
-        self, api_key: Optional[str] = None, model_id: Optional[str] = None
-    ):
+    def __init__(self, api_key: Optional[str] = None, model_id: Optional[str] = None):
         """
         Initialize LLM provider.
 
@@ -93,9 +91,7 @@ class LLMProvider:
         else:
             self.model = DEFAULT_MODEL
 
-        self.input_price_per_1m, self.output_price_per_1m = get_model_pricing(
-            self.model
-        )
+        self.input_price_per_1m, self.output_price_per_1m = get_model_pricing(self.model)
 
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
@@ -113,9 +109,7 @@ class LLMProvider:
 
             self.client = anthropic.Anthropic(api_key=self.api_key)
         except ImportError as err:
-            raise ImportError(
-                "anthropic package not installed. Run: pip install anthropic"
-            ) from err
+            raise ImportError("anthropic package not installed. Run: pip install anthropic") from err
 
         model_display = get_model_display_name(self.model)
         logger.info(
@@ -182,9 +176,7 @@ class LLMProvider:
             except anthropic.RateLimitError as e:
                 should_retry = self._handle_rate_limit_error(attempt, job_id)
                 if not should_retry:
-                    raise RuntimeError(
-                        f"Rate limited after 3 attempts for job {job_id}"
-                    ) from e
+                    raise RuntimeError(f"Rate limited after 3 attempts for job {job_id}") from e
 
             except anthropic.APIConnectionError as e:
                 should_retry = self._handle_connection_error(attempt, job_id)
@@ -234,9 +226,7 @@ class LLMProvider:
             text = text[:-3]
         return text.strip()
 
-    def _parse_assessment_response(
-        self, response_text: str, input_tokens: int, output_tokens: int
-    ) -> Dict[str, Any]:
+    def _parse_assessment_response(self, response_text: str, input_tokens: int, output_tokens: int) -> Dict[str, Any]:
         """
         Parse and validate JSON assessment response.
 
@@ -267,9 +257,7 @@ class LLMProvider:
 
         return data
 
-    def _build_assessment_result(
-        self, job_id: str, data: dict, response: Any
-    ) -> AssessmentResult:
+    def _build_assessment_result(self, job_id: str, data: dict, response: Any) -> AssessmentResult:
         """
         Build AssessmentResult from parsed data.
 
@@ -314,9 +302,7 @@ class LLMProvider:
         """
         wait_time = 2**attempt
         if attempt < 2:
-            logger.warning(
-                f"Rate limited on job {job_id}, waiting {wait_time}s before retry"
-            )
+            logger.warning(f"Rate limited on job {job_id}, waiting {wait_time}s before retry")
             time.sleep(wait_time)
             return True
         else:
@@ -342,9 +328,7 @@ class LLMProvider:
             logger.error(f"API connection failed for job {job_id}")
             return False
 
-    def _handle_parse_error(
-        self, attempt: int, job_id: str, response: Optional[Any]
-    ) -> Union[AssessmentResult, bool]:
+    def _handle_parse_error(self, attempt: int, job_id: str, response: Optional[Any]) -> Union[AssessmentResult, bool]:
         """
         Handle JSON parsing error.
 
@@ -357,17 +341,13 @@ class LLMProvider:
             AssessmentResult on final attempt, True to retry otherwise
         """
         if attempt < 2:
-            logger.warning(
-                f"Failed to parse response for job {job_id}, retrying with fallback..."
-            )
+            logger.warning(f"Failed to parse response for job {job_id}, retrying with fallback...")
             return True
         else:
             logger.error(f"Failed to parse assessment response for job {job_id}")
             # Return default assessment on final parse failure
             if response:
-                total_tokens = (
-                    response.usage.input_tokens + response.usage.output_tokens
-                )
+                total_tokens = response.usage.input_tokens + response.usage.output_tokens
             else:
                 total_tokens = 0
 
@@ -377,9 +357,7 @@ class LLMProvider:
                 tech_score=50,
                 seniority_score=50,
                 location_score=50,
-                recommendations=[
-                    "Unable to fully assess. Please review job details manually."
-                ],
+                recommendations=["Unable to fully assess. Please review job details manually."],
                 summary="Assessment parsing failed. Scores are defaults.",
                 tokens_used=total_tokens,
                 actual_cost=0.0,

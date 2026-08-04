@@ -20,25 +20,25 @@ class RequirementNormalizer:
         req = req.strip()
 
         # Remove parenthetical notes at end (e.g., "(Preferred)")
-        req = re.sub(r'\s*\(.*?\)\s*$', '', req)
+        req = re.sub(r"\s*\(.*?\)\s*$", "", req)
 
         # Collapse verbose alternatives (and/or patterns)
-        req = re.sub(r'working\s+with\s+and/or\s+', '', req, flags=re.IGNORECASE)
-        req = re.sub(r'working\s+with\s+', '', req, flags=re.IGNORECASE)
+        req = re.sub(r"working\s+with\s+and/or\s+", "", req, flags=re.IGNORECASE)
+        req = re.sub(r"working\s+with\s+", "", req, flags=re.IGNORECASE)
 
         # Simplify adjectives before "experience"
-        adj_pattern = r'\b(deep|strong|extensive|proven|demonstrated)\s+experience\b'
-        req = re.sub(adj_pattern, 'experience', req, flags=re.IGNORECASE)
+        adj_pattern = r"\b(deep|strong|extensive|proven|demonstrated)\s+experience\b"
+        req = re.sub(adj_pattern, "experience", req, flags=re.IGNORECASE)
 
         # Remove "hands-on" prefix
-        req = re.sub(r'\bhands-?on\s+', '', req, flags=re.IGNORECASE)
+        req = re.sub(r"\bhands-?on\s+", "", req, flags=re.IGNORECASE)
 
         # Standardize years patterns
-        years_pattern = r'(\d+)\+?\s+years?\s+(?:of\s+)?experience\s+'
-        req = re.sub(years_pattern, r'\1+ years of experience ', req, flags=re.IGNORECASE)
+        years_pattern = r"(\d+)\+?\s+years?\s+(?:of\s+)?experience\s+"
+        req = re.sub(years_pattern, r"\1+ years of experience ", req, flags=re.IGNORECASE)
 
         # Collapse multiple spaces
-        req = re.sub(r'\s+', ' ', req).strip()
+        req = re.sub(r"\s+", " ", req).strip()
 
         return req
 

@@ -32,28 +32,39 @@ class TestTechnicalCompoundPatterns:
         ]
 
         for compound in compounds:
-            assert is_technical_compound(compound), \
-                f"Failed to detect Issue #191 compound: {compound}"
+            assert is_technical_compound(compound), f"Failed to detect Issue #191 compound: {compound}"
 
     def test_exact_match_patterns(self):
         """Test exact match patterns from TECHNICAL_COMPOUND_PATTERNS."""
         patterns = [
-            "spring framework", "spring boot", "react native",
-            "web service", "microservice", "cloud service",
-            "sql database", "nosql database",
-            "python django", "python flask", "javascript react",
+            "spring framework",
+            "spring boot",
+            "react native",
+            "web service",
+            "microservice",
+            "cloud service",
+            "sql database",
+            "nosql database",
+            "python django",
+            "python flask",
+            "javascript react",
         ]
 
         for pattern in patterns:
-            assert is_technical_compound(pattern), \
-                f"Failed to detect exact pattern: {pattern}"
+            assert is_technical_compound(pattern), f"Failed to detect exact pattern: {pattern}"
 
     def test_multi_word_keyword_patterns(self):
         """Test multi-word phrases containing tech keywords."""
         phrases = [
-            "custom framework", "api framework", "testing framework",
-            "cloud platform", "scalable system", "distributed system",
-            "deployment tool", "management utility", "network plugin",
+            "custom framework",
+            "api framework",
+            "testing framework",
+            "cloud platform",
+            "scalable system",
+            "distributed system",
+            "deployment tool",
+            "management utility",
+            "network plugin",
         ]
 
         for phrase in phrases:
@@ -63,44 +74,62 @@ class TestTechnicalCompoundPatterns:
     def test_single_word_not_compound(self):
         """Test that single words are NOT flagged as compounds."""
         single_words = [
-            "python", "javascript", "java", "react",
-            "docker", "kubernetes", "aws",
-            "sql", "mongodb", "redis",
-            "leadership", "communication", "teamwork",
+            "python",
+            "javascript",
+            "java",
+            "react",
+            "docker",
+            "kubernetes",
+            "aws",
+            "sql",
+            "mongodb",
+            "redis",
+            "leadership",
+            "communication",
+            "teamwork",
         ]
 
         for word in single_words:
-            assert not is_technical_compound(word), \
-                f"Incorrectly flagged single word as compound: {word}"
+            assert not is_technical_compound(word), f"Incorrectly flagged single word as compound: {word}"
 
     def test_soft_skills_not_flagged(self):
         """Test that soft skills are NOT flagged as compounds."""
         soft_skills = [
-            "leadership", "communication", "teamwork",
-            "problem-solving", "analytical skills",
-            "adaptability", "creativity", "collaboration",
-            "critical thinking", "attention to detail",
+            "leadership",
+            "communication",
+            "teamwork",
+            "problem-solving",
+            "analytical skills",
+            "adaptability",
+            "creativity",
+            "collaboration",
+            "critical thinking",
+            "attention to detail",
         ]
 
         for skill in soft_skills:
-            assert not is_technical_compound(skill), \
-                f"Incorrectly flagged soft skill as compound: {skill}"
+            assert not is_technical_compound(skill), f"Incorrectly flagged soft skill as compound: {skill}"
 
     def test_ambiguous_single_words(self):
         """Test ambiguous words that should NOT be compounds."""
         # These are valid tech terms but shouldn't be flagged as compounds
         ambiguous = [
-            "software", "system", "data", "platform",
-            "application", "service", "database",
-            "tools", "system",  # "system" alone is not a compound
+            "software",
+            "system",
+            "data",
+            "platform",
+            "application",
+            "service",
+            "database",
+            "tools",
+            "system",  # "system" alone is not a compound
         ]
 
         for word in ambiguous:
             result = is_technical_compound(word)
             # Single word alone should not be compound
             if len(word.split()) == 1:
-                assert not result, \
-                    f"Single word '{word}' should not be compound"
+                assert not result, f"Single word '{word}' should not be compound"
 
 
 class TestConfidenceScoring:
@@ -117,8 +146,7 @@ class TestConfidenceScoring:
 
         for phrase in exact_matches:
             score = get_confidence_score(phrase)
-            assert 0.8 <= score <= 1.0, \
-                f"Exact match '{phrase}' should have high confidence, got {score}"
+            assert 0.8 <= score <= 1.0, f"Exact match '{phrase}' should have high confidence, got {score}"
 
     def test_tier2_keyword_patterns_medium_confidence(self):
         """Test Tier 2: Multi-word with tech keyword (0.6-0.75)."""
@@ -132,8 +160,7 @@ class TestConfidenceScoring:
             score = get_confidence_score(phrase)
             # Only test if pattern is recognized
             if is_technical_compound(phrase):
-                assert 0.5 <= score <= 0.8, \
-                    f"Keyword pattern '{phrase}' confidence unexpected: {score}"
+                assert 0.5 <= score <= 0.8, f"Keyword pattern '{phrase}' confidence unexpected: {score}"
 
     def test_tier3_issue_191_pattern_medium_confidence(self):
         """Test Tier 3: Issue #191 pattern detection (0.5-0.6)."""
@@ -145,21 +172,22 @@ class TestConfidenceScoring:
 
         for phrase in issue_191_patterns:
             score = get_confidence_score(phrase)
-            assert score >= 0.5, \
-                f"Issue #191 pattern '{phrase}' should have confidence >= 0.5, got {score}"
+            assert score >= 0.5, f"Issue #191 pattern '{phrase}' should have confidence >= 0.5, got {score}"
 
     def test_no_match_zero_confidence(self):
         """Test phrases that don't match get zero confidence."""
         non_compounds = [
-            "python", "javascript",
-            "leadership", "communication",
-            "ability", "experience",
+            "python",
+            "javascript",
+            "leadership",
+            "communication",
+            "ability",
+            "experience",
         ]
 
         for phrase in non_compounds:
             score = get_confidence_score(phrase)
-            assert score == 0.0, \
-                f"Non-compound '{phrase}' should have 0.0 confidence, got {score}"
+            assert score == 0.0, f"Non-compound '{phrase}' should have 0.0 confidence, got {score}"
 
     def test_confidence_score_range(self):
         """Test confidence scores are always in valid range [0.0, 1.0]."""
@@ -173,8 +201,7 @@ class TestConfidenceScoring:
 
         for phrase in test_phrases:
             score = get_confidence_score(phrase)
-            assert 0.0 <= score <= 1.0, \
-                f"Confidence score out of range for '{phrase}': {score}"
+            assert 0.0 <= score <= 1.0, f"Confidence score out of range for '{phrase}': {score}"
 
 
 class TestGetTechnicalCompounds:
@@ -198,15 +225,13 @@ class TestGetTechnicalCompounds:
         ]
 
         for compound in expected:
-            assert compound in compounds, \
-                f"Expected compound not in set: {compound}"
+            assert compound in compounds, f"Expected compound not in set: {compound}"
 
     def test_non_empty_set(self):
         """Test that set is not empty."""
         compounds = get_technical_compounds()
         assert len(compounds) > 0, "Compound set should not be empty"
-        assert len(compounds) > 50, \
-            f"Should have 50+ patterns, got {len(compounds)}"
+        assert len(compounds) > 50, f"Should have 50+ patterns, got {len(compounds)}"
 
     def test_returns_copy(self):
         """Test that function returns a copy, not reference."""
@@ -230,8 +255,14 @@ class TestGetCompoundCategories:
         categories = get_compound_categories()
 
         expected_categories = [
-            "development", "data", "infrastructure", "architecture",
-            "engineering", "frameworks", "services", "database",
+            "development",
+            "data",
+            "infrastructure",
+            "architecture",
+            "engineering",
+            "frameworks",
+            "services",
+            "database",
         ]
 
         for category in expected_categories:
@@ -242,8 +273,7 @@ class TestGetCompoundCategories:
         categories = get_compound_categories()
 
         for category, compounds in categories.items():
-            assert isinstance(compounds, list), \
-                f"Category '{category}' should contain a list, got {type(compounds)}"
+            assert isinstance(compounds, list), f"Category '{category}' should contain a list, got {type(compounds)}"
             assert len(compounds) > 0, f"Category '{category}' should not be empty"
 
     def test_development_category(self):
@@ -284,19 +314,20 @@ class TestReclassifyCompound:
         ]
 
         for compound in compounds:
-            assert reclassify_compound(compound), \
-                f"Should reclassify compound: {compound}"
+            assert reclassify_compound(compound), f"Should reclassify compound: {compound}"
 
     def test_should_not_reclassify_single_words(self):
         """Test that single words should NOT be reclassified."""
         single_words = [
-            "python", "leadership", "communication",
-            "docker", "kubernetes",
+            "python",
+            "leadership",
+            "communication",
+            "docker",
+            "kubernetes",
         ]
 
         for word in single_words:
-            assert not reclassify_compound(word), \
-                f"Should not reclassify single word: {word}"
+            assert not reclassify_compound(word), f"Should not reclassify single word: {word}"
 
     def test_confidence_threshold_parameter(self):
         """Test that confidence_threshold parameter works."""
@@ -313,14 +344,18 @@ class TestReclassifyCompound:
     def test_non_compound_with_high_threshold(self):
         """Test non-compounds fail with reasonable thresholds."""
         non_compounds = [
-            "python", "java", "leadership",
-            "communication", "teamwork",
+            "python",
+            "java",
+            "leadership",
+            "communication",
+            "teamwork",
         ]
 
         # Non-compounds have confidence 0.0, so with threshold=0.5 should fail
         for phrase in non_compounds:
-            assert not reclassify_compound(phrase, confidence_threshold=0.5), \
+            assert not reclassify_compound(phrase, confidence_threshold=0.5), (
                 f"Should not reclassify non-compound with threshold=0.5: {phrase}"
+            )
 
 
 class TestEdgeCases:
@@ -355,8 +390,7 @@ class TestEdgeCases:
 
         for phrase, expected in test_cases:
             result = is_technical_compound(phrase)
-            assert result == expected, \
-                f"Case sensitivity issue for '{phrase}': got {result}, expected {expected}"
+            assert result == expected, f"Case sensitivity issue for '{phrase}': got {result}, expected {expected}"
 
     def test_compound_with_extra_spaces(self):
         """Test compounds with extra spaces."""

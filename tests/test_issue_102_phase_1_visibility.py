@@ -158,9 +158,7 @@ class TestGetPipelineStats:
         """Test that all status counts sum to total jobs."""
         stats = store_with_test_data.get_pipeline_stats()
 
-        total = (
-            stats["pending_review"] + stats["confirmed"] + stats["rejected"]
-        )
+        total = stats["pending_review"] + stats["confirmed"] + stats["rejected"]
         assert total == 7
 
 
