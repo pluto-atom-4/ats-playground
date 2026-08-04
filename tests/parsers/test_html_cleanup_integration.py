@@ -81,6 +81,62 @@ class TestCleanHtmlFullPipeline:
         # Content should be present
         assert "Senior" in result or "Developer" in result
 
+    def test_html_to_markdown_beautifulsoup_fallback_explicit(self) -> None:
+        """BeautifulSoup fallback invoked when MarkItDown raises ImportError."""
+        from unittest.mock import patch
+
+        from src.parsers.html_to_markdown import html_to_markdown
+
+        html = "<h1>Job Title</h1><p>Content here</p>"
+
+        # Mock MarkItDown to raise ImportError (simulates unavailable library)
+        with patch("src.parsers.html_to_markdown.MarkItDown") as mock_markitdown:
+            mock_markitdown.return_value.convert.side_effect = ImportError("MarkItDown not installed")
+            result = html_to_markdown(html)
+
+        # Should return clean text via BeautifulSoup, NOT raw HTML
+        assert result != html, "Should not return raw HTML on MarkItDown failure"
+        assert "Job Title" in result or "Content" in result, "Should extract text via BeautifulSoup"
+        assert isinstance(result, str)
+        assert len(result) < len(html), "Should be more concise than raw HTML"
+
+    def test_html_to_markdown_both_fail_returns_original(self) -> None:
+        """Returns original HTML if both MarkItDown AND BeautifulSoup fail (safe fallback)."""
+        from unittest.mock import patch
+
+        from src.parsers.html_to_markdown import html_to_markdown
+
+        html = "<p>content</p>"
+
+        # Mock both to fail
+        with (
+            patch("src.parsers.html_to_markdown.MarkItDown") as mock_markitdown,
+            patch("src.parsers.html_to_markdown._html_to_markdown_via_beautifulsoup") as mock_bs,
+        ):
+            mock_markitdown.return_value.convert.side_effect = RuntimeError("MarkItDown boom")
+            mock_bs.side_effect = RuntimeError("BeautifulSoup boom")
+            result = html_to_markdown(html)
+
+        # Safe fallback: return original HTML
+        assert result == html, "Should return original HTML as safe fallback when all else fails"
+
+    def test_clean_html_beautifulsoup_path(self) -> None:
+        """Full pipeline executes successfully via BeautifulSoup (no MarkItDown)."""
+        from unittest.mock import patch
+
+        html = "<h1>Senior Developer</h1><p>Equal Opportunity Employer.</p>"
+
+        # Force BeautifulSoup path by failing MarkItDown
+        with patch("src.parsers.html_to_markdown.MarkItDown") as mock_markitdown:
+            mock_markitdown.return_value.convert.side_effect = RuntimeError("MarkItDown unavailable")
+            result = clean_html(html)
+
+        # Should clean via BeautifulSoup and apply full pipeline
+        assert "Senior" in result or "Developer" in result, "Should extract content via BeautifulSoup"
+        assert "Equal Opportunity" not in result, "Should remove boilerplate even via BS path"
+        assert isinstance(result, str)
+        assert len(result) < len(html), "Should be cleaner than raw HTML"
+
 
 class TestBoilerplateRemovalCategories:
     """Test removal of each boilerplate category."""

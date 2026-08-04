@@ -31,18 +31,23 @@ logger = logging.getLogger(__name__)
 
 def html_to_markdown(html: str) -> str:
     """
-    Convert an HTML string to Markdown using MarkItDown.
+    Convert an HTML string to clean text using a 3-tier fallback chain.
+
+    Attempts conversion in this order:
+    1. MarkItDown (primary) - preserves structure, handles rich content
+    2. BeautifulSoup + lxml (fallback) - basic text extraction
+    3. Original HTML (safe fallback) - never returns empty/None
 
     MarkItDown requires a file path, so ``html`` is written to a temporary
     ``.html`` file (UTF-8) before conversion. On any failure (I/O error,
-    MarkItDown exception, etc.), the original ``html`` is returned unchanged
-    so callers always get a usable string.
+    MarkItDown exception, etc.), falls back to BeautifulSoup. If both fail,
+    returns the original ``html`` unchanged so callers always get a usable string.
 
     Args:
         html: Raw HTML string to convert.
 
     Returns:
-        Markdown-formatted string, or the original ``html`` on failure.
+        Clean text from MarkItDown/BeautifulSoup, or the original ``html`` on complete failure.
     """
     if not html:
         return html
@@ -62,14 +67,74 @@ def html_to_markdown(html: str) -> str:
         markdown: str = result.markdown
         return markdown
     except Exception as e:
-        logger.warning(f"html_to_markdown failed: {e}, returning original HTML")
-        return html
+        logger.warning(f"html_to_markdown MarkItDown failed: {e}, trying BeautifulSoup fallback")
+        try:
+            return _html_to_markdown_via_beautifulsoup(html)
+        except Exception as bs_error:
+            logger.error(f"BeautifulSoup fallback also failed: {bs_error}, returning original HTML")
+            return html
     finally:
         if tmp_path:
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+def _html_to_markdown_via_beautifulsoup(html: str) -> str:
+    """Convert HTML to text using BeautifulSoup + lxml (fallback).
+
+    Used when MarkItDown is unavailable or fails. Returns normalized text
+    suitable for downstream tokenization and chunking.
+
+    Args:
+        html: Raw HTML string to convert
+
+    Returns:
+        Cleaned text with script/style tags removed
+
+    Raises:
+        ImportError: If BeautifulSoup not available
+        Exception: If BeautifulSoup parsing fails
+    """
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        logger.error("BeautifulSoup not available for fallback")
+        raise
+
+    soup = BeautifulSoup(html, "lxml")
+
+    # Remove script and style tags
+    for script in soup(["script", "style"]):
+        script.decompose()
+
+    # Extract text
+    text = soup.get_text()
+    return _postprocess_markdown_text(text)
+
+
+def _postprocess_markdown_text(text: str) -> str:
+    """Normalize BeautifulSoup output to readable text.
+
+    Collapse whitespace, remove extra newlines, normalize spacing.
+
+    Args:
+        text: Raw text from BeautifulSoup
+
+    Returns:
+        Cleaned and normalized text
+    """
+    # Strip and collapse lines
+    lines = (line.strip() for line in text.splitlines())
+    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    text = "\n".join(chunk for chunk in chunks if chunk)
+
+    # Normalize whitespace
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r" {2,}", " ", text)
+
+    return text.strip()
 
 
 # Standalone lines matching these phrases (case-insensitive, after
