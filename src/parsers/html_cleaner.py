@@ -1,10 +1,17 @@
-"""HTML parsing and cleaning for job postings."""
+"""HTML parsing and cleaning for job postings.
+
+Deprecated: Use html_to_markdown.clean_html() instead (Issue #230).
+This module is retained for backward compatibility only.
+"""
 
 import logging
 import re
+import warnings
 from typing import Optional
 
 from bs4 import BeautifulSoup
+
+from src.parsers.html_to_markdown import clean_html
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +37,16 @@ class HTMLCleaner:
         """
         Initialize HTML cleaner.
 
+        Deprecated: Use html_to_markdown.clean_html() instead (Issue #230).
+
         Args:
             prefer_markitdown: Use MarkItDown (primary) or BeautifulSoup (fallback)
         """
+        warnings.warn(
+            "HTMLCleaner is deprecated and will be removed in v2.0. Use html_to_markdown.clean_html() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.prefer_markitdown = prefer_markitdown
         self.markitdown_available = self._check_markitdown()
 
@@ -51,7 +65,7 @@ class HTMLCleaner:
         """
         Convert HTML to clean text.
 
-        Tries MarkItDown first, falls back to BeautifulSoup if unavailable.
+        Delegates to html_to_markdown.clean_html() (Issue #230).
 
         Args:
             html: Raw HTML string
@@ -62,10 +76,8 @@ class HTMLCleaner:
         if not html or not isinstance(html, str):
             return ""
 
-        if self.prefer_markitdown and self.markitdown_available:
-            return self._clean_with_markitdown(html)
-        else:
-            return self._clean_with_beautifulsoup(html)
+        # Delegate to new unified clean_html() function
+        return clean_html(html, include_section_headers=True)
 
     def _clean_with_markitdown(self, html: str) -> str:
         """Clean HTML using MarkItDown."""
