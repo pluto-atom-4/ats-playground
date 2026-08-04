@@ -78,6 +78,8 @@ uv run python -m src.cli all --cv data/cv.json --config config/companies.json --
 uv run python -m src.cli all --cv data/cv.json --config config/companies.json --up-to review
 ```
 
+**HTML Preprocessing (Issue #230 + #231):** Consolidated `clean_html()` with 70+ boilerplate patterns + 3-tier fallback chain (MarkItDown → BeautifulSoup → Original HTML). Ensures robustness: preprocessing never fails. 10x faster via pre-compiled patterns. **Deprecation:** `HTMLCleaner` removed in v2.0; use `clean_html()` instead.
+
 See [CLI reference](.github/instructions/cli-usage.instructions.md) for all commands.
 
 ---
