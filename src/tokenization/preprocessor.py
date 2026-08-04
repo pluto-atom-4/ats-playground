@@ -18,6 +18,27 @@ logger = logging.getLogger(__name__)
 class Preprocessor:
     """Preprocess text using spaCy for NLP tasks."""
 
+    # Section names (or substrings thereof) excluded from entity extraction
+    # by `_extract_entities_by_section` -- benefits, legal/compliance
+    # boilerplate, hiring-process logistics, etc. Exposed as a class
+    # attribute so it stays a single source of truth: other tooling (e.g.
+    # `.claude/scripts/analyze_sections.py`) should reference
+    # `Preprocessor.SKIP_SECTIONS` directly rather than re-declaring its own
+    # copy that can silently drift out of sync.
+    SKIP_SECTIONS: Set[str] = {
+        "benefits", "compensation", "salary", "pay range", "401", "retirement",
+        "insurance", "health", "dental", "vision", "pto", "vacation",
+        "about", "company", "culture", "commitment", "team", "our",
+        "equal opportunity", "eoe", "affirmative action", "disability",
+        "background check", "export control", "security clearance", "visa",
+        "apply", "posting date", "posted", "application close", "codevue",
+        "shift", "location", "work location", "travel", "working condition",
+        "fte", "temporary", "education:", "hiring practice",
+        "bargaining", "conflict of interest", "drug free", "e-verify",
+        "right to work", "safety sensitive", "technical assessment",
+        "total rewards", "union", "contingent upon award"
+    }
+
     def __init__(self, model: str = "en_core_web_md"):
         """Initialize preprocessor with spaCy model.
 
@@ -1283,16 +1304,7 @@ class Preprocessor:
         sections = self._extract_markdown_sections(text)
         tech_keywords = self._get_tech_keywords()
 
-        skip_sections = {
-            "benefits", "compensation", "salary", "pay range", "401", "retirement",
-            "insurance", "health", "dental", "vision", "pto", "vacation",
-            "about", "company", "culture", "commitment", "team", "our",
-            "equal opportunity", "eoe", "affirmative action", "disability",
-            "background check", "export control", "security clearance", "visa",
-            "apply", "posting date", "posted", "application close", "codevue",
-            "shift", "location", "work location", "travel", "working condition",
-            "fte", "temporary", "education:", "hiring practice"
-        }
+        skip_sections = self.SKIP_SECTIONS
 
         skills_section_keywords = (
             "skill", "technical", "core", "competency", "ability", "expertise", "proficiency"
