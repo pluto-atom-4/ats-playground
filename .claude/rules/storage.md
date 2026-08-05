@@ -16,6 +16,7 @@ CREATE TABLE jobs (
   raw_html TEXT,
   clean_text TEXT,
   status TEXT, -- pending_review, confirmed, rejected
+  preprocessing_version TEXT, -- Phase 2: v1.0 (legacy) or v2.0 (new)
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
@@ -54,6 +55,18 @@ CREATE VIRTUAL TABLE jobs_fts USING fts5(
 ```
 
 Queries complete in <100ms even with 1000+ jobs.
+
+**Preprocessing Version Tracking (Issue #230 Phase 2, Future):**
+- `v1.0` – Legacy pipeline (no boilerplate removal via clean_html)
+- `v2.0` – New pipeline (70+ boilerplate patterns removed, 3-tier fallback chain for robustness)
+
+Old jobs (v1.0): `clean_text` may contain legal disclaimers, navigation links, company taglines
+New jobs (v2.0): `clean_text` cleaned with 7 boilerplate categories removed (legal, headers, company, time, salary, formatting, navigation); robust 3-tier fallback (MarkItDown → BeautifulSoup → Original) ensures preprocessing never fails
+
+This enables:
+1. **Selective re-preprocessing**: Query `WHERE preprocessing_version = 'v1.0'` and update to v2.0
+2. **Cost analysis**: Compare token usage between pipeline versions
+3. **Graceful fallback**: Revert to v1.0 if v2.0 causes quality issues
 
 ## Database Access Pattern
 

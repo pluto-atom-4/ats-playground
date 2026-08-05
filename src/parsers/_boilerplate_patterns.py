@@ -1,20 +1,26 @@
-"""HTML cleanup and boilerplate removal (Phase 6 - Issue #193).
+"""Internal boilerplate pattern definitions and utilities (Phase 1 - Issue #230).
 
-Removes 7 categories of boilerplate patterns from HTML-parsed job descriptions:
-1. Legal/compliance: "Required Qualifications", "Qualifications Experience", etc.
-2. Section headers: "JD:", "Job Description:", "Overview", "Requirements"
-3. Company boilerplate: "Equal Opportunity", "Affirmative Action", "We are committed"
-4. Time references: "Full-time", "Part-time", "Contract", "Temporary"
-5. Salary/benefits: "Competitive salary", "Health benefits", "401k"
-6. Special formatting: HTML artifacts, line breaks, whitespace
-7. Navigation: "Apply Now", "Share", "Save", "Next", "Previous"
+Pre-compiled regex patterns for 7 categories of boilerplate in job descriptions:
+1. Legal/compliance: "Required Qualifications", "Equal Opportunity", etc.
+2. Section headers: "JD:", "Job Description:", "Requirements", etc.
+3. Company boilerplate: "We are committed", "Our mission", etc.
+4. Time references: "Full-time", "Part-time", "Contract", "Temporary", etc.
+5. Salary/benefits: "Competitive salary", "Health benefits", "401k", etc.
+6. Special formatting: HTML artifacts (&nbsp;, &amp;), whitespace
+7. Navigation text: "Apply Now", "Share", "Save", "Next", etc.
+
+All patterns are pre-compiled for performance (one-time cost at module load).
 """
 
 import logging
 import re
-from typing import Set
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# RAW PATTERN STRINGS (7 Categories)
+# ============================================================================
 
 # Category 1: Legal/compliance patterns
 LEGAL_COMPLIANCE_PATTERNS = [
@@ -32,9 +38,7 @@ LEGAL_COMPLIANCE_PATTERNS = [
 ]
 
 # Category 2: Section headers
-# Note: These patterns target section-header artifacts (header: content).
-# Patterns use word boundaries \b to avoid false positives.
-# "Experience" is NOT included here (too broad) - it appears in body text.
+# Note: "experience" is intentionally excluded (too broad).
 SECTION_HEADER_PATTERNS = [
     r"(?i)\bjd\s*[:|-]",
     r"(?i)\bjob\s+description\s*[:|-]",
@@ -114,25 +118,36 @@ NAVIGATION_PATTERNS = [
     r"(?i)read\s+more",
 ]
 
+# ============================================================================
+# PRE-COMPILED PATTERNS (One-time cost at module load)
+# ============================================================================
 
-def get_boilerplate_patterns() -> dict[str, list[str]]:
-    """Get all 7 categories of boilerplate patterns.
+_COMPILED_PATTERNS: Dict[str, List[re.Pattern[str]]] = {
+    "legal_compliance": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in LEGAL_COMPLIANCE_PATTERNS],
+    "section_headers": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in SECTION_HEADER_PATTERNS],
+    "company_boilerplate": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in COMPANY_BOILERPLATE_PATTERNS],
+    "time_references": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in TIME_REFERENCE_PATTERNS],
+    "salary_benefits": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in SALARY_BENEFITS_PATTERNS],
+    "special_formatting": [re.compile(p, re.MULTILINE) for p in SPECIAL_FORMATTING_PATTERNS],
+    "navigation": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in NAVIGATION_PATTERNS],
+}
+
+
+# ============================================================================
+# PUBLIC API
+# ============================================================================
+
+
+def get_compiled_patterns() -> Dict[str, List[re.Pattern[str]]]:
+    """Get pre-compiled regex patterns for all 7 boilerplate categories.
 
     Returns:
-        Dictionary mapping category name to list of regex patterns
+        Dictionary mapping category name to list of compiled regex patterns.
     """
-    return {
-        "legal_compliance": LEGAL_COMPLIANCE_PATTERNS,
-        "section_headers": SECTION_HEADER_PATTERNS,
-        "company_boilerplate": COMPANY_BOILERPLATE_PATTERNS,
-        "time_references": TIME_REFERENCE_PATTERNS,
-        "salary_benefits": SALARY_BENEFITS_PATTERNS,
-        "special_formatting": SPECIAL_FORMATTING_PATTERNS,
-        "navigation": NAVIGATION_PATTERNS,
-    }
+    return _COMPILED_PATTERNS
 
 
-def is_boilerplate_phrase(text: str, category: str | None = None) -> bool:
+def is_boilerplate_phrase(text: str, category: Optional[str] = None) -> bool:
     """Check if text matches boilerplate patterns.
 
     Args:
@@ -140,44 +155,33 @@ def is_boilerplate_phrase(text: str, category: str | None = None) -> bool:
         category: Optional category to check (if None, checks all categories)
 
     Returns:
-        True if text matches boilerplate patterns, False otherwise
+        True if text matches any boilerplate pattern, False otherwise
     """
     if not text or not text.strip():
         return False
 
-    all_patterns = get_boilerplate_patterns()
+    patterns = _COMPILED_PATTERNS.copy()
 
     if category:
-        if category not in all_patterns:
+        if category not in _COMPILED_PATTERNS:
             logger.warning(f"Unknown boilerplate category: {category}")
             return False
-        patterns = {category: all_patterns[category]}
-    else:
-        patterns = all_patterns
+        patterns = {category: _COMPILED_PATTERNS[category]}
 
-    text_lower = text.lower()
     for pattern_list in patterns.values():
-        for pattern in pattern_list:
-            if re.search(pattern, text_lower, re.MULTILINE):
+        for compiled_pattern in pattern_list:
+            if compiled_pattern.search(text):
                 return True
 
     return False
 
 
-def remove_boilerplate(text: str) -> str:
-    """Remove all boilerplate patterns from text.
-
-    Removes patterns from 7 categories:
-    1. Legal/compliance phrases
-    2. Section headers
-    3. Company boilerplate
-    4. Time references (employment type)
-    5. Salary/benefits
-    6. Special formatting (HTML artifacts)
-    7. Navigation text
+def remove_boilerplate_fast(text: str, skip_categories: Optional[Set[str]] = None) -> str:
+    """Remove boilerplate patterns from text using pre-compiled regexes.
 
     Args:
         text: Input text to clean
+        skip_categories: Set of category names to skip (e.g., {"section_headers"})
 
     Returns:
         Text with boilerplate removed
@@ -186,12 +190,13 @@ def remove_boilerplate(text: str) -> str:
         return ""
 
     cleaned = text
-    patterns = get_boilerplate_patterns()
+    skip_set = skip_categories or set()
 
-    for _category, pattern_list in patterns.items():
-        for pattern in pattern_list:
-            # Use DOTALL flag to handle multi-line patterns
-            cleaned = re.sub(pattern, "", cleaned, flags=re.MULTILINE | re.IGNORECASE)
+    for category, pattern_list in _COMPILED_PATTERNS.items():
+        if category in skip_set:
+            continue
+        for compiled_pattern in pattern_list:
+            cleaned = compiled_pattern.sub("", cleaned)
 
     # Clean up extra whitespace
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
@@ -203,46 +208,6 @@ def remove_boilerplate(text: str) -> str:
     )
 
     return cleaned
-
-
-def get_boilerplate_keywords() -> Set[str]:
-    """Get flattened set of boilerplate keywords for filtering.
-
-    Returns:
-        Set of keywords extracted from all boilerplate patterns
-    """
-    # Extract keywords from simpler patterns (non-regex)
-    simple_keywords = [
-        "salary",
-        "benefits",
-        "equal",
-        "opportunity",
-        "qualifications",
-        "requirements",
-        "full-time",
-        "part-time",
-        "contract",
-        "temporary",
-        "401k",
-        "pto",
-        "vacation",
-        "apply",
-        "share",
-        "save",
-        "export",
-        "control",
-        "affirmative",
-        "action",
-        "compliance",
-        "background",
-        "check",
-        "security",
-        "clearance",
-        "visa",
-        "sponsorship",
-    ]
-
-    return set(simple_keywords)
 
 
 def remove_html_entities(text: str) -> str:
@@ -273,3 +238,26 @@ def remove_html_entities(text: str) -> str:
     text = re.sub(r"&#\d+;", "", text)
 
     return text
+
+
+def _normalize_whitespace(text: str) -> str:
+    """Normalize whitespace in text.
+
+    Collapses multiple spaces/newlines to single space/newline.
+
+    Args:
+        text: Input text
+
+    Returns:
+        Text with normalized whitespace
+    """
+    if not text:
+        return ""
+
+    # Collapse multiple spaces
+    text = re.sub(r" {2,}", " ", text)
+
+    # Collapse multiple newlines
+    text = re.sub(r"\n{2,}", "\n", text)
+
+    return text.strip()

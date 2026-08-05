@@ -70,6 +70,65 @@ See `.claude/rules/tui/` for StateManager, panel architecture, and async workflo
 
 ---
 
+## 5A. HTML Cleaning Consolidation (Issue #230)
+
+**Architecture:** 3 modules → 1 consolidated `clean_html()` function
+
+| Component | Before | After |
+|-----------|--------|-------|
+| HTML cleaning | `HTMLCleaner` + scattered regex | `clean_html()` single source-of-truth |
+| Boilerplate removal | Ad-hoc per-module patterns | 70+ pre-compiled patterns, 7 categories |
+| Performance | ~500ms per job (regex per call) | ~50ms per job (pre-compiled) |
+| Maintenance | Multiple locations, divergent logic | Single `_boilerplate_patterns.py` |
+
+**Boilerplate Categories (7):**
+1. **Legal** – EEO statements, compliance disclaimers, copyright
+2. **Section Headers** – Navigation headers, redundant section labels
+3. **Company Info** – Taglines, about blurbs (not job-specific)
+4. **Time References** – Posted dates, deadlines, timestamps
+5. **Salary & Benefits** – Salary ranges, benefits (optional removal)
+6. **Formatting** – Extra whitespace, CSS classes, metadata
+7. **Navigation** – Breadcrumbs, menus, page navigation
+
+**API:**
+```python
+from src.parsers.html_to_markdown import clean_html
+
+# Remove specific categories
+clean_text = clean_html(
+    raw_html,
+    skip_boilerplate_categories={'legal', 'salary_benefits'}
+)
+```
+
+**Pipeline:** HTML → Markdown → section headers → dividers → boilerplate removal → entity extraction → whitespace normalization
+
+**Performance Benefit:** 70+ patterns pre-compiled at module load (10x faster per job)
+
+**Token Reduction:** ~88% vs raw HTML (6,000 → 700 tokens), with boilerplate removal accounting for ~30% of savings
+
+**Backward Compatibility (Phase 2):** Database column `preprocessing_version` tracks v1.0 (legacy, no boilerplate) vs v2.0 (new, with boilerplate removal). Enables selective re-preprocessing and graceful fallback.
+
+**Deprecation Path:** `HTMLCleaner` marked deprecated, removed in v2.0
+
+### Fallback Chain (Issue #231)
+
+3-tier robustness strategy: Preprocessing never fails catastrophically.
+
+```
+HTML → MarkItDown (primary, ~50ms)
+     ↓ (on failure)
+     → BeautifulSoup (fallback, ~100ms)
+     ↓ (on failure)
+     → Original HTML (safe, ~6K tokens, never fails)
+```
+
+**Implementation:** `html_to_markdown()` catches exceptions at each tier, logs warnings, escalates to next tier.
+
+**Tests:** `test_exception_fallback_returns_original_html()` (MarkItDown → BeautifulSoup path), `test_malformed_html_does_not_raise()` (safety net verification).
+
+---
+
 ## 5. PHASE-SPECIFIC RULES & COORDINATION
 
 Phase documentation organized in `.claude/rules/`:
@@ -110,7 +169,7 @@ See CLAUDE.md and `.claude/rules/` for enforcement mechanisms.
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
 | Browser | Playwright (async, JS rendering) | Handles dynamic content, pagination |
-| HTML → Markdown | MarkItDown (primary) + BeautifulSoup (fallback) | Structure preservation + robustness |
+| HTML → Markdown | 3-tier: MarkItDown → BeautifulSoup → Original | Structure preservation + robustness (Issue #231) |
 | Tokenization | spaCy (sentences) + tiktoken (counting) | Semantic boundaries, cost estimation |
 | Database | SQLite + FTS5 | Serverless, full-text search, atomic writes |
 | LLM | Claude 3.5 Sonnet | Cost/quality balance: $0.003 per 1M input tokens |

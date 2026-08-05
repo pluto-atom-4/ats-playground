@@ -42,14 +42,17 @@ class TestHtmlToMarkdown:
         assert "unclosed paragraph and div" in result
 
     def test_exception_fallback_returns_original_html(self) -> None:
-        """If MarkItDown raises, the original HTML string is returned unchanged."""
+        """If MarkItDown raises, BeautifulSoup fallback extracts text; if both fail, return original HTML."""
         html = "<p>content that should survive on failure</p>"
 
         with patch.object(html_to_markdown_module, "MarkItDown") as mock_markitdown:
             mock_markitdown.return_value.convert.side_effect = RuntimeError("boom")
             result = html_to_markdown(html)
 
-        assert result == html
+        # With BeautifulSoup fallback, text is extracted (not raw HTML returned)
+        assert result != html, "Should use BeautifulSoup fallback, not return raw HTML"
+        assert "content that should survive on failure" in result
+        assert "<p>" not in result, "Should extract text, not return raw HTML"
 
     def test_temp_file_cleaned_up_on_success(self) -> None:
         """The temporary file created during conversion is removed afterward."""

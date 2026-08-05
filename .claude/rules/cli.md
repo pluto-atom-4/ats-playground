@@ -32,12 +32,15 @@ def crawl(
 | Command | Purpose |
 |---------|---------|
 | `crawl` | Fetch raw HTML from career pages |
-| `preprocess` | Clean HTML, chunk text, count tokens |
+| `preprocess` | Clean HTML (with consolidated clean_html + 70+ boilerplate patterns), chunk text, count tokens |
 | `review` | Interactive verification before LLM |
 | `assess` | Claude API evaluation of CV fit |
 | `export` | Generate markdown reports |
 | `query` | Search database by keyword/score |
 | `stats` | Show token usage analytics |
+
+**Preprocessing Pipeline (Issue #230 + #231):**
+The `preprocess` command uses consolidated `clean_html()` with 70+ boilerplate patterns (7 categories) and 3-tier fallback chain (MarkItDown → BeautifulSoup → Original HTML). Ensures robustness: preprocessing never fails catastrophically.
 
 **Full workflow (single config):**
 ```bash
@@ -85,9 +88,32 @@ async def crawl(...) -> None:
 uv run python -m src.cli --help
 uv run python -m src.cli crawl --help
 
+# Preprocess with token estimates
+uv run python -m src.cli preprocess --show-estimates
+
 # Dry-run (if supported)
 uv run python -m src.cli crawl --config config/companies.json
 
 # Watch logs
 tail -f logs/app.log
 ```
+
+## Preprocessing Version Tracking (Phase 2, Future)
+
+**Note:** Phase 1 (Issue #230) implements consolidated `clean_html()`. Phase 2 will add database column `preprocessing_version` to track which pipeline version processed each job:
+- `v1.0` – Legacy (no boilerplate removal)
+- `v2.0` – New (70+ boilerplate patterns removed)
+
+**CLI flag (Phase 2):**
+```bash
+# Force legacy preprocessing (v1.0)
+uv run python -m src.cli preprocess --preprocessing-version 1.0
+
+# New mode (default, v2.0)
+uv run python -m src.cli preprocess --preprocessing-version 2.0
+```
+
+This enables:
+- **Selective re-preprocessing**: Update only old jobs with new pipeline
+- **Cost comparisons**: v1.0 vs v2.0 quality + token usage
+- **Fallback mode**: Revert to v1.0 if v2.0 causes issues
