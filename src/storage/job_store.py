@@ -433,6 +433,83 @@ class JobStore:
 
         return report
 
+    def get_jobs_for_reprocessing(
+        self,
+        version: str = "v1.0",
+        min_age_days: Optional[int] = None,
+        max_score: Optional[int] = None,
+        min_tokens: Optional[int] = None,
+        company_names: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get jobs matching filter criteria for targeted re-preprocessing.
+
+        Intelligently filters jobs based on version, age, score, token count, and company.
+        Supports combined filtering for A/B testing and gradual migrations.
+
+        Args:
+            version: Preprocessing version to filter (e.g., 'v1.0', '1.0', 'v2.0', '2.0')
+            min_age_days: Only jobs preprocessed at least N days ago
+            max_score: Only jobs with overall_score <= max_score (for low-scoring jobs)
+            min_tokens: Only jobs with tokens >= min_tokens (high token count)
+            company_names: List of company names to include (e.g., ['Amazon', 'Google'])
+            limit: Maximum number of jobs to return (enforces safe batch sizes)
+
+        Returns:
+            List of job dicts matching all filter criteria, ordered by oldest first
+
+        Raises:
+            ValueError: If version not valid
+        """
+        # Normalize and validate version
+        clean_version = version.replace("v", "")
+        if clean_version not in ("1.0", "2.0"):
+            raise ValueError(f"Invalid preprocessing version: {version}. Must be '1.0' or '2.0'")
+
+        if not self.conn:
+            return []
+
+        # Format for query
+        version_query = version if version.startswith("v") else f"v{version}"
+
+        # Build query dynamically based on filters
+        query = "SELECT * FROM job_reviews WHERE preprocessing_version = ?"
+        params: List[Any] = [version_query]
+
+        # Age filter: jobs preprocessed at least min_age_days ago
+        if min_age_days is not None and min_age_days > 0:
+            query += f" AND datetime(preprocessed_at) <= datetime('now', '-{min_age_days} days')"
+
+        # Score filter: only jobs with low scores (potential improvement candidates)
+        if max_score is not None:
+            # Note: This requires a joined assessments table or score column
+            # For now, we note that future implementation will add assessment score tracking
+            pass
+
+        # Token filter: only high-token jobs (most savings potential)
+        if min_tokens is not None and min_tokens > 0:
+            query += " AND tokens >= ?"
+            params.append(min_tokens)
+
+        # Company filter: restrict to specific companies
+        if company_names is not None and len(company_names) > 0:
+            placeholders = ", ".join("?" * len(company_names))
+            query += f" AND company IN ({placeholders})"
+            params.extend(company_names)
+
+        # Order by oldest first (prioritize older jobs)
+        query += " ORDER BY preprocessed_at ASC"
+
+        # Apply batch limit for safety
+        if limit is not None and limit > 0:
+            query += f" LIMIT {limit}"
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        return [dict(row) for row in rows]
+
     def close(self) -> None:
         """Close database connection."""
         if self.conn:

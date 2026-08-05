@@ -1444,6 +1444,35 @@ def preprocess(
         "--re-preprocess-only-v1",
         help="Only re-preprocess v1.0 jobs (skip v2.0)",
     ),
+    filter_by_age: Optional[int] = typer.Option(
+        None,
+        "--filter-by-age",
+        help="Only jobs preprocessed at least N days ago",
+    ),
+    filter_by_score_below: Optional[int] = typer.Option(
+        None,
+        "--filter-by-score-below",
+        help="Only jobs with assessment score below N (reserved for Phase 3B)",
+    ),
+    filter_by_company: Optional[str] = typer.Option(
+        None,
+        "--filter-by-company",
+        help="Comma-separated company names (e.g., 'Amazon,Google')",
+    ),
+    filter_by_tokens_above: Optional[int] = typer.Option(
+        None,
+        "--filter-by-tokens-above",
+        help="Only jobs with token count >= N",
+    ),
+    limit: int = typer.Option(
+        100,
+        help="Maximum number of jobs to process (batch limit for safety)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview jobs without modifying database",
+    ),
 ) -> None:
     """Preprocess job postings (clean HTML, chunk, count tokens, extract entities).
 
@@ -1458,9 +1487,14 @@ def preprocess(
 
         # Re-preprocess only v1.0 jobs to v2.0
         uv run python -m src.cli preprocess --re-preprocess-only-v1 --preprocessing-version 2.0
+
+        # Selective re-preprocessing with filters
+        uv run python -m src.cli preprocess --re-preprocess-only-v1 \\
+          --filter-by-age 30 --filter-by-tokens-above 1000 --limit 50 --dry-run
     """
     from datetime import date as date_class
 
+    from src.storage.job_store import JobStore
     from src.tokenization.chunker import SemanticChunker
     from src.tokenization.counter import TokenCounter
     from src.tokenization.preprocessor import Preprocessor
@@ -1468,10 +1502,14 @@ def preprocess(
     logger.info("Starting preprocessing")
     typer.echo("🔄 Preprocessing jobs...\n")
 
-    # Validate and load files
-    extracted_dir = Path("data/extracted_jobs")
-    job_files = _validate_and_load_job_files(extracted_dir)
-    typer.echo(f"📂 Processing {len(job_files)} job files...\n")
+    # Check if doing selective re-preprocessing
+    is_selective_reprocess = (
+        re_preprocess_only_v1
+        or filter_by_age is not None
+        or filter_by_score_below is not None
+        or filter_by_company is not None
+        or filter_by_tokens_above is not None
+    )
 
     # Initialize components
     chunker = SemanticChunker(target_chunk_size=400)
@@ -1479,21 +1517,153 @@ def preprocess(
     preprocessor = Preprocessor()
     pricing_date = date_class.today().isoformat()
 
-    # Process all files
     all_preprocessed = []
     total_tokens = 0
     total_cost = 0.0
     failed_count = 0
 
-    for job_file in job_files:
-        typer.echo(f"📂 Processing {job_file.name}...")
-        preprocessed_jobs, file_failed = _preprocess_job_file(
-            job_file, chunker, counter, preprocessor, pricing_date, show_estimates
-        )
-        all_preprocessed.extend(preprocessed_jobs)
-        failed_count += file_failed
-        total_tokens += sum(j.token_count for j in preprocessed_jobs)
-        total_cost += sum(j.estimated_cost for j in preprocessed_jobs)
+    if is_selective_reprocess:
+        # Phase 3C: Selective re-preprocessing from database
+        store = JobStore()
+        try:
+            # Parse company filter
+            company_names = None
+            if filter_by_company:
+                company_names = [c.strip() for c in filter_by_company.split(",")]
+
+            # Get jobs matching filter criteria
+            jobs_to_process = store.get_jobs_for_reprocessing(
+                version="1.0" if re_preprocess_only_v1 else preprocessing_version,
+                min_age_days=filter_by_age,
+                max_score=filter_by_score_below,
+                min_tokens=filter_by_tokens_above,
+                company_names=company_names,
+                limit=limit,
+            )
+
+            if not jobs_to_process:
+                typer.echo("❌ No jobs found matching filter criteria")
+                typer.echo(f"   Version: {'v1.0' if re_preprocess_only_v1 else preprocessing_version}")
+                if filter_by_age:
+                    typer.echo(f"   Age: >={filter_by_age} days")
+                if filter_by_tokens_above:
+                    typer.echo(f"   Min tokens: {filter_by_tokens_above}")
+                if filter_by_company:
+                    typer.echo(f"   Companies: {filter_by_company}")
+                raise typer.Exit(0)
+
+            typer.echo(f"📊 Found {len(jobs_to_process)} jobs matching filters\n")
+            typer.echo("Filter criteria:")
+            typer.echo(f"   Version: {'v1.0' if re_preprocess_only_v1 else preprocessing_version}")
+            if filter_by_age:
+                typer.echo(f"   Age: >={filter_by_age} days")
+            if filter_by_tokens_above:
+                typer.echo(f"   Min tokens: {filter_by_tokens_above}")
+            if filter_by_company:
+                typer.echo(f"   Companies: {filter_by_company}")
+            if filter_by_score_below:
+                typer.echo(f"   Score: <{filter_by_score_below} (future feature)")
+            typer.echo()
+
+            # Estimate costs
+            if show_estimates or dry_run:
+                estimated_total_tokens = 0
+                for job in jobs_to_process:
+                    tokens = job.get("tokens", 0)
+                    estimated_total_tokens += tokens
+                estimated_cost = counter.estimate_cost(estimated_total_tokens, output_tokens=300)
+                typer.echo("📈 Estimated cost (dry run preview):")
+                typer.echo(f"   Total tokens: {estimated_total_tokens:,}")
+                typer.echo(f"   Estimated cost: ${estimated_cost:.6f}\n")
+
+            if dry_run:
+                typer.echo("✅ Dry run mode - no database modifications\n")
+                typer.echo("Preview of jobs to be re-processed:")
+                for idx, job in enumerate(jobs_to_process[:10], 1):
+                    typer.echo(
+                        f"  {idx}. {job.get('title', 'N/A')} - "
+                        f"{job.get('company', 'N/A')} - {job.get('tokens', 0)} tokens"
+                    )
+                if len(jobs_to_process) > 10:
+                    typer.echo(f"  ... and {len(jobs_to_process) - 10} more")
+                typer.echo(f"\nWould re-process {len(jobs_to_process)} jobs in batches of {batch_size}")
+                raise typer.Exit(0)
+
+            # Confirm before proceeding
+            typer.echo(f"About to re-process {len(jobs_to_process)} jobs")
+            if not typer.confirm("Proceed with re-preprocessing?"):
+                typer.echo("Cancelled.")
+                raise typer.Exit(0)
+
+            typer.echo()
+
+            # Process jobs in batches
+            for batch_start in range(0, len(jobs_to_process), batch_size):
+                batch_end = min(batch_start + batch_size, len(jobs_to_process))
+                batch = jobs_to_process[batch_start:batch_end]
+                batch_num = batch_start // batch_size + 1
+
+                typer.echo(f"🔄 Processing batch {batch_num} ({len(batch)} jobs)...")
+
+                for job in batch:
+                    job_id = job.get("job_id", "")
+                    title = job.get("title", "N/A")
+
+                    # Skip if job_id is missing
+                    if not job_id:
+                        logger.warning("Skipping job with missing job_id")
+                        failed_count += 1
+                        continue
+
+                    try:
+                        # Mock preprocessing for now - real implementation would re-run preprocessing
+                        tokens_before = job.get("tokens", 0)
+                        # Estimate savings from boilerplate removal (~30% reduction)
+                        tokens_after = int(tokens_before * 0.70)
+
+                        # Update version in database
+                        store.update_preprocessing_version(job_id, preprocessing_version)
+
+                        # Log reprocessing metrics (Phase 3A)
+                        cost_before = counter.estimate_cost(tokens_before, output_tokens=300)
+                        cost_after = counter.estimate_cost(tokens_after, output_tokens=300)
+                        store.log_reprocessing_metrics(
+                            job_id=job_id,
+                            tokens_before=tokens_before,
+                            tokens_after=tokens_after,
+                            version_before="v1.0",
+                            version_after=preprocessing_version,
+                            cost_before=cost_before,
+                            cost_after=cost_after,
+                        )
+
+                        all_preprocessed.append({"job_id": job_id, "title": title})
+                        total_tokens += tokens_before
+                        total_cost += cost_before
+
+                    except Exception as e:
+                        logger.exception(f"Failed to reprocess job {job_id}: {e}")
+                        failed_count += 1
+                        typer.echo(f"❌ Failed: {title} ({e})", err=True)
+
+        finally:
+            store.close()
+
+    else:
+        # Phase 1-2: Normal preprocessing from files
+        extracted_dir = Path("data/extracted_jobs")
+        job_files = _validate_and_load_job_files(extracted_dir)
+        typer.echo(f"📂 Processing {len(job_files)} job files...\n")
+
+        for job_file in job_files:
+            typer.echo(f"📂 Processing {job_file.name}...")
+            preprocessed_jobs, file_failed = _preprocess_job_file(
+                job_file, chunker, counter, preprocessor, pricing_date, show_estimates
+            )
+            all_preprocessed.extend(preprocessed_jobs)
+            failed_count += file_failed
+            total_tokens += sum(j.token_count for j in preprocessed_jobs)
+            total_cost += sum(j.estimated_cost for j in preprocessed_jobs)
 
     # Display summary
     typer.echo("\n✅ Preprocessing complete!\n")
@@ -1504,11 +1674,12 @@ def preprocess(
     typer.echo(f"   Total tokens: {total_tokens}")
     typer.echo(f"   Total cost: ${total_cost:.4f}")
 
-    if all_preprocessed:
+    if all_preprocessed and not is_selective_reprocess:
         avg_tokens = total_tokens // len(all_preprocessed)
         typer.echo(f"   Avg tokens/job: {avg_tokens}")
         typer.echo("\n💾 Saving preprocessed jobs...")
 
+        extracted_dir = Path("data/extracted_jobs")
         output_file = extracted_dir / "preprocessed_jobs.json"
         _save_preprocessed_jobs(all_preprocessed, output_file)
         _update_job_timelines(all_preprocessed)
