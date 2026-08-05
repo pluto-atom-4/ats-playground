@@ -1434,8 +1434,31 @@ def _update_job_timelines(jobs: List[Any]) -> None:
 def preprocess(
     batch_size: int = typer.Option(10, help="Jobs per batch"),
     show_estimates: bool = typer.Option(False, help="Show token/cost estimates"),
+    preprocessing_version: str = typer.Option(
+        "2.0",
+        "--preprocessing-version",
+        help="Version: 1.0 (legacy, no boilerplate) or 2.0 (with boilerplate, default)",
+    ),
+    re_preprocess_only_v1: bool = typer.Option(
+        False,
+        "--re-preprocess-only-v1",
+        help="Only re-preprocess v1.0 jobs (skip v2.0)",
+    ),
 ) -> None:
-    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities)."""
+    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities).
+
+    Supports version tracking for cost analysis and selective re-preprocessing.
+
+    Examples:
+        # Preprocess with default v2.0 (boilerplate removal)
+        uv run python -m src.cli preprocess --batch-size 10
+
+        # Preprocess with legacy v1.0 (no boilerplate)
+        uv run python -m src.cli preprocess --preprocessing-version 1.0
+
+        # Re-preprocess only v1.0 jobs to v2.0
+        uv run python -m src.cli preprocess --re-preprocess-only-v1 --preprocessing-version 2.0
+    """
     from datetime import date as date_class
 
     from src.tokenization.chunker import SemanticChunker

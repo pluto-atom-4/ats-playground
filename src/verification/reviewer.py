@@ -76,6 +76,7 @@ class JobReviewer:
         crawled_at TIMESTAMP,
         preprocessed_at TIMESTAMP,
         reviewed_at TIMESTAMP,
+        preprocessing_version TEXT DEFAULT 'v2.0',
         FOREIGN KEY (job_id) REFERENCES jobs(id)
     )
     """
@@ -130,6 +131,14 @@ class JobReviewer:
             cursor.execute("ALTER TABLE job_reviews ADD COLUMN preprocessed_at TIMESTAMP")
             self.conn.commit()
             logger.info("Added preprocessed_at column to job_reviews")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+        # Add preprocessing_version column if missing (Phase 2)
+        try:
+            cursor.execute("ALTER TABLE job_reviews ADD COLUMN preprocessing_version TEXT DEFAULT 'v2.0'")
+            self.conn.commit()
+            logger.info("Added preprocessing_version column to job_reviews")
         except sqlite3.OperationalError:
             pass  # Column already exists
 

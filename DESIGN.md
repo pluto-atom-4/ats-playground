@@ -107,7 +107,7 @@ clean_text = clean_html(
 
 **Token Reduction:** ~88% vs raw HTML (6,000 → 700 tokens), with boilerplate removal accounting for ~30% of savings
 
-**Backward Compatibility (Phase 2):** Database column `preprocessing_version` tracks v1.0 (legacy, no boilerplate) vs v2.0 (new, with boilerplate removal). Enables selective re-preprocessing and graceful fallback.
+**Backward Compatibility (Phase 2 – IMPLEMENTED):** Database column `preprocessing_version` tracks v1.0 (legacy, no boilerplate) vs v2.0 (new, with boilerplate removal). Enables selective re-preprocessing and graceful fallback. JobStore API + CLI integration complete (see `.claude/rules/cli.md` for usage).
 
 **Deprecation Path:** `HTMLCleaner` marked deprecated, removed in v2.0
 
