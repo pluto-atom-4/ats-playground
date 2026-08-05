@@ -122,7 +122,7 @@ NAVIGATION_PATTERNS = [
 # PRE-COMPILED PATTERNS (One-time cost at module load)
 # ============================================================================
 
-_COMPILED_PATTERNS: Dict[str, List[re.Pattern]] = {
+_COMPILED_PATTERNS: Dict[str, List[re.Pattern[str]]] = {
     "legal_compliance": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in LEGAL_COMPLIANCE_PATTERNS],
     "section_headers": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in SECTION_HEADER_PATTERNS],
     "company_boilerplate": [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in COMPANY_BOILERPLATE_PATTERNS],
@@ -138,7 +138,7 @@ _COMPILED_PATTERNS: Dict[str, List[re.Pattern]] = {
 # ============================================================================
 
 
-def get_compiled_patterns() -> Dict[str, List[re.Pattern]]:
+def get_compiled_patterns() -> Dict[str, List[re.Pattern[str]]]:
     """Get pre-compiled regex patterns for all 7 boilerplate categories.
 
     Returns:

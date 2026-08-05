@@ -301,7 +301,7 @@ def _validate_preprocess_directory() -> Path:
     return extracted_dir
 
 
-def _build_preprocess_clean_text(job: dict) -> str:
+def _build_preprocess_clean_text(job: dict[str, Any]) -> str:
     """Build clean text from job fields.
 
     Converts the raw HTML description to normalized Markdown (headings,
@@ -325,7 +325,9 @@ def _build_preprocess_clean_text(job: dict) -> str:
     return clean_text
 
 
-def _preprocess_job_for_phase(job: dict, idx: int, chunker: Any, counter: Any) -> Tuple[Optional[dict], int, float]:
+def _preprocess_job_for_phase(
+    job: dict[str, Any], idx: int, chunker: Any, counter: Any
+) -> Tuple[Optional[dict[str, Any]], int, float]:
     """Preprocess a single job.
 
     Args:
@@ -367,7 +369,7 @@ def _preprocess_job_for_phase(job: dict, idx: int, chunker: Any, counter: Any) -
         return None, 0, 0.0
 
 
-def _preprocess_jobs_file(job_file: Path, chunker: Any, counter: Any) -> Tuple[list, int, int, float]:
+def _preprocess_jobs_file(job_file: Path, chunker: Any, counter: Any) -> Tuple[list[dict[str, Any]], int, int, float]:
     """Process all jobs in a file.
 
     Args:
@@ -401,7 +403,7 @@ def _preprocess_jobs_file(job_file: Path, chunker: Any, counter: Any) -> Tuple[l
 
 
 def _display_preprocess_summary(
-    all_preprocessed: list, failed_count: int, total_tokens: int, total_cost: float, extracted_dir: Path
+    all_preprocessed: list[dict[str, Any]], failed_count: int, total_tokens: int, total_cost: float, extracted_dir: Path
 ) -> None:
     """Display preprocessing summary and save results.
 
@@ -430,7 +432,7 @@ def _display_preprocess_summary(
     typer.echo(f"   ✓ Saved to: {output_file}")
 
 
-def _run_phase_preprocess(up_to: Optional[str]) -> Tuple[List[dict], float]:
+def _run_phase_preprocess(up_to: Optional[str]) -> Tuple[List[dict[str, Any]], float]:
     """Run PHASE 2: PREPROCESS - Clean HTML, chunk, count tokens.
 
     Args:
@@ -603,7 +605,7 @@ def _init_llm_provider_for_assess(model: Optional[str]) -> Any:
         raise typer.Exit(1) from e
 
 
-def _load_confirmed_jobs_for_assess() -> Tuple[list, list]:
+def _load_confirmed_jobs_for_assess() -> Tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Load confirmed jobs from preprocessed data.
 
     Returns:
@@ -630,13 +632,13 @@ def _load_confirmed_jobs_for_assess() -> Tuple[list, list]:
 
 
 def _assess_job_and_save(
-    job: dict,
+    job: dict[str, Any],
     idx: int,
     total: int,
     llm_provider: Any,
     cv_text: str,
     assessment_store: AssessmentStore,
-    preprocessed_map: dict,
+    preprocessed_map: dict[str, Any],
 ) -> Tuple[bool, Optional[Any], int, float]:
     """Assess a single job and save result.
 
@@ -686,12 +688,12 @@ def _assess_job_and_save(
 
 
 def _run_phase_assess_jobs_loop(
-    confirmed_jobs: list,
+    confirmed_jobs: list[dict[str, Any]],
     cv_text: str,
     llm_provider: Any,
     assessment_store: AssessmentStore,
-    preprocessed_map: dict,
-) -> Tuple[list, int, float, int]:
+    preprocessed_map: dict[str, Any],
+) -> Tuple[list[Any], int, float, int]:
     """Process each confirmed job and track results.
 
     Args:
@@ -728,12 +730,12 @@ def _run_phase_assess_jobs_loop(
 
 
 def _display_assess_phase_summary(
-    assessment_list: list,
+    assessment_list: list[Any],
     failed: int,
     total_cost: float,
     total_tokens: int,
     total_jobs: int,
-    confirmed_jobs: list,
+    confirmed_jobs: list[dict[str, Any]],
 ) -> None:
     """Display assessment phase summary and results.
 
@@ -1267,14 +1269,14 @@ def _validate_and_load_job_files(extracted_dir: Path) -> List[Path]:
 
 
 def _preprocess_single_job(
-    job_dict: dict,
+    job_dict: dict[str, Any],
     chunker: Any,
     counter: Any,
     preprocessor: Any,
     pricing_date: str,
     show_estimates: bool,
     job_index: int,
-) -> Optional[tuple]:
+) -> Optional[tuple[Any, int, float]]:
     """Process a single job and return preprocessed job or None on failure.
 
     Args:
@@ -1353,7 +1355,7 @@ def _preprocess_job_file(
     preprocessor: Any,
     pricing_date: str,
     show_estimates: bool,
-) -> Tuple[List, int]:
+) -> Tuple[List[Any], int]:
     """Process all jobs in a single file.
 
     Args:
@@ -1392,7 +1394,7 @@ def _preprocess_job_file(
     return preprocessed_jobs, failed_count
 
 
-def _save_preprocessed_jobs(jobs: List, output_path: Path) -> None:
+def _save_preprocessed_jobs(jobs: List[Any], output_path: Path) -> None:
     """Save preprocessed jobs to JSON file.
 
     Args:
@@ -1408,7 +1410,7 @@ def _save_preprocessed_jobs(jobs: List, output_path: Path) -> None:
     typer.echo(f"   ✓ Saved to: {output_path}")
 
 
-def _update_job_timelines(jobs: List) -> None:
+def _update_job_timelines(jobs: List[Any]) -> None:
     """Update database timestamps for preprocessed jobs.
 
     Args:
@@ -1738,7 +1740,7 @@ def _initialize_assessor_and_validate(model: Optional[str]) -> Any:
         raise typer.Exit(1) from e
 
 
-def _get_and_validate_jobs() -> List[dict]:
+def _get_and_validate_jobs() -> List[dict[str, Any]]:
     """Get confirmed jobs from database and validate.
 
     Returns:
@@ -1760,7 +1762,7 @@ def _get_and_validate_jobs() -> List[dict]:
     return confirmed_jobs
 
 
-def _validate_job_statuses(jobs: List[dict], skip_unconfirmed: bool) -> None:
+def _validate_job_statuses(jobs: List[dict[str, Any]], skip_unconfirmed: bool) -> None:
     """Validate all jobs have status='confirmed'.
 
     Args:
@@ -1808,7 +1810,7 @@ def _is_raw_html(text: str) -> bool:
     return any(pattern in text.lower() for pattern in html_patterns)
 
 
-def _validate_preprocessed_jobs(jobs: List[dict]) -> None:
+def _validate_preprocessed_jobs(jobs: List[dict[str, Any]]) -> None:
     """Validate all jobs are preprocessed (not raw HTML).
 
     Args:
@@ -1850,7 +1852,7 @@ def _validate_preprocessed_jobs(jobs: List[dict]) -> None:
     raise typer.Exit(1)
 
 
-def _filter_jobs_by_mode(jobs: List[dict], mode: str, assessment_store: Any) -> List[dict]:
+def _filter_jobs_by_mode(jobs: List[dict[str, Any]], mode: str, assessment_store: Any) -> List[dict[str, Any]]:
     """Apply mode filter to jobs (new-only vs all).
 
     Args:
@@ -1877,8 +1879,8 @@ def _filter_jobs_by_mode(jobs: List[dict], mode: str, assessment_store: Any) -> 
 
 
 def _filter_jobs_by_score_threshold(
-    jobs: List[dict], score_threshold: Optional[float], assessment_store: Any
-) -> List[dict]:
+    jobs: List[dict[str, Any]], score_threshold: Optional[float], assessment_store: Any
+) -> List[dict[str, Any]]:
     """Apply score threshold filter to jobs.
 
     Args:
@@ -1927,7 +1929,7 @@ def _filter_jobs_by_score_threshold(
     return jobs
 
 
-def _filter_jobs_by_date(jobs: List[dict], since: Optional[str]) -> List[dict]:
+def _filter_jobs_by_date(jobs: List[dict[str, Any]], since: Optional[str]) -> List[dict[str, Any]]:
     """Apply date filter to jobs (since date).
 
     Args:
@@ -1979,7 +1981,7 @@ def _filter_jobs_by_date(jobs: List[dict], since: Optional[str]) -> List[dict]:
     return jobs
 
 
-def _verify_assessment_cost(jobs: List[dict], cv_text: str, verify_cost: bool) -> bool:
+def _verify_assessment_cost(jobs: List[dict[str, Any]], cv_text: str, verify_cost: bool) -> bool:
     """Estimate and verify assessment cost.
 
     Args:
@@ -2020,7 +2022,7 @@ def _verify_assessment_cost(jobs: List[dict], cv_text: str, verify_cost: bool) -
 
 
 def _assess_single_job(
-    job: dict,
+    job: dict[str, Any],
     cv_text: str,
     assessor: Any,
     assessment_store: Any,
@@ -2121,7 +2123,7 @@ def _assess_single_job(
 
 def _display_assessment_summary(
     results: List[dict[str, Any]],
-    failed_jobs: List[dict],
+    failed_jobs: List[dict[str, Any]],
     total_cost: float,
     total_tokens: int,
     successful: int,

@@ -257,7 +257,7 @@ class LLMProvider:
 
         return data
 
-    def _build_assessment_result(self, job_id: str, data: dict, response: Any) -> AssessmentResult:
+    def _build_assessment_result(self, job_id: str, data: dict[str, Any], response: Any) -> AssessmentResult:
         """
         Build AssessmentResult from parsed data.
 

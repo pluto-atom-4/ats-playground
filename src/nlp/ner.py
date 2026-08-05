@@ -1,7 +1,7 @@
 """Job description NER extraction using spaCy."""
 
 import re
-from typing import Dict, Set
+from typing import Any, Dict, Set
 
 import spacy
 from spacy.matcher import PhraseMatcher
@@ -181,7 +181,7 @@ class JobNERExtractor:
 
         return inferred
 
-    def extract_skills_with_confidence(self, text: str) -> Dict[str, tuple]:
+    def extract_skills_with_confidence(self, text: str) -> Dict[str, tuple[str, float, ExtractionMethod]]:
         """Extract skills with confidence scores.
 
         Returns:
@@ -222,7 +222,7 @@ class JobNERExtractor:
         skills_with_conf = self.extract_skills_with_confidence(text)
         return set(skills_with_conf.keys())
 
-    def extract_technologies_with_confidence(self, text: str) -> Dict[str, tuple]:
+    def extract_technologies_with_confidence(self, text: str) -> Dict[str, tuple[str, float, ExtractionMethod]]:
         """Extract technologies with confidence scores.
 
         Returns:
@@ -251,7 +251,7 @@ class JobNERExtractor:
         """Extract degree/certification requirements from narrative."""
         return self.narrative_extractor.extract_qualification_requirements(text)
 
-    def _extract_structured_requirements(self, text: str) -> Dict[str, tuple]:
+    def _extract_structured_requirements(self, text: str) -> Dict[str, tuple[str, float, ExtractionMethod]]:
         """Extract structured requirements from company parser.
 
         Args:
@@ -260,7 +260,7 @@ class JobNERExtractor:
         Returns:
             Dict mapping requirement -> (requirement, confidence, method)
         """
-        requirements_with_conf: Dict[str, tuple] = {}
+        requirements_with_conf: Dict[str, tuple[str, float, ExtractionMethod]] = {}
         if not self.parser:
             return requirements_with_conf
         reqs = self.parser.parse_requirements(text)
@@ -287,7 +287,9 @@ class JobNERExtractor:
 
         return requirements_with_conf
 
-    def _extract_narrative_and_merge(self, text: str, requirements_with_conf: Dict[str, tuple]) -> None:
+    def _extract_narrative_and_merge(
+        self, text: str, requirements_with_conf: Dict[str, tuple[str, float, ExtractionMethod]]
+    ) -> None:
         """Extract narrative requirements and merge into requirements dict.
 
         Args:
@@ -306,7 +308,9 @@ class JobNERExtractor:
             # Lower confidence for narrative to account for possible false positives
             requirements_with_conf[req] = (req, 0.75, ExtractionMethod.FALLBACK)
 
-    def _is_duplicate_requirement(self, req: str, requirements_with_conf: Dict[str, tuple]) -> bool:
+    def _is_duplicate_requirement(
+        self, req: str, requirements_with_conf: Dict[str, tuple[str, float, ExtractionMethod]]
+    ) -> bool:
         """Check if requirement is already in the dict after normalization.
 
         Args:
@@ -325,7 +329,9 @@ class JobNERExtractor:
                 return True
         return False
 
-    def extract_requirements_with_confidence(self, text: str, include_narrative: bool = True) -> Dict[str, tuple]:
+    def extract_requirements_with_confidence(
+        self, text: str, include_narrative: bool = True
+    ) -> Dict[str, tuple[str, float, ExtractionMethod]]:
         """Extract requirements with confidence scores.
 
         Args:
@@ -351,7 +357,7 @@ class JobNERExtractor:
 
         return requirements_with_conf
 
-    def _build_fallback_requirements(self, requirements: Set[str]) -> Dict[str, tuple]:
+    def _build_fallback_requirements(self, requirements: Set[str]) -> Dict[str, tuple[str, float, ExtractionMethod]]:
         """Build requirements dict from fallback extraction.
 
         Args:
@@ -360,7 +366,7 @@ class JobNERExtractor:
         Returns:
             Dict mapping requirement -> (requirement, confidence, method)
         """
-        result: Dict[str, tuple] = {}
+        result: Dict[str, tuple[str, float, ExtractionMethod]] = {}
         for req in requirements:
             if req not in result:
                 conf = get_confidence(ExtractionMethod.FALLBACK)
@@ -546,7 +552,7 @@ class JobNERExtractor:
         reqs_with_conf = self.extract_requirements_with_confidence(text)
         return set(reqs_with_conf.keys())
 
-    def extract_all_with_confidence(self, text: str) -> dict:
+    def extract_all_with_confidence(self, text: str) -> dict[str, Any]:
         """Extract all entities with confidence scores."""
         # Initialize matchers based on job description domain
         self._init_matchers(text)
@@ -567,7 +573,7 @@ class JobNERExtractor:
 
         # Build result with confidence scores
         def build_confident_list(
-            values: set[str], conf_dict: Dict[str, tuple[str, float, ExtractionMethod | None]]
+            values: set[str], conf_dict: Dict[str, tuple[str, float, ExtractionMethod]]
         ) -> list[dict[str, float | str]]:
             """Build list of dicts with value and confidence."""
             result: list[dict[str, float | str]] = []
@@ -596,7 +602,7 @@ class JobNERExtractor:
             },
         }
 
-    def extract_all(self, text: str) -> dict:
+    def extract_all(self, text: str) -> dict[str, Any]:
         """Extract all entities from job description."""
         # Initialize matchers based on job description domain
         self._init_matchers(text)
