@@ -2837,6 +2837,115 @@ def stats(
     typer.echo("📈 Statistics:")
 
 
+@app.command()
+def cost_analysis(
+    db_path: str = typer.Option(
+        "data/ats_playground.db",
+        "--db",
+        help="Path to database",
+    ),
+    format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: table, json, or csv",
+    ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Save report to file (default: display to stdout)",
+    ),
+) -> None:
+    """Analyze costs and savings from re-preprocessing (Phase 3A).
+
+    Shows comparison of v1.0 vs v2.0 preprocessing costs, token usage,
+    and re-preprocessing metrics.
+
+    Examples:
+        uv run python -m src.cli cost-analysis
+        uv run python -m src.cli cost-analysis --format json
+        uv run python -m src.cli cost-analysis --output report.json --format json
+    """
+    from src.storage.job_store import JobStore
+
+    try:
+        typer.echo("💰 Generating cost analysis...")
+
+        store = JobStore(db_path)
+        report = store.get_cost_comparison_report()
+
+        if format == "json":
+            output_data = report.to_dict()
+            output_text = json.dumps(output_data, indent=2)
+        elif format == "csv":
+            # CSV format
+            lines = [
+                "Metric,Value",
+                f"v1.0 Jobs,{report.total_jobs_v1_0}",
+                f"v2.0 Jobs,{report.total_jobs_v2_0}",
+                f"Total Tokens (v1.0),{report.total_tokens_v1_0}",
+                f"Total Tokens (v2.0),{report.total_tokens_v2_0}",
+                f"Avg Tokens per Job (v1.0),{report.avg_tokens_per_job_v1_0:.2f}",
+                f"Avg Tokens per Job (v2.0),{report.avg_tokens_per_job_v2_0:.2f}",
+                f"Estimated Savings (USD),${report.estimated_savings_usd:.6f}",
+                f"Jobs Already Migrated,{report.jobs_already_migrated}",
+                f"Jobs Pending Migration,{report.jobs_pending_migration}",
+                f"Re-preprocessing Runs,{len(report.reprocessing_runs)}",
+                f"Total Re-processing Cost Saved,${report.total_reprocessing_cost_saved:.6f}",
+                f"Total Re-processing Tokens Saved,{report.total_reprocessing_tokens_saved}",
+                f"Avg Token Reduction (%),{report.avg_token_reduction_percent:.2f}%",
+                f"Migration Progress (%),{report.migration_progress_percent:.2f}%",
+            ]
+            output_text = "\n".join(lines)
+        else:
+            # Table format (default)
+            lines = [
+                "📊 Cost Analysis Report (v1.0 vs v2.0)",
+                "=" * 50,
+                "",
+                "Job Counts:",
+                f"  v1.0 jobs (legacy):        {report.total_jobs_v1_0}",
+                f"  v2.0 jobs (new):           {report.total_jobs_v2_0}",
+                f"  Migration progress:        {report.migration_progress_percent:.1f}%",
+                "",
+                "Token Usage:",
+                f"  Total tokens (v1.0):       {report.total_tokens_v1_0:,}",
+                f"  Total tokens (v2.0):       {report.total_tokens_v2_0:,}",
+                f"  Avg per job (v1.0):        {report.avg_tokens_per_job_v1_0:.0f}",
+                f"  Avg per job (v2.0):        {report.avg_tokens_per_job_v2_0:.0f}",
+                "",
+                "Cost Impact:",
+                f"  Estimated savings (USD):   ${report.estimated_savings_usd:.6f}",
+                "  Token rate used:           $0.003 per 1M tokens",
+                "",
+                "Re-preprocessing Metrics:",
+                f"  Re-processing runs:        {len(report.reprocessing_runs)}",
+                f"  Total tokens saved:        {report.total_reprocessing_tokens_saved:,}",
+                f"  Total cost saved:          ${report.total_reprocessing_cost_saved:.6f}",
+                f"  Avg reduction:             {report.avg_token_reduction_percent:.1f}%",
+                "",
+                "Migration Status:",
+                f"  Already migrated:          {report.jobs_already_migrated}",
+                f"  Pending migration:         {report.jobs_pending_migration}",
+            ]
+            output_text = "\n".join(lines)
+
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(output_text, encoding="utf-8")
+            typer.echo(f"✅ Report saved to {output}")
+        else:
+            typer.echo(output_text)
+
+        store.close()
+
+    except Exception as e:
+        typer.echo(f"❌ Error generating cost analysis: {e}", err=True)
+        raise typer.Exit(1) from None
+
+
 # ============================================================================
 # INTEGRITY COMMANDS
 # ============================================================================

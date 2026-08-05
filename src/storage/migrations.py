@@ -53,6 +53,60 @@ def migrate_jobs_table_add_crawled_at(conn: sqlite3.Connection) -> bool:
         return False
 
 
+def migrate_cost_tracking_add_reprocessing_columns(conn: sqlite3.Connection) -> bool:
+    """
+    Migrate cost_tracking table: Add before/after columns for re-preprocessing tracking.
+
+    Phase 3A: Extend cost_tracking with preprocessing version tracking and token delta metrics.
+
+    New columns:
+    - preprocessing_version_before: v1.0 or v2.0 before re-preprocess
+    - preprocessing_version_after: v2.0 after re-preprocess
+    - tokens_before: Token count before re-preprocessing
+    - tokens_after: Token count after re-preprocessing
+    - estimated_cost_before: Cost estimate before re-preprocessing
+    - estimated_cost_after: Cost estimate after re-preprocessing
+    - is_re_preprocessing: Boolean flag for re-preprocessing runs
+
+    Args:
+        conn: Database connection
+
+    Returns:
+        True if migration succeeded, False if already applied or error
+    """
+    cursor = conn.cursor()
+
+    # Check if migration already applied
+    cursor.execute("PRAGMA table_info(cost_tracking)")
+    columns = {row[1] for row in cursor.fetchall()}
+
+    if "is_re_preprocessing" in columns:
+        logger.info("Migration: cost_tracking re-preprocessing columns already exist")
+        return False
+
+    try:
+        # Add new columns for re-preprocessing tracking
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN preprocessing_version_before TEXT")
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN preprocessing_version_after TEXT")
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN tokens_before INTEGER")
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN tokens_after INTEGER")
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN estimated_cost_before REAL")
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN estimated_cost_after REAL")
+        cursor.execute("ALTER TABLE cost_tracking ADD COLUMN is_re_preprocessing BOOLEAN DEFAULT FALSE")
+
+        # Create index on is_re_preprocessing for faster queries
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_cost_reprocessing ON cost_tracking(is_re_preprocessing)")
+
+        conn.commit()
+        logger.info("Migration: successfully added re-preprocessing columns to cost_tracking")
+        return True
+
+    except sqlite3.OperationalError as e:
+        logger.error(f"Migration failed: {e}")
+        conn.rollback()
+        return False
+
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     """
     Run all pending migrations.
@@ -62,4 +116,5 @@ def run_migrations(conn: sqlite3.Connection) -> None:
     """
     logger.info("Running database migrations")
     migrate_jobs_table_add_crawled_at(conn)
+    migrate_cost_tracking_add_reprocessing_columns(conn)
     logger.info("Migrations complete")

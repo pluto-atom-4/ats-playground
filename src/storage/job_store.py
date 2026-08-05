@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.storage.cost_models import CostComparisonReport, ReprocessingMetrics
+
 logger = logging.getLogger(__name__)
 
 
@@ -237,6 +239,199 @@ class JobStore:
 
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+    def _ensure_cost_tracking_table(self) -> None:
+        """Ensure cost_tracking table exists with all required columns.
+
+        Creates the table if it doesn't exist, and adds missing columns if needed.
+        """
+        if not self.conn:
+            return
+
+        cursor = self.conn.cursor()
+
+        # Create cost_tracking table if it doesn't exist
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS cost_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT,
+                phase TEXT,
+                input_tokens INTEGER,
+                output_tokens INTEGER,
+                cost REAL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                preprocessing_version_before TEXT,
+                preprocessing_version_after TEXT,
+                tokens_before INTEGER,
+                tokens_after INTEGER,
+                estimated_cost_before REAL,
+                estimated_cost_after REAL,
+                is_re_preprocessing BOOLEAN DEFAULT FALSE,
+                FOREIGN KEY(job_id) REFERENCES jobs(id)
+            )"""
+        )
+
+        # Check and add missing columns
+        cursor.execute("PRAGMA table_info(cost_tracking)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        columns_to_add = [
+            ("preprocessing_version_before", "TEXT"),
+            ("preprocessing_version_after", "TEXT"),
+            ("tokens_before", "INTEGER"),
+            ("tokens_after", "INTEGER"),
+            ("estimated_cost_before", "REAL"),
+            ("estimated_cost_after", "REAL"),
+            ("is_re_preprocessing", "BOOLEAN DEFAULT FALSE"),
+        ]
+
+        for col_name, col_type in columns_to_add:
+            if col_name not in columns:
+                try:
+                    cursor.execute(f"ALTER TABLE cost_tracking ADD COLUMN {col_name} {col_type}")
+                    logger.info(f"Added column {col_name} to cost_tracking")
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
+
+        self.conn.commit()
+
+    def log_reprocessing_metrics(
+        self,
+        job_id: str,
+        tokens_before: int,
+        tokens_after: int,
+        version_before: str,
+        version_after: str,
+        cost_before: float,
+        cost_after: float,
+    ) -> None:
+        """Log cost/quality metrics for a re-preprocessing run.
+
+        Args:
+            job_id: Job ID being re-preprocessed
+            tokens_before: Token count before re-preprocessing
+            tokens_after: Token count after re-preprocessing
+            version_before: Preprocessing version before (e.g., 'v1.0')
+            version_after: Preprocessing version after (e.g., 'v2.0')
+            cost_before: Estimated cost before re-preprocessing
+            cost_after: Estimated cost after re-preprocessing
+
+        Raises:
+            RuntimeError: If database connection not available
+        """
+        if not self.conn:
+            raise RuntimeError("Database connection not available")
+
+        self._ensure_cost_tracking_table()
+
+        cursor = self.conn.cursor()
+
+        # Normalize versions
+        version_before_normalized = version_before if version_before.startswith("v") else f"v{version_before}"
+        version_after_normalized = version_after if version_after.startswith("v") else f"v{version_after}"
+
+        cursor.execute(
+            """INSERT INTO cost_tracking
+               (job_id, phase, is_re_preprocessing, preprocessing_version_before,
+                preprocessing_version_after, tokens_before, tokens_after,
+                estimated_cost_before, estimated_cost_after, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+            (
+                job_id,
+                "reprocess",
+                True,
+                version_before_normalized,
+                version_after_normalized,
+                tokens_before,
+                tokens_after,
+                cost_before,
+                cost_after,
+            ),
+        )
+
+        self.conn.commit()
+        logger.debug(
+            f"Logged reprocessing metrics for job {job_id}: "
+            f"{tokens_before} → {tokens_after} tokens, "
+            f"${cost_before:.6f} → ${cost_after:.6f}"
+        )
+
+    def get_cost_comparison_report(self, limit_days: Optional[int] = None) -> CostComparisonReport:
+        """Generate cost analysis report for v1.0 vs v2.0 preprocessing.
+
+        Compares token usage, cost estimates, and tracks re-preprocessing progress.
+
+        Args:
+            limit_days: Optional limit to jobs preprocessed in last N days
+
+        Returns:
+            CostComparisonReport with comprehensive cost/quality metrics
+        """
+        if not self.conn:
+            return CostComparisonReport()
+
+        self._ensure_cost_tracking_table()
+
+        cursor = self.conn.cursor()
+        report = CostComparisonReport()
+
+        # Count jobs by version
+        cursor.execute("SELECT COUNT(*) FROM job_reviews WHERE preprocessing_version = 'v1.0'")
+        report.total_jobs_v1_0 = cursor.fetchone()[0] or 0
+
+        cursor.execute("SELECT COUNT(*) FROM job_reviews WHERE preprocessing_version = 'v2.0'")
+        report.total_jobs_v2_0 = cursor.fetchone()[0] or 0
+
+        # Calculate tokens by version
+        cursor.execute("SELECT SUM(tokens) FROM job_reviews WHERE preprocessing_version = 'v1.0'")
+        result = cursor.fetchone()
+        report.total_tokens_v1_0 = result[0] or 0
+
+        cursor.execute("SELECT SUM(tokens) FROM job_reviews WHERE preprocessing_version = 'v2.0'")
+        result = cursor.fetchone()
+        report.total_tokens_v2_0 = result[0] or 0
+
+        # Calculate averages
+        if report.total_jobs_v1_0 > 0:
+            report.avg_tokens_per_job_v1_0 = report.total_tokens_v1_0 / report.total_jobs_v1_0
+        if report.total_jobs_v2_0 > 0:
+            report.avg_tokens_per_job_v2_0 = report.total_tokens_v2_0 / report.total_jobs_v2_0
+
+        # Estimate total savings (assuming $0.003 per 1M tokens for input)
+        token_rate = 0.003 / 1_000_000
+        if report.total_tokens_v1_0 > 0 and report.total_tokens_v2_0 > 0:
+            tokens_saved = report.total_tokens_v1_0 - report.total_tokens_v2_0
+            report.estimated_savings_usd = tokens_saved * token_rate
+
+        # Get re-preprocessing metrics
+        cursor.execute(
+            """SELECT job_id, preprocessing_version_before, preprocessing_version_after,
+                      tokens_before, tokens_after, estimated_cost_before, estimated_cost_after
+               FROM cost_tracking
+               WHERE is_re_preprocessing = TRUE
+               ORDER BY timestamp DESC"""
+        )
+
+        reprocessing_runs = []
+        for row in cursor.fetchall():
+            metrics = ReprocessingMetrics(
+                job_id=row[0],
+                preprocessing_version_before=row[1],
+                preprocessing_version_after=row[2],
+                tokens_before=row[3],
+                tokens_after=row[4],
+                estimated_cost_before=row[5],
+                estimated_cost_after=row[6],
+            )
+            reprocessing_runs.append(metrics)
+            report.total_reprocessing_tokens_saved += metrics.tokens_saved
+            report.total_reprocessing_cost_saved += metrics.cost_saved_usd
+
+        report.reprocessing_runs = reprocessing_runs
+        report.jobs_already_migrated = report.total_jobs_v2_0
+        report.jobs_pending_migration = report.total_jobs_v1_0
+
+        return report
 
     def close(self) -> None:
         """Close database connection."""
