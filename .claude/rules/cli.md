@@ -98,22 +98,36 @@ uv run python -m src.cli crawl --config config/companies.json
 tail -f logs/app.log
 ```
 
-## Preprocessing Version Tracking (Phase 2, Future)
+## Preprocessing Version Tracking (Phase 2 – IMPLEMENTED)
 
-**Note:** Phase 1 (Issue #230) implements consolidated `clean_html()`. Phase 2 will add database column `preprocessing_version` to track which pipeline version processed each job:
+**Overview:** Phase 2 (Issue #230) adds `preprocessing_version` column to `job_reviews` table for version tracking:
 - `v1.0` – Legacy (no boilerplate removal)
-- `v2.0` – New (70+ boilerplate patterns removed)
+- `v2.0` – New (70+ boilerplate patterns removed, 3-tier fallback)
 
-**CLI flag (Phase 2):**
+**CLI Flags:**
 ```bash
-# Force legacy preprocessing (v1.0)
-uv run python -m src.cli preprocess --preprocessing-version 1.0
+# Show preprocessing version statistics
+uv run python -m src.cli preprocess --show-version-stats
 
-# New mode (default, v2.0)
-uv run python -m src.cli preprocess --preprocessing-version 2.0
+# Force specific version (default 2.0)
+uv run python -m src.cli preprocess \
+  --cv data/cv.json \
+  --preprocessing-version 2.0
+
+# Re-preprocess only legacy v1.0 jobs to v2.0
+uv run python -m src.cli preprocess \
+  --cv data/cv.json \
+  --re-preprocess-only-v1
 ```
 
-This enables:
-- **Selective re-preprocessing**: Update only old jobs with new pipeline
-- **Cost comparisons**: v1.0 vs v2.0 quality + token usage
-- **Fallback mode**: Revert to v1.0 if v2.0 causes issues
+**Use Cases:**
+1. **Selective re-preprocessing**: Query old jobs, update to new pipeline
+2. **Cost analysis**: Compare token usage across versions
+3. **Gradual rollout**: Process subset with v2.0, compare results before bulk update
+4. **Backward compatibility**: Old jobs queryable by version, revert if issues arise
+
+**Implementation (Tasks 1-6 merged):**
+- Schema: `preprocessing_version TEXT DEFAULT 'v2.0'` in `job_reviews` table with migration support
+- JobStore API: `update_preprocessing_version()`, `get_jobs_by_version()`, `get_version_stats()`
+- CLI integration: Version flags + version stats reporting
+- Backward compatibility: All queries work regardless of version; migration marks existing jobs as v1.0
