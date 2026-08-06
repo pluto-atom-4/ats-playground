@@ -1,6 +1,6 @@
 ---
 name: architect
-model: claude-3-7-sonnet # Use Sonnet or Opus for deep planning & architecture
+model: claude-sonnet-5 # Use Sonnet or Opus for deep planning & architecture
 tools:
   - Read
   - Grep

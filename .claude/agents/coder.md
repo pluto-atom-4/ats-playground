@@ -1,6 +1,6 @@
 ---
 name: coder
-model: claude-3-7-sonnet # Use a strong coding model for synthesis
+model: claude-haiku-4.5 # Use a strong coding model for synthesis
 tools:
   - Read
   - Write

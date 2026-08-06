@@ -1,6 +1,6 @@
 ---
 name: reviewer
-model: claude-3-5-haiku # Haiku provides cost-efficient, lightning-fast code reviews
+model: claude-haiku-4.5 # Haiku provides cost-efficient, lightning-fast code reviews
 tools:
   - Read
   - Grep
