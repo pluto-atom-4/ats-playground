@@ -109,7 +109,9 @@ clean_text = clean_html(
 
 **Backward Compatibility (Phase 2 – IMPLEMENTED):** Database column `preprocessing_version` tracks v1.0 (legacy, no boilerplate) vs v2.0 (new, with boilerplate removal). Enables selective re-preprocessing and graceful fallback. JobStore API + CLI integration complete (see `.claude/rules/cli.md` for usage).
 
-**Deprecation Path:** `HTMLCleaner` marked deprecated, removed in v2.0
+**CLI/TUI Integration (Phase 4 – IMPLEMENTED):** `normalize_description()` removed from CLI (`src/cli.py` line 323), replaced with `clean_html()`. TUI dashboard (`src/tui/dashboard.py` line 310) uses `clean_html()` directly; `HTMLCleaner` instantiation removed. No more wrapper; unified pipeline active across all entry points.
+
+**Deprecation Path:** `HTMLCleaner` marked deprecated in `src/parsers/html_cleaner.py`, delegates to `clean_html()` for backward compatibility. Scheduled for removal in v2.1.
 
 ### Fallback Chain (Issue #231)
 

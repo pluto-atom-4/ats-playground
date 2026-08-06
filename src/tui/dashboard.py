@@ -295,7 +295,7 @@ class ATPDashboard(Screen[None]):
 
     async def _phase_preprocess(self) -> None:
         """Execute preprocess phase."""
-        from src.parsers.html_cleaner import HTMLCleaner
+        from src.parsers.html_to_markdown import clean_html
         from src.tokenization.chunker import SemanticChunker
         from src.tokenization.counter import TokenCounter
 
@@ -307,7 +307,6 @@ class ATPDashboard(Screen[None]):
             return
 
         try:
-            cleaner = HTMLCleaner()
             chunker = SemanticChunker(target_chunk_size=400)
             counter = TokenCounter()
 
@@ -320,7 +319,7 @@ class ATPDashboard(Screen[None]):
                         continue
 
                     # Clean HTML to text
-                    clean_text = cleaner.clean(description)
+                    clean_text = clean_html(description)
                     if not clean_text:
                         self.state.increment_phase_progress("preprocess", tokens=0)
                         continue
