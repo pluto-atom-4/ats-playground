@@ -1,4 +1,5 @@
 ---
+name: coder
 model: claude-3-7-sonnet # Use a strong coding model for synthesis
 tools:
   - Read

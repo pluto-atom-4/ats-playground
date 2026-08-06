@@ -1,4 +1,5 @@
 ---
+name: gate-enforcer
 model: claude-3-7-sonnet # Architect-level reasoning for gate validation
 tools:
   - Read
