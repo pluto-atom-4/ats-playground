@@ -32,25 +32,15 @@ def crawl(
 | Command | Purpose |
 |---------|---------|
 | `crawl` | Fetch raw HTML from career pages |
-| `preprocess` | Clean HTML (with consolidated clean_html + 70+ boilerplate patterns), chunk text, count tokens |
+| `preprocess` | Clean HTML, chunk text, count tokens |
 | `review` | Interactive verification before LLM |
 | `assess` | Claude API evaluation of CV fit |
 | `export` | Generate markdown reports |
 | `query` | Search database by keyword/score |
 | `stats` | Show token usage analytics |
 
-**Preprocessing Pipeline (Issue #230 + #231):**
-The `preprocess` command uses consolidated `clean_html()` with 70+ boilerplate patterns (7 categories) and 3-tier fallback chain (MarkItDown → BeautifulSoup → Original HTML). Ensures robustness: preprocessing never fails catastrophically.
+See [CLI Usage](.../instructions/cli-usage.instructions.md) for full command reference.
 
-**Full workflow (single config):**
-```bash
-uv run python -m src.cli --all --cv data/cv.json --config config/companies.json
-```
-
-**Full workflow (directory):**
-```bash
-uv run python -m src.cli --all --cv data/cv.json --config-dir ./config
-```
 
 ## Async Patterns
 
@@ -98,36 +88,12 @@ uv run python -m src.cli crawl --config config/companies.json
 tail -f logs/app.log
 ```
 
-## Preprocessing Version Tracking (Phase 2 – IMPLEMENTED)
+## Preprocessing Version Tracking
 
-**Overview:** Phase 2 (Issue #230) adds `preprocessing_version` column to `job_reviews` table for version tracking:
+Tracks preprocessing pipeline versions in `job_reviews.preprocessing_version` (default: `v2.0`).
+
+**Versions:**
 - `v1.0` – Legacy (no boilerplate removal)
-- `v2.0` – New (70+ boilerplate patterns removed, 3-tier fallback)
+- `v2.0` – Current (70+ patterns, 3-tier fallback)
 
-**CLI Flags:**
-```bash
-# Show preprocessing version statistics
-uv run python -m src.cli preprocess --show-version-stats
-
-# Force specific version (default 2.0)
-uv run python -m src.cli preprocess \
-  --cv data/cv.json \
-  --preprocessing-version 2.0
-
-# Re-preprocess only legacy v1.0 jobs to v2.0
-uv run python -m src.cli preprocess \
-  --cv data/cv.json \
-  --re-preprocess-only-v1
-```
-
-**Use Cases:**
-1. **Selective re-preprocessing**: Query old jobs, update to new pipeline
-2. **Cost analysis**: Compare token usage across versions
-3. **Gradual rollout**: Process subset with v2.0, compare results before bulk update
-4. **Backward compatibility**: Old jobs queryable by version, revert if issues arise
-
-**Implementation (Tasks 1-6 merged):**
-- Schema: `preprocessing_version TEXT DEFAULT 'v2.0'` in `job_reviews` table with migration support
-- JobStore API: `update_preprocessing_version()`, `get_jobs_by_version()`, `get_version_stats()`
-- CLI integration: Version flags + version stats reporting
-- Backward compatibility: All queries work regardless of version; migration marks existing jobs as v1.0
+**CLI:** `--preprocessing-version 2.0`, `--show-version-stats`, `--re-preprocess-only-v1`
