@@ -5,7 +5,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.storage.cost_models import CostComparisonReport, ReprocessingMetrics
+from src.storage.cost_models import (
+    CostComparisonReport,
+    QualityComparisonReport,
+    QualityImpactMetrics,
+    ReprocessingMetrics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -509,6 +514,244 @@ class JobStore:
         rows = cursor.fetchall()
 
         return [dict(row) for row in rows]
+
+    def _ensure_quality_tracking_table(self) -> None:
+        """Ensure quality_tracking table exists for Phase 3B.
+
+        Creates the table if it doesn't exist, and adds missing columns if needed.
+        """
+        if not self.conn:
+            return
+
+        cursor = self.conn.cursor()
+
+        # Create quality_tracking table if it doesn't exist
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS quality_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT,
+                preprocessing_version_before TEXT,
+                preprocessing_version_after TEXT,
+                previous_assessment_score INTEGER,
+                new_assessment_score INTEGER,
+                score_delta INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(job_id) REFERENCES job_reviews(job_id)
+            )"""
+        )
+
+        self.conn.commit()
+
+    def log_quality_impact(
+        self,
+        job_id: str,
+        previous_assessment_score: int,
+        new_assessment_score: int,
+        preprocessing_version_before: str = "v1.0",
+        preprocessing_version_after: str = "v2.0",
+    ) -> None:
+        """Log quality impact from re-preprocessing and re-assessment.
+
+        Args:
+            job_id: Job ID
+            previous_assessment_score: Assessment score before re-preprocessing
+            new_assessment_score: Assessment score after re-preprocessing
+            preprocessing_version_before: Version before (default v1.0)
+            preprocessing_version_after: Version after (default v2.0)
+
+        Raises:
+            RuntimeError: If database connection not available
+        """
+        if not self.conn:
+            raise RuntimeError("Database connection not available")
+
+        self._ensure_quality_tracking_table()
+
+        cursor = self.conn.cursor()
+
+        # Normalize versions
+        version_before_normalized = (
+            preprocessing_version_before
+            if preprocessing_version_before.startswith("v")
+            else f"v{preprocessing_version_before}"
+        )
+        version_after_normalized = (
+            preprocessing_version_after
+            if preprocessing_version_after.startswith("v")
+            else f"v{preprocessing_version_after}"
+        )
+
+        score_delta = new_assessment_score - previous_assessment_score
+
+        cursor.execute(
+            """INSERT INTO quality_tracking
+               (job_id, preprocessing_version_before, preprocessing_version_after,
+                previous_assessment_score, new_assessment_score, score_delta, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+            (
+                job_id,
+                version_before_normalized,
+                version_after_normalized,
+                previous_assessment_score,
+                new_assessment_score,
+                score_delta,
+            ),
+        )
+
+        self.conn.commit()
+        logger.debug(
+            f"Logged quality impact for job {job_id}: "
+            f"score {previous_assessment_score} → {new_assessment_score} (delta: {score_delta:+d})"
+        )
+
+    def _process_quality_metric(
+        self,
+        report: QualityComparisonReport,
+        row: Any,
+        regression_risk_jobs: List[str],
+    ) -> tuple[int, int]:
+        """Helper to process a single quality metric and update report.
+
+        Args:
+            report: Report to update
+            row: Database row with quality tracking data
+            regression_risk_jobs: List to append regression risk job IDs
+
+        Returns:
+            Tuple of (score_before, score_after) for average calculation
+        """
+        job_id = row[0]
+        version_before = row[1]
+        version_after = row[2]
+        prev_score = row[3]
+        new_score = row[4]
+        delta = row[5]
+
+        # Create quality metric
+        metric = QualityImpactMetrics(
+            job_id=job_id,
+            preprocessing_version_before=version_before,
+            preprocessing_version_after=version_after,
+            previous_assessment_score=prev_score,
+            new_assessment_score=new_score,
+            timestamp=row[6],
+        )
+        report.quality_metrics.append(metric)
+
+        # Track improvements and declines
+        if delta > 0:
+            report.score_improved += 1
+            if delta > report.max_score_improvement:
+                report.max_score_improvement = delta
+        elif delta < 0:
+            report.score_declined += 1
+            if abs(delta) > abs(report.max_score_decline):
+                report.max_score_decline = delta
+            # Flag regressions (score decline >= 10 points)
+            if abs(delta) >= 10:
+                regression_risk_jobs.append(job_id)
+        else:
+            report.score_unchanged += 1
+
+        return (prev_score, new_score)
+
+    def get_quality_comparison_report(self, limit_jobs: Optional[int] = None) -> QualityComparisonReport:
+        """Generate quality impact analysis for re-preprocessed jobs.
+
+        Compares assessment scores before and after re-preprocessing to measure
+        quality impact of v1.0 → v2.0 migration.
+
+        Args:
+            limit_jobs: Optional limit to only analyze first N comparisons
+
+        Returns:
+            QualityComparisonReport with comprehensive quality metrics
+        """
+        if not self.conn:
+            return QualityComparisonReport()
+
+        self._ensure_quality_tracking_table()
+
+        cursor = self.conn.cursor()
+        report = QualityComparisonReport()
+
+        # Get all quality tracking records
+        query = """SELECT job_id, preprocessing_version_before, preprocessing_version_after,
+                          previous_assessment_score, new_assessment_score, score_delta, timestamp
+                   FROM quality_tracking
+                   ORDER BY timestamp DESC"""
+
+        if limit_jobs is not None and limit_jobs > 0:
+            query += f" LIMIT {limit_jobs}"
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return QualityComparisonReport()
+
+        # Track metrics
+        total_scores_before = 0
+        total_scores_after = 0
+        regression_risk_jobs: List[str] = []
+
+        for row in rows:
+            score_before, score_after = self._process_quality_metric(report, row, regression_risk_jobs)
+            total_scores_before += score_before
+            total_scores_after += score_after
+
+        # Calculate totals and averages
+        report.total_comparisons = len(rows)
+        if report.total_comparisons > 0:
+            report.avg_score_before = total_scores_before / report.total_comparisons
+            report.avg_score_after = total_scores_after / report.total_comparisons
+
+        report.regression_risk_jobs = regression_risk_jobs
+
+        return report
+
+    def get_regression_risk_jobs(self, threshold: int = -10) -> List[Dict[str, Any]]:
+        """Get jobs with significant score declines (regression risk).
+
+        Args:
+            threshold: Score delta threshold for regression (default -10, i.e., 10 point decline)
+
+        Returns:
+            List of job dicts with regression risk metadata
+        """
+        if not self.conn:
+            return []
+
+        self._ensure_quality_tracking_table()
+
+        cursor = self.conn.cursor()
+
+        cursor.execute(
+            """SELECT job_id, preprocessing_version_before, preprocessing_version_after,
+                      previous_assessment_score, new_assessment_score, score_delta, timestamp
+               FROM quality_tracking
+               WHERE score_delta <= ?
+               ORDER BY score_delta ASC
+               LIMIT 100""",
+            (threshold,),
+        )
+
+        rows = cursor.fetchall()
+        results = []
+        for row in rows:
+            results.append(
+                {
+                    "job_id": row[0],
+                    "preprocessing_version_before": row[1],
+                    "preprocessing_version_after": row[2],
+                    "previous_assessment_score": row[3],
+                    "new_assessment_score": row[4],
+                    "score_delta": row[5],
+                    "timestamp": row[6],
+                }
+            )
+
+        return results
 
     def close(self) -> None:
         """Close database connection."""

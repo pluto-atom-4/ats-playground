@@ -65,6 +65,30 @@ class AssessmentStore:
 
         self.conn.commit()
         logger.info("Initialized assessment database")
+        self._run_migrations()
+
+    def _run_migrations(self) -> None:
+        """Run schema migrations to add missing columns for quality tracking (Phase 3B)."""
+        if not self.conn:
+            return
+
+        cursor = self.conn.cursor()
+
+        # Columns to add for quality tracking (Phase 3B)
+        columns_to_add = [
+            ("preprocessing_version", "TEXT"),
+            ("preprocessing_quality_check", "BOOLEAN DEFAULT FALSE"),
+            ("previous_assessment_score", "INTEGER"),
+            ("score_delta", "INTEGER"),
+        ]
+
+        for col_name, col_type in columns_to_add:
+            try:
+                cursor.execute(f"ALTER TABLE job_assessments ADD COLUMN {col_name} {col_type}")
+                self.conn.commit()
+                logger.info(f"Added column {col_name} to job_assessments (Phase 3B migration)")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
     def _close_db(self) -> None:
         """Close database connection."""
@@ -87,20 +111,51 @@ class AssessmentStore:
         actual_cost: float,
         input_tokens: int = 0,
         output_tokens: int = 0,
+        preprocessing_version: Optional[str] = None,
+        preprocessing_quality_check: bool = False,
+        previous_assessment_score: Optional[int] = None,
     ) -> None:
-        """Save assessment to database."""
+        """Save assessment to database with optional quality tracking (Phase 3B).
+
+        Args:
+            job_id: Job ID
+            title: Job title
+            company: Company name
+            location: Job location
+            overall_score: Overall fit score
+            tech_score: Technical skills score
+            seniority_score: Seniority alignment score
+            location_score: Location preference score
+            recommendations: List of recommendations
+            summary: Assessment summary
+            tokens_used: Total tokens used
+            actual_cost: Actual cost incurred
+            input_tokens: Input tokens
+            output_tokens: Output tokens
+            preprocessing_version: Version of preprocessing used (v1.0, v2.0)
+            preprocessing_quality_check: Whether this is a quality check re-assessment
+            previous_assessment_score: Previous assessment score (for quality comparison)
+        """
         if not self.conn:
             return
 
         cursor = self.conn.cursor()
+
+        # Calculate score delta if previous score provided
+        score_delta = None
+        if previous_assessment_score is not None:
+            score_delta = int(overall_score) - previous_assessment_score
 
         # Save to main table
         cursor.execute(
             """INSERT OR REPLACE INTO job_assessments
                (job_id, title, company, location, overall_score, tech_score,
                 seniority_score, location_score, recommendations, summary,
-                tokens_used, input_tokens, output_tokens, actual_cost, assessed_date)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                tokens_used, input_tokens, output_tokens, actual_cost, assessed_date,
+                preprocessing_version, preprocessing_quality_check,
+                previous_assessment_score, score_delta)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
+                       ?, ?, ?, ?)""",
             (
                 job_id,
                 title,
@@ -116,6 +171,10 @@ class AssessmentStore:
                 input_tokens,
                 output_tokens,
                 actual_cost,
+                preprocessing_version,
+                preprocessing_quality_check,
+                previous_assessment_score,
+                score_delta,
             ),
         )
 

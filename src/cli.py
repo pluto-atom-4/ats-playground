@@ -2663,6 +2663,76 @@ def export(
 
 
 @app.command()
+def quality_report(
+    limit_jobs: Optional[int] = typer.Option(
+        None, "--limit", help="Maximum number of comparisons to include in report"
+    ),
+    db_path: str = typer.Option(
+        "data/ats_playground.db",
+        "--db",
+        help="Path to assessment database",
+    ),
+) -> None:
+    """Generate quality impact report for re-preprocessed jobs (Phase 3B).
+
+    Shows assessment score changes from v1.0 → v2.0 preprocessing to measure
+    quality impact and detect regressions.
+
+    Examples:
+        # Show quality report
+        uv run python -m src.cli quality-report
+
+        # Limit to recent 50 comparisons
+        uv run python -m src.cli quality-report --limit 50
+    """
+    from src.storage.job_store import JobStore
+
+    logger.info("Generating quality impact report (Phase 3B)")
+
+    try:
+        store = JobStore(db_path)
+        report = store.get_quality_comparison_report(limit_jobs=limit_jobs)
+
+        typer.echo("\n" + "=" * 70)
+        typer.echo("📊 Quality Impact Report (Phase 3B)")
+        typer.echo("=" * 70)
+
+        if report.total_comparisons == 0:
+            typer.echo("ℹ️  No quality tracking data found")
+            typer.echo("   Quality tracking is logged when re-assessing re-preprocessed jobs")
+            raise typer.Exit(0)
+
+        typer.echo(f"\nComparisons: {report.total_comparisons}")
+        typer.echo(f"Average score before: {report.avg_score_before:.1f}")
+        typer.echo(f"Average score after:  {report.avg_score_after:.1f}")
+        typer.echo(f"Average delta:        {report.avg_score_delta:+.1f}")
+
+        typer.echo("\n📈 Results:")
+        typer.echo(f"  ✅ Improved:   {report.score_improved} ({report.improvement_rate:.1f}%)")
+        typer.echo(f"  ⬇️  Declined:   {report.score_declined} ({report.regression_risk_percent:.1f}%)")
+        typer.echo(f"  ➡️  Unchanged:  {report.score_unchanged}")
+
+        typer.echo("\nScore Changes:")
+        typer.echo(f"  Max improvement: +{report.max_score_improvement} points")
+        typer.echo(f"  Max decline:     {report.max_score_decline} points")
+
+        if report.regression_risk_jobs:
+            typer.echo(f"\n⚠️  Regression Risk (delta >= 10 points): {len(report.regression_risk_jobs)}")
+            shown = report.regression_risk_jobs[:10]
+            for job_id in shown:
+                typer.echo(f"   - {job_id}")
+            if len(report.regression_risk_jobs) > 10:
+                typer.echo(f"   ... and {len(report.regression_risk_jobs) - 10} more")
+
+        logger.info(f"Quality report generated: {report.total_comparisons} comparisons")
+
+    except Exception as e:
+        logger.error(f"Quality report failed: {e}", exc_info=True)
+        typer.echo(f"❌ Failed: {e}", err=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
 def view(
     report_path: str = typer.Option(
         "data/assessments/report.md",

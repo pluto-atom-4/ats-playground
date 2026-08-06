@@ -89,3 +89,85 @@ class CostComparisonReport:
             "migration_progress_percent": round(self.migration_progress_percent, 2),
             "reprocessing_runs": len(self.reprocessing_runs),
         }
+
+
+@dataclass
+class QualityImpactMetrics:
+    """Metrics for a single quality impact comparison."""
+
+    job_id: str
+    preprocessing_version_before: str
+    preprocessing_version_after: str
+    previous_assessment_score: int
+    new_assessment_score: int
+    timestamp: Optional[str] = None
+
+    @property
+    def score_delta(self) -> int:
+        """Calculate score change (new - old)."""
+        return self.new_assessment_score - self.previous_assessment_score
+
+    @property
+    def is_regression(self) -> bool:
+        """Determine if score declined (regression risk)."""
+        return self.score_delta < 0
+
+    @property
+    def is_improvement(self) -> bool:
+        """Determine if score improved."""
+        return self.score_delta > 0
+
+
+@dataclass
+class QualityComparisonReport:
+    """Comprehensive quality impact analysis for re-preprocessed jobs."""
+
+    total_comparisons: int = 0
+    avg_score_before: float = 0.0
+    avg_score_after: float = 0.0
+    score_improved: int = 0
+    score_declined: int = 0
+    score_unchanged: int = 0
+    max_score_improvement: int = 0
+    max_score_decline: int = 0
+    regression_risk_jobs: List[str] = field(default_factory=list)
+    quality_metrics: List[QualityImpactMetrics] = field(default_factory=list)
+
+    @property
+    def regression_risk_percent(self) -> float:
+        """Calculate percentage of re-processed jobs with score decline."""
+        if self.total_comparisons == 0:
+            return 0.0
+        return (self.score_declined / self.total_comparisons) * 100
+
+    @property
+    def improvement_rate(self) -> float:
+        """Calculate percentage of re-processed jobs with score improvement."""
+        if self.total_comparisons == 0:
+            return 0.0
+        return (self.score_improved / self.total_comparisons) * 100
+
+    @property
+    def avg_score_delta(self) -> float:
+        """Calculate average score delta."""
+        if self.total_comparisons == 0:
+            return 0.0
+        return sum(m.score_delta for m in self.quality_metrics) / self.total_comparisons
+
+    def to_dict(self) -> dict:
+        """Convert report to dictionary for serialization."""
+        return {
+            "total_comparisons": self.total_comparisons,
+            "avg_score_before": round(self.avg_score_before, 2),
+            "avg_score_after": round(self.avg_score_after, 2),
+            "score_improved": self.score_improved,
+            "score_declined": self.score_declined,
+            "score_unchanged": self.score_unchanged,
+            "max_score_improvement": self.max_score_improvement,
+            "max_score_decline": self.max_score_decline,
+            "regression_risk_percent": round(self.regression_risk_percent, 2),
+            "improvement_rate": round(self.improvement_rate, 2),
+            "avg_score_delta": round(self.avg_score_delta, 2),
+            "regression_risk_jobs_count": len(self.regression_risk_jobs),
+            "regression_risk_jobs": self.regression_risk_jobs[:20],  # Show top 20 regressions
+        }
