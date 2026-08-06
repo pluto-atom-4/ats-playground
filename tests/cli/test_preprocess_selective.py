@@ -1,5 +1,6 @@
 """CLI tests for Phase 3C selective re-preprocessing (Issue #230)."""
 
+import re
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -10,6 +11,21 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.storage.job_store import JobStore
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text.
+
+    ANSI color codes from Rich/Click formatting can split flag names,
+    breaking substring matching. This utility removes those codes.
+
+    Args:
+        text: Text potentially containing ANSI escape sequences
+
+    Returns:
+        Text with all ANSI escape codes removed
+    """
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 @pytest.fixture
@@ -34,13 +50,15 @@ class TestPreprocessSelectiveFilters:
         result = cli_runner.invoke(app, ["preprocess", "--help"])
 
         assert result.exit_code == 0
+        # Strip ANSI codes from help output (Rich/Click formatting)
+        clean_output = strip_ansi(result.stdout)
         # Check for filter options (help output may truncate with ellipsis)
-        assert "--filter-by-age" in result.stdout
-        assert "--filter-by-score" in result.stdout or "assessment score" in result.stdout
-        assert "--filter-by-company" in result.stdout
-        assert "--filter-by-tokens" in result.stdout
-        assert "--limit" in result.stdout
-        assert "--dry-run" in result.stdout
+        assert "--filter-by-age" in clean_output
+        assert "--filter-by-score" in clean_output or "assessment score" in clean_output
+        assert "--filter-by-company" in clean_output
+        assert "--filter-by-tokens" in clean_output
+        assert "--limit" in clean_output
+        assert "--dry-run" in clean_output
 
     def test_preprocess_dry_run_mode_no_database_changes(self, cli_runner: CliRunner) -> None:
         """Test that --dry-run previews without modifying database."""
