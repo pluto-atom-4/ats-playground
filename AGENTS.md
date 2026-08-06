@@ -18,7 +18,7 @@ Multi-agent coordination framework for ATS Playground. Defines role boundaries a
 - Create commits
 - Flag design issues to Architect
 - ✅ Write src/, tests/, run tests
-- ❌ FORBIDDEN: Modify tasks.md, CLAUDE.md, skip tests
+- ❌ FORBIDDEN: Modify tasks.md, CLAUDE.md, AGENTS.md, skip tests
 
 ### Reviewer/Tester
 - Verify implementation vs tasks.md
@@ -26,6 +26,20 @@ Multi-agent coordination framework for ATS Playground. Defines role boundaries a
 - Check test coverage, code quality
 - ✅ Read codebase, run verification commands
 - ❌ FORBIDDEN: Modify production code, merge without human approval
+
+---
+
+## Claude Tier Configuration
+
+Claude agent models are selected based on role requirements:
+
+| Role | Model | Rationale |
+|------|-------|-----------|
+| **Architect** | claude-3-7-sonnet | Deep reasoning for architecture decisions, design planning |
+| **Coder** | claude-3-7-sonnet | Complex synthesis for multi-file implementation, test design |
+| **Reviewer** | claude-3-5-haiku | Cost-efficient QA; review doesn't require high reasoning |
+
+**Cost Efficiency**: Using Haiku for reviewers reduces token costs ~60% while maintaining sufficient capability for code quality verification.
 
 ---
 
@@ -103,21 +117,24 @@ See `.claude/skills/<skill>/SKILL.md` for examples (crawl-jobs, assess-jobs, pre
 | Role | tasks.md | src/ | tests/ | docs/ | CLAUDE.md | .claude/ |
 |------|----------|------|--------|-------|-----------|----------|
 | Architect | W | R | R | W | R | R |
-| Coder | R | W | W | R | R | R |
+| Coder | R | W | W | R | ❌ | ❌ |
 | Reviewer | R | R | R | W | R | R |
 | Human | R | R | R | R | W | W |
 
-**W** = write, **R** = read
+**W** = write, **R** = read, **❌** = explicitly denied
+
+**Note:** `.claude/agents/` configuration overrides this matrix for tool access. Coder tool permissions prevent writing to governance files (AGENTS.md, CLAUDE.md, .claude/*). This ensures role boundaries are enforced at runtime.
 
 ---
 
 ## Related
 
+- **Agent Tool Configuration:** `.claude/agents/` files define tool permissions and models per role (source-of-truth for tool access)
 - **Phase Coordination:** See `.claude/rules/multi-agent.md` for phase-specific handoffs
 - **CLAUDE.md:** Project setup, commands, git workflow
 - **DESIGN.md:** Architecture decisions
 
 ---
 
-**Last Updated:** 2026-08-01
-**Status:** Condensed for token budget compliance; Phase 5-7 enhancements documented
+**Last Updated:** 2026-08-06
+**Status:** Enhanced with model selection clarity and permission boundaries; Issue #235 addressed
