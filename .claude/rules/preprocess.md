@@ -46,7 +46,7 @@ After clean_html() (boilerplate removed, ~400 tokens):
 
 **Performance benefit:** 70+ pre-compiled regex patterns (10x faster than sequential regex per job). Backward compat: old jobs without boilerplate removal still queryable.
 
-**HTML→Markdown normalization (Issue #228):** crawl stores raw extracted description as-is; `_build_preprocess_clean_text` (`src/cli.py`) calls `src.parsers.html_to_markdown.normalize_description()` — HTML→Markdown conversion + synthesized `##`/`###` section headers + `---` dividers + boilerplate removal — as the first step of preprocess, before chunking. This used to run inline in `Crawler` at crawl time; it does not anymore.
+**HTML→Markdown normalization (Issue #228, Phase 4 – IMPLEMENTED):** crawl stores raw extracted description as-is; `_build_preprocess_clean_text` (`src/cli.py` line 323) calls `src.parsers.html_to_markdown.clean_html()` — HTML→Markdown conversion + synthesized `##`/`###` section headers + `---` dividers + boilerplate removal (7 categories) — as the first step of preprocess, before chunking. Replaces deprecated `normalize_description()`. This used to run inline in `Crawler` at crawl time; it does not anymore.
 
 **3-Tier Fallback Chain (Issue #231):**
 1. **MarkItDown** (primary) – Preserves structure, ~50ms/job

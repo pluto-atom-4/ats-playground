@@ -33,9 +33,9 @@ Multi-agent coordination framework for ATS Playground. Defines role boundaries a
 
 | Role | Model |
 |------|-------|
-| **Architect** | claude-3-7-sonnet |
-| **Coder** | claude-3-7-sonnet |
-| **Reviewer** | claude-3-5-haiku |
+| **Architect** | claude-sonnet-5 |
+| **Coder** | claude-haiku-4.5 |
+| **Reviewer** | claude-haiku-4.5 |
 
 Haiku for reviewers reduces costs ~60% while maintaining sufficient capability.
 

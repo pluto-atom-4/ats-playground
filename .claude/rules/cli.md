@@ -88,6 +88,22 @@ uv run python -m src.cli crawl --config config/companies.json
 tail -f logs/app.log
 ```
 
+## HTML Cleaning Integration (Issue #230 Phase 4 – IMPLEMENTED)
+
+CLI preprocessing pipeline uses unified `clean_html()` function (from `src.parsers.html_to_markdown`):
+
+- **Replaced:** `normalize_description()` → `clean_html()` (src/cli.py line 323)
+- **Features:** HTML → Markdown → section headers → boilerplate removal → entity normalization
+- **Performance:** 15x token reduction: ~6,000 → ~400 tokens/job
+- **Fallback Chain:** MarkItDown (primary) → BeautifulSoup (fallback) → Original HTML (safe)
+
+**Example:**
+```python
+from src.parsers.html_to_markdown import clean_html
+
+clean_text = clean_html(raw_html, include_section_headers=True)
+```
+
 ## Preprocessing Version Tracking
 
 Tracks preprocessing pipeline versions in `job_reviews.preprocessing_version` (default: `v2.0`).

@@ -78,7 +78,7 @@ uv run python -m src.cli all --cv data/cv.json --config config/companies.json --
 uv run python -m src.cli all --cv data/cv.json --config config/companies.json --up-to review
 ```
 
-**HTML Preprocessing (Issue #230 + #231):** Consolidated `clean_html()` with 70+ boilerplate patterns + 3-tier fallback chain (MarkItDown → BeautifulSoup → Original HTML). Ensures robustness: preprocessing never fails. 10x faster via pre-compiled patterns. **Deprecation:** `HTMLCleaner` removed in v2.0; use `clean_html()` instead.
+**HTML Preprocessing (Issue #230 Phase 1-4 – IMPLEMENTED):** Consolidated `clean_html()` with 70+ boilerplate patterns + 3-tier fallback chain (MarkItDown → BeautifulSoup → Original HTML). Ensures robustness: preprocessing never fails. 10x faster via pre-compiled patterns (Phase 1). Phase 2: preprocessing_version tracking. Phase 3: boilerplate removal 7 categories. Phase 4: CLI/TUI integration (`normalize_description()` → `clean_html()`, `HTMLCleaner` removed from CLI/TUI). **Deprecation:** `HTMLCleaner` marked deprecated (delegates to `clean_html()`), scheduled for removal in v2.1.
 
 See [CLI reference](.github/instructions/cli-usage.instructions.md) for all commands.
 
@@ -131,4 +131,4 @@ Automated token budget validation in `.github/workflows/context-lint.yml`. See [
 ---
 
 **Status**: Progressive Disclosure (minimal bloat, maximum clarity)
-**Last Updated**: 2026-08-01 (trimmed for token budget; Phase 5-7 enhancements merged)
+**Last Updated**: 2026-08-06 (Issue #230 Phase 4 complete; CLI/TUI integration)
