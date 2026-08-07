@@ -314,13 +314,13 @@ def _build_preprocess_clean_text(job: dict[str, Any]) -> str:
     Returns:
         Clean text combining title, location, and normalized description
     """
-    from src.parsers.html_to_markdown import normalize_description
+    from src.parsers.html_to_markdown import clean_html
 
     clean_text = str(job.get("title", ""))
     if job.get("location"):
         clean_text = f"{clean_text}\n{str(job.get('location', ''))}"
     if job.get("description"):
-        description_md = normalize_description(str(job.get("description", "")))
+        description_md = clean_html(str(job.get("description", "")))
         clean_text = f"{clean_text}\n{description_md}"
     return clean_text
 
