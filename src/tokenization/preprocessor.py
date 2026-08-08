@@ -1030,7 +1030,7 @@ class Preprocessor:
         return sorted(filtered)
 
     def _is_markdown(self, text: str) -> bool:
-        """Detect if text is markdown format (Phase 9).
+        """Detect if text is markdown format (Phase 9, Phase 11 enhanced).
 
         Checks for markdown indicators: headers, lists, bold, code blocks.
         Prioritizes markdown headers (## Section) as strongest indicator.
@@ -1039,6 +1039,9 @@ class Preprocessor:
         ``src.parsers.html_to_markdown.add_markdown_section_headers``
         ("## "/"### " headers, "---" dividers, Issue #228) — a change to
         that synthesis format must stay in sync with the patterns below.
+
+        Phase 11: Enhance bold detection to recognize bold-formatted headers
+        at line start (Issue #241).
         """
         if not text:
             return False
@@ -1051,7 +1054,8 @@ class Preprocessor:
             r"^#+\s+",  # Headers (# ## ###)
             r"^[\*\-\+]\s+",  # Unordered lists
             r"^\d+\.\s+",  # Ordered lists
-            r"\*\*.*?\*\*",  # Bold
+            r"^\*\*[^\*]+\*\*",  # Bold-formatted headers at line start (Issue #241)
+            r"\*\*.*?\*\*",  # Bold (inline)
             r"__.*?__",  # Bold (underscore)
             r"`.*?`",  # Inline code
             r"```.*?```",  # Code blocks
@@ -1151,6 +1155,7 @@ class Preprocessor:
         """Extract sections from structured markdown with divider awareness (Phase 10, Phase 3 enhanced).
 
         Phase 3: Repair malformed dividers before extraction.
+        Phase 11: Recognize bold-formatted headers (Issue #241).
         """
         if not text:
             return {}
@@ -1170,7 +1175,12 @@ class Preprocessor:
                     current_content = []
                 continue
 
+            # Check for markdown headers (## format)
             header_match = re.match(r"^#+\s+(.+)$", line)
+            # Check for bold-formatted headers at line start: **Header** (Issue #241)
+            # Handles: **Responsibilities**, **Skills include**, **Label** — description
+            bold_header_match = re.match(r"^\*\*([^\*]+)\*\*", line)
+
             if header_match:
                 if current_content:
                     sections[current_section] = "\n".join(current_content).strip()
@@ -1178,6 +1188,20 @@ class Preprocessor:
 
                 header_text = header_match.group(1).strip().lower()
                 current_section = self._classify_section_from_header(header_text)
+            elif bold_header_match:
+                # Extract text from bold header
+                if current_content:
+                    sections[current_section] = "\n".join(current_content).strip()
+                    current_content = []
+
+                header_text = bold_header_match.group(1).strip().lower()
+                current_section = self._classify_section_from_header(header_text)
+
+                # If bold header is not the entire line, add remaining text as content
+                # E.g., "**Label** — description" -> treat "— description" as content
+                remaining = line[bold_header_match.end() :].strip()
+                if remaining:
+                    current_content.append(remaining)
             else:
                 if line.strip():
                     current_content.append(line)

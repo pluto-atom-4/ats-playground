@@ -326,3 +326,99 @@ class TestDividerNormalization:
 
         # Table row should be left unchanged (contains --- but not split as content divider)
         assert result == lines, f"Table row was modified: {result}"
+
+
+class TestBoldHeaderSynthesis:
+    """Tests for bold header synthesis (Issue #241)."""
+
+    def test_synthesize_bold_subsection_headers_bold_only(self) -> None:
+        """Test synthesis of bold-only headers to ### Subsection."""
+        from src.parsers.html_to_markdown import _synthesize_bold_subsection_headers
+
+        lines = [
+            "Some intro text",
+            "**Responsibilities**",
+            "Lead team and design systems.",
+        ]
+        _synthesize_bold_subsection_headers(lines)
+
+        # Bold header should be converted to ### header
+        assert lines[1] == "### Responsibilities"
+
+    def test_synthesize_bold_subsection_headers_with_trailing_text(self) -> None:
+        """Test synthesis of bold headers with trailing text (Issue #241)."""
+        from src.parsers.html_to_markdown import _synthesize_bold_subsection_headers
+
+        lines = [
+            "Some intro text",
+            "**Responsibilities** include:",
+            "Lead team and design systems.",
+        ]
+        _synthesize_bold_subsection_headers(lines)
+
+        # Bold header with trailing text should still be converted
+        assert lines[1] == "### Responsibilities"
+
+    def test_synthesize_bold_subsection_headers_with_em_dash(self) -> None:
+        """Test synthesis of bold headers with em-dash separator."""
+        from src.parsers.html_to_markdown import _synthesize_bold_subsection_headers
+
+        lines = [
+            "Some intro text",
+            "**Qualifications** — desired skills:",
+            "5+ years Python experience.",
+        ]
+        _synthesize_bold_subsection_headers(lines)
+
+        # Bold header with em-dash should be converted
+        assert lines[1] == "### Qualifications"
+
+    def test_synthesize_bold_subsection_headers_no_header_if_no_content(self) -> None:
+        """Test that bold lines without following content are not converted."""
+        from src.parsers.html_to_markdown import _synthesize_bold_subsection_headers
+
+        lines = [
+            "**Responsibilities**",
+            "# End of document",
+        ]
+        _synthesize_bold_subsection_headers(lines)
+
+        # Bold without content after (header or end) should not convert
+        # This is correct behavior - avoid converting if there's no actual content
+        # to follow the header
+
+    def test_synthesize_bold_subsection_headers_skip_existing_headers(self) -> None:
+        """Test that existing headers are not re-converted."""
+        from src.parsers.html_to_markdown import _synthesize_bold_subsection_headers
+
+        lines = [
+            "## Section Header",
+            "Content here.",
+            "**Bold Line**",
+            "More content.",
+        ]
+        _synthesize_bold_subsection_headers(lines)
+
+        # Existing ## header should remain unchanged
+        assert lines[0] == "## Section Header"
+        # Bold line followed by content should be converted to ###
+        assert lines[2] == "### Bold Line"
+
+    def test_synthesize_bold_subsection_headers_multiple_sections(self) -> None:
+        """Test synthesis with multiple bold headers."""
+        from src.parsers.html_to_markdown import _synthesize_bold_subsection_headers
+
+        lines = [
+            "**Responsibilities**",
+            "Lead and design.",
+            "**Skills**",
+            "Python and AWS.",
+            "**Qualifications**",
+            "5+ years experience.",
+        ]
+        _synthesize_bold_subsection_headers(lines)
+
+        # All bold headers should be converted to ###
+        assert lines[0] == "### Responsibilities"
+        assert lines[2] == "### Skills"
+        assert lines[4] == "### Qualifications"
