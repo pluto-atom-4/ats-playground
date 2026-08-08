@@ -285,7 +285,22 @@ class Crawler:
                 await detail_page.close()
 
     async def _fetch_iframe_via_frame(self, page: Page, inner_selector: Optional[str] = None) -> str:
-        """Access iframe content via Playwright frame API."""
+        """
+        Access iframe content via Playwright frame API.
+
+        Extracts raw HTML from iframes for downstream preprocessing.
+        Uses fallback chain: innerHTML → outerHTML → innerText.
+
+        Raw HTML is preferred because downstream preprocessing (boilerplate removal,
+        entity extraction) works better on structured HTML than plain text.
+
+        Args:
+            page: Playwright page object
+            inner_selector: Optional CSS selector to find content within iframe
+
+        Returns:
+            Raw HTML or plain text content from iframe, or empty string if extraction fails
+        """
         try:
             # Wait for iframe to load
             await page.wait_for_load_state("networkidle")
@@ -299,22 +314,13 @@ class Crawler:
             for i, frame in enumerate(frames):
                 try:
                     if inner_selector:
-                        # Query for specific selector within frame
-                        elem = await frame.query_selector(inner_selector)
-                        if elem:
-                            content = await elem.text_content()
-                            content = content.strip() if content else ""
-                            if content:
-                                logger.debug(f"Found selector in frame {i}: {len(content)} chars")
-                                return content
+                        result = await self._extract_from_frame_element(frame, i, inner_selector)
+                        if result:
+                            return result
                     else:
-                        # Get all text content from frame body
-                        content = await frame.evaluate("() => document.body.innerText")
-                        if isinstance(content, str):
-                            content_len = len(content.strip())
-                            if content_len > 100:
-                                logger.debug(f"Using frame {i} with {content_len} chars")
-                                return content.strip()
+                        result = await self._extract_from_frame_body(frame, i)
+                        if result:
+                            return result
                 except Exception as e:
                     logger.debug(f"Frame {i} error: {e}")
                     continue
@@ -325,6 +331,46 @@ class Crawler:
         except Exception as e:
             logger.debug(f"Error accessing iframe via frame API: {e}")
             return ""
+
+    async def _extract_from_frame_element(self, frame: Any, frame_index: int, selector: str) -> str:
+        """Extract content from specific element in frame using fallback chain."""
+        elem = await frame.query_selector(selector)
+        if not elem:
+            return ""
+
+        # Fallback chain: innerHTML → outerHTML → innerText
+        content: str | None = await elem.inner_html()
+        if not content or len(content.strip()) < 50:
+            # Fallback: try outerHTML (includes element wrapper)
+            content = await elem.evaluate("el => el.outerHTML")
+        if not content or len(content.strip()) < 50:
+            # Last resort: plain text
+            content = await elem.text_content()
+
+        content_str = content.strip() if content else ""
+        if content_str:
+            logger.debug(f"Found selector in frame {frame_index}: {len(content_str)} chars")
+            return content_str
+        return ""
+
+    async def _extract_from_frame_body(self, frame: Any, frame_index: int) -> str:
+        """Extract content from frame body using fallback chain."""
+        # Get raw HTML from frame body (preferred for preprocessing)
+        # Fallback chain: innerHTML → outerHTML → innerText
+        content: str | None = await frame.evaluate("() => document.body.innerHTML")
+        if not content or len(content.strip()) < 100:
+            # Fallback: try outerHTML (includes body tag)
+            content = await frame.evaluate("() => document.body.outerHTML")
+        if not content or len(content.strip()) < 100:
+            # Last resort: plain text content
+            content = await frame.evaluate("() => document.body.innerText")
+
+        if isinstance(content, str):
+            content_len = len(content.strip())
+            if content_len > 100:
+                logger.debug(f"Using frame {frame_index} with {content_len} chars")
+                return content.strip()
+        return ""
 
     async def crawl_multiple(self, companies: Dict[str, Dict[str, Any]]) -> Dict[str, List[JobPosting]]:
         """
