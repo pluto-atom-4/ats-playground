@@ -315,17 +315,38 @@ def _synthesize_keyword_headers(lines: List[str]) -> None:
 
 
 def _synthesize_bold_subsection_headers(lines: List[str]) -> None:
-    """Step 2: bold-only line followed by non-empty, non-header content -> '### Subsection'.
+    """Step 2: bold-only or bold-at-start line followed by content -> '### Subsection'.
 
     Mutates ``lines`` in place.
+
+    Phase 11 (Issue #241): Handle partial bold (text after bold, e.g., `**Label** — description`)
+    and bold-formatted headers at line start.
     """
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
+
+        # Extract bold label (bold-only or bold at line start)
         label = _extract_bold_label(stripped)
         if label is None:
-            continue
+            # Phase 11: Check for bold at line start with trailing text
+            # E.g., "**Responsibilities** include" or "**Label** — description"
+            match = re.match(r"^\*\*([^\*]+)\*\*", stripped)
+            if not match:
+                continue
+            label = match.group(1).strip()
+            # Check if there's trailing text after bold
+            trailing = stripped[match.end() :].strip()
+            if trailing and trailing.startswith(("—", "-", ":", ",")):
+                # Trailing text is just a separator/delimiter, not real content
+                # Treat entire line as header
+                pass
+            elif trailing:
+                # Trailing text is real content (e.g., "include but are not limited to")
+                # This is a section header with inline content
+                pass
+
         j = i + 1
         while j < len(lines) and not lines[j].strip():
             j += 1
