@@ -1297,12 +1297,8 @@ def _preprocess_single_job(
     try:
         job = JobPosting(**job_dict)
 
-        # Build clean text from job fields
-        clean_text = job.title
-        if job.location:
-            clean_text += f"\n{job.location}"
-        if job.description:
-            clean_text += f"\n{job.description}"
+        # Build clean text from job fields using clean_html (Issue #230 Phase 4)
+        clean_text = _build_preprocess_clean_text(job_dict)
 
         # Process text
         chunks = chunker.chunk(clean_text)
@@ -1325,7 +1321,7 @@ def _preprocess_single_job(
             title=job.title,
             company=job.company,
             clean_text=clean_text,
-            markdown_description=job.description,
+            markdown_description=clean_text,
             sentences=clean_text.split("\n"),
             chunks=chunks,
             skills=skills,

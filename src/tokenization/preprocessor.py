@@ -1083,10 +1083,80 @@ class Preprocessor:
             return "responsibilities"
         return header_text.replace(" ", "_")
 
+    @staticmethod
+    def _repair_malformed_dividers(text: str) -> str:
+        """Phase 3: Repair malformed dividers (embedded in text).
+
+        Detects lines with embedded dividers (e.g., `:R69380---`) and splits
+        them onto separate lines. Removes orphaned Workday refs and colons.
+
+        Skips processing table rows (lines starting with |) to avoid interfering
+        with markdown table separator rows.
+
+        Args:
+            text: Text with potential embedded dividers
+
+        Returns:
+            Text with dividers isolated on separate lines
+        """
+        if not text:
+            return text
+
+        lines = text.split("\n")
+        repaired_lines: list[str] = []
+
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                repaired_lines.append("")
+                continue
+
+            # Skip processing table rows (lines starting with | are table markup)
+            if stripped.startswith("|"):
+                repaired_lines.append(line)
+                continue
+
+            # Check for embedded dividers
+            if "---" in stripped:
+                # Split on divider and reconstruct with isolated dividers
+                parts = stripped.split("---")
+                for i, part in enumerate(parts):
+                    part = part.strip()
+                    # Remove leading colons from parts (Workday artifact cleanup)
+                    part = re.sub(r"^:+\s*", "", part).strip()
+                    # Skip pure Workday refs or IDs
+                    if part and not re.match(r"^(?:R\d+|\w+\d+)\s*$", part):
+                        repaired_lines.append(part)
+                    # Add divider after each part except the last
+                    if i < len(parts) - 1:
+                        repaired_lines.append("---")
+                # Only add final divider if:
+                # 1. Original line ended with "---" (last part is empty)
+                # 2. We haven't already added a divider in the loop (check last repaired_lines line)
+                if len(parts) > 1 and not parts[-1].strip():
+                    if not repaired_lines or repaired_lines[-1].strip() != "---":
+                        repaired_lines.append("---")
+            else:
+                repaired_lines.append(line)
+
+        result = "\n".join(repaired_lines)
+
+        # Log if repairs were made
+        if result != text:
+            logger.debug("Repaired malformed dividers in markdown sections")
+
+        return result
+
     def _extract_markdown_sections(self, text: str) -> dict[str, str]:
-        """Extract sections from structured markdown with divider awareness (Phase 10)."""
+        """Extract sections from structured markdown with divider awareness (Phase 10, Phase 3 enhanced).
+
+        Phase 3: Repair malformed dividers before extraction.
+        """
         if not text:
             return {}
+
+        # Phase 3: Repair embedded dividers before processing
+        text = self._repair_malformed_dividers(text)
 
         sections: dict[str, str] = {}
         current_section = "description"

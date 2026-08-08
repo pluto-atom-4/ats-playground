@@ -44,7 +44,9 @@ class TestPreprocessSingleJobFieldMapping:
         preprocessed, token_count, estimated_cost = result
 
         assert preprocessed.title == job_dict["title"]
-        assert preprocessed.markdown_description == job_dict["description"]
+        # markdown_description now includes title + location + description (via _build_preprocess_clean_text)
+        assert job_dict["title"] in preprocessed.markdown_description
+        assert job_dict["location"] in preprocessed.markdown_description
         assert token_count > 0
         assert estimated_cost >= 0
 

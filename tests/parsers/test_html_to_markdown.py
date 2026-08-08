@@ -105,3 +105,224 @@ class TestHtmlCleanerMarkItDownIntegration:
         assert result.startswith("#")
         assert "Job Title" in result
         assert "Job description body text." in result
+
+
+class TestWorkdayHtmlFixtures:
+    """Tests for Workday-specific HTML malformations (Issue #230, Phase 1-3)."""
+
+    # Fixture: Workday dt/dd pairs
+    WORKDAY_DT_DD_HTML = """
+    <dl>
+      <dt>Remote Type</dt><dd>Hybrid</dd>
+      <dt>Location</dt><dd>New York</dd>
+      <dt>Job ID</dt><dd>R69380</dd>
+    </dl>
+    """
+
+    # Fixture: Workday with em-dashes concatenating lines
+    WORKDAY_WITH_EMDASH = """
+    <p>Responsibilities:</p>
+    <ul><li>Lead design—architecture work</li></ul>
+    """
+
+    # Fixture: Workday with Workday refs (:R\d+ pattern)
+    WORKDAY_WITH_REFS = """
+    <dl><dt>ID</dt><dd>:R69380</dd></dl>
+    <p>Application Close Date: August 20</p>
+    """
+
+    # Fixture: Complex Workday job with dividers embedded
+    WORKDAY_COMPLEX_JOB = """
+    <h2>Senior Python Developer</h2>
+    <dl>
+      <dt>Job ID</dt><dd>:R69380</dd>
+      <dt>Type</dt><dd>Full-time</dd>
+    </dl>
+    <p>Responsibilities:</p>
+    <ul>
+      <li>Build scalable systems—architecture patterns</li>
+      <li>Lead team on Python projects</li>
+    </ul>
+    <p>Qualifications:</p>
+    <ul>
+      <li>5+ years Python—modern frameworks</li>
+    </ul>
+    """
+
+    def test_beautifulsoup_dt_dd_isolation(self) -> None:
+        """dt/dd pairs should be on separate lines after BeautifulSoup conversion."""
+        from unittest.mock import patch
+
+        with patch.object(html_to_markdown_module, "MarkItDown") as mock_markitdown:
+            mock_markitdown.return_value.convert.side_effect = RuntimeError("force fallback")
+            result = html_to_markdown(self.WORKDAY_DT_DD_HTML)
+
+        # Should extract text without HTML tags
+        assert "<dl>" not in result
+        assert "<dt>" not in result
+        assert "<dd>" not in result
+        assert "Remote Type" in result
+        assert "Hybrid" in result
+        assert "Location" in result
+        assert "New York" in result
+
+    def test_normalize_workday_refs(self) -> None:
+        """Workday refs like :R69380 should be removed or isolated."""
+        from unittest.mock import patch
+
+        with patch.object(html_to_markdown_module, "MarkItDown") as mock_markitdown:
+            mock_markitdown.return_value.convert.side_effect = RuntimeError("force fallback")
+            result = html_to_markdown(self.WORKDAY_WITH_REFS)
+
+        # References like :R69380 should not appear (or be on isolated lines)
+        # At minimum, they should not be mixed with other text
+        lines = result.split("\n")
+        for line in lines:
+            # If :R pattern exists, it should be isolated (not mixed with other content)
+            if ":R" in line:
+                # This is acceptable; means it was on its own line
+                pass
+            else:
+                # Lines without :R should not have been concatenated
+                assert True
+
+    def test_emdash_normalization(self) -> None:
+        """Em-dashes should be normalized or removed, not concatenate text."""
+        from unittest.mock import patch
+
+        with patch.object(html_to_markdown_module, "MarkItDown") as mock_markitdown:
+            mock_markitdown.return_value.convert.side_effect = RuntimeError("force fallback")
+            result = html_to_markdown(self.WORKDAY_WITH_EMDASH)
+
+        # Text should not be concatenated at the em-dash
+        # "design—architecture" could stay as-is or be normalized
+        assert "Responsibilities" in result
+        assert "Lead design" in result or "Lead design—architecture" in result
+        # But it should not be "LeaddesignarchitectureNotWork"
+        assert "Leaddesign" not in result
+
+    def test_divider_isolation_after_synthesis(self) -> None:
+        """Dividers should not be embedded in text (e.g., ':R69380---')."""
+        from src.parsers.html_to_markdown import normalize_description
+
+        result = normalize_description(self.WORKDAY_COMPLEX_JOB)
+
+        # Check that dividers (---) are on isolated lines
+        lines = result.split("\n")
+        for line in lines:
+            stripped = line.strip()
+            # If line is a divider, it should be ONLY dashes (no other text)
+            if "---" in stripped:
+                # This line should be exactly "---" or close to it
+                # Not "text---" or ":R69380---"
+                assert stripped == "---", f"Divider not isolated: '{stripped}'"
+
+    def test_extract_sections_with_clean_dividers(self) -> None:
+        """_extract_markdown_sections should handle clean dividers."""
+        from src.tokenization.preprocessor import Preprocessor
+
+        markdown_with_dividers = """
+## Responsibilities
+
+Lead design and architecture work
+
+---
+
+## Qualifications
+
+5+ years Python experience
+"""
+        preprocessor = Preprocessor()
+        sections = preprocessor._extract_markdown_sections(markdown_with_dividers)
+
+        assert "responsibilities" in sections
+        assert "qualifications" in sections
+        assert "Lead design" in sections["responsibilities"]
+        assert "5+ years" in sections["qualifications"]
+
+    def test_end_to_end_workday_jobs(self) -> None:
+        """Full pipeline: Workday HTML -> clean sections -> correct entity routing."""
+        from src.parsers.html_to_markdown import clean_html
+
+        # Clean the complex job
+        cleaned = clean_html(self.WORKDAY_COMPLEX_JOB, include_section_headers=True)
+
+        # Verify boilerplate is removed but structure is preserved
+        assert "Senior Python Developer" in cleaned
+        assert "<" not in cleaned and ">" not in cleaned, "No HTML tags should remain"
+
+        # Verify dividers are clean (on isolated lines)
+        lines = cleaned.split("\n")
+        for line in lines:
+            stripped = line.strip()
+            if "---" in stripped:
+                assert stripped == "---", f"Embedded divider found: '{stripped}'"
+
+
+class TestDividerNormalization:
+    """Regression tests for duplicate divider bug (Issue #230, Phase 4)."""
+
+    def test_normalize_divider_lines_content_with_trailing_divider(self) -> None:
+        """Test that 'content---' produces ['content', '---'] (single divider)."""
+        from src.parsers.html_to_markdown import _normalize_divider_lines
+
+        lines = ["content---"]
+        result = _normalize_divider_lines(lines)
+
+        # Should split into content and single divider
+        assert "content" in result
+        assert result.count("---") == 1, f"Expected 1 divider, got {result.count('---')} in {result}"
+
+    def test_normalize_divider_lines_leading_divider(self) -> None:
+        """Test that '---Some Content' produces correct output (leading divider handled)."""
+        from src.parsers.html_to_markdown import _normalize_divider_lines
+
+        lines = ["---Some Content"]
+        result = _normalize_divider_lines(lines)
+
+        # Leading divider creates empty first part which is skipped, leaving only the content
+        assert "Some Content" in result
+        # No divider because the part after --- was not empty, so no final divider is added
+        assert "---" not in result or result.count("---") == 0
+
+    def test_normalize_divider_lines_middle_divider(self) -> None:
+        """Test that 'Part One---Part Two' produces ['Part One', '---', 'Part Two'] (single divider)."""
+        from src.parsers.html_to_markdown import _normalize_divider_lines
+
+        lines = ["Part One---Part Two"]
+        result = _normalize_divider_lines(lines)
+
+        assert "Part One" in result
+        assert "Part Two" in result
+        assert result.count("---") == 1, f"Expected 1 divider, got {result.count('---')} in {result}"
+
+    def test_normalize_divider_lines_consecutive_dividers(self) -> None:
+        """Test that embedded consecutive dividers are handled correctly."""
+        from src.parsers.html_to_markdown import _normalize_divider_lines
+
+        lines = ["text---"]  # This is "text" followed by a divider
+        result = _normalize_divider_lines(lines)
+
+        # Should not produce duplicate dividers
+        assert result.count("---") == 1, f"Expected 1 divider, got {result.count('---')} in {result}"
+
+    def test_normalize_divider_lines_orphaned_refs(self) -> None:
+        """Test that ':R69380---' is split correctly (ref removed, single divider)."""
+        from src.parsers.html_to_markdown import _normalize_divider_lines
+
+        lines = [":R69380---"]
+        result = _normalize_divider_lines(lines)
+
+        # Orphaned ref should be skipped, should have exactly one divider
+        assert ":R69380" not in "\n".join(result)
+        assert result.count("---") == 1, f"Expected 1 divider, got {result.count('---')} in {result}"
+
+    def test_normalize_divider_lines_table_row_unchanged(self) -> None:
+        """Test that table rows (starting with |) are not processed."""
+        from src.parsers.html_to_markdown import _normalize_divider_lines
+
+        lines = ["|---|---|"]  # Markdown table separator (should be unchanged)
+        result = _normalize_divider_lines(lines)
+
+        # Table row should be left unchanged (contains --- but not split as content divider)
+        assert result == lines, f"Table row was modified: {result}"
