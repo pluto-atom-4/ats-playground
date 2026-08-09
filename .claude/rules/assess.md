@@ -68,16 +68,7 @@ Compare actual vs estimated. Use for future token prediction refinement.
 
 ## Verification Commands
 
-```bash
-# Assess confirmed jobs for a CV
-uv run python -m src.cli assess --cv data/cv.json
-
-# Show token usage stats
-uv run python -m src.cli stats --show-token-usage
-
-# Test on one job (for debugging)
-uv run python -m src.cli assess --cv data/cv.json --limit 1
-```
+See [Assessment Commands](./_common.md#assessment-api) for assess, token usage, and single-job test commands.
 
 ## Important Notes
 
