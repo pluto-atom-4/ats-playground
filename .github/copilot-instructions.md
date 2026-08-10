@@ -12,4 +12,17 @@ Routes to [CLAUDE.md](../CLAUDE.md), [AGENTS.md](../AGENTS.md), and [Constraints
 
 **Workflow:** Architect (plan) → Coder (implement) → Reviewer (verify). Gate 1 + Gate 2 before merge.
 
+## Tool Constraints (sync with settings.json)
+
+**Denied (blocked):**
+- `Bash(rm -rf *)` – Never recursive delete
+- `Bash(git push --force*)` – Never force-push
+- `Bash(git reset --hard*)` – Never hard-reset
+
+**Ask (confirm first):**
+- `Bash(rm *)` – Delete files
+- `Bash(git push *)` – Push any changes
+- `Bash(git rebase *)` – Rebase branches
+- `Bash(npm *)` – NPM commands
+
 **Updated:** 2026-08-09 (Phase B)
