@@ -1277,7 +1277,9 @@ def _preprocess_single_job(
     pricing_date: str,
     show_estimates: bool,
     job_index: int,
-) -> Optional[tuple[Any, int, float]]:
+    extract_requirements: bool = True,
+    show_requirements: bool = False,
+) -> Optional[tuple[Any, int, float, Optional[list[dict[str, Any]]]]]:
     """Process a single job and return preprocessed job or None on failure.
 
     Args:
@@ -1288,9 +1290,11 @@ def _preprocess_single_job(
         pricing_date: ISO format date string
         show_estimates: Whether to display token/cost estimates
         job_index: 1-based job index for logging
+        extract_requirements: Whether to extract trigger-based requirements
+        show_requirements: Whether to display requirements in CLI output
 
     Returns:
-        Tuple of (PreprocessedJob, token_count, cost) or None if processing fails
+        Tuple of (PreprocessedJob, token_count, cost, requirements) or None if processing fails
     """
     from src.models.job import JobPosting, PreprocessedJob
 
@@ -1309,7 +1313,12 @@ def _preprocess_single_job(
         skills, technologies, requirements = preprocessor.extract_entities(clean_text)
 
         # Extract trigger-based requirements (Phase 8)
-        trigger_requirements = preprocessor.extract_trigger_requirements(clean_text)
+        trigger_requirements_json = None
+        trigger_requirements_list = None
+        if extract_requirements:
+            trigger_requirements_json = preprocessor.extract_trigger_requirements(clean_text)
+            if trigger_requirements_json:
+                trigger_requirements_list = json.loads(trigger_requirements_json)
 
         # Generate or use existing job ID
         job_id = job.id or generate_job_id(
@@ -1330,7 +1339,7 @@ def _preprocess_single_job(
             skills=skills,
             technologies=technologies,
             requirements=requirements,
-            trigger_requirements=trigger_requirements,
+            trigger_requirements=trigger_requirements_json,
             token_count=token_count,
             estimated_cost=estimated_cost,
             model_name=counter.model,
@@ -1342,7 +1351,16 @@ def _preprocess_single_job(
             typer.echo(f"   Job {job_index}: {job.title[:40]}...")
             typer.echo(f"      Tokens: {token_count} | Cost: ${estimated_cost:.4f}")
 
-        return (preprocessed, token_count, estimated_cost)
+        # Display requirements if requested
+        if show_requirements and trigger_requirements_list:
+            typer.echo(f"   Requirements: {len(trigger_requirements_list)} extracted")
+            top_5 = sorted(trigger_requirements_list, key=lambda r: r.get("confidence", 0), reverse=True)[:5]
+            for idx, req in enumerate(top_5, 1):
+                typer.echo(
+                    f"      {idx}. {req.get('text', 'N/A')[:60]}... (confidence: {req.get('confidence', 0):.2f})"
+                )
+
+        return (preprocessed, token_count, estimated_cost, trigger_requirements_list)
 
     except Exception as e:
         logger.warning(f"Failed to preprocess job {job_index}: {e}")
@@ -1356,7 +1374,9 @@ def _preprocess_job_file(
     preprocessor: Any,
     pricing_date: str,
     show_estimates: bool,
-) -> Tuple[List[Any], int]:
+    extract_requirements: bool = True,
+    show_requirements: bool = False,
+) -> Tuple[List[Any], int, List[dict[str, Any]]]:
     """Process all jobs in a single file.
 
     Args:
@@ -1366,33 +1386,48 @@ def _preprocess_job_file(
         preprocessor: Preprocessor instance
         pricing_date: ISO format date string
         show_estimates: Whether to display token/cost estimates
+        extract_requirements: Whether to extract trigger-based requirements
+        show_requirements: Whether to display requirements in CLI output
 
     Returns:
-        Tuple of (list of preprocessed jobs, count of failures)
+        Tuple of (list of preprocessed jobs, count of failures, all requirements list)
     """
     preprocessed_jobs = []
     failed_count = 0
     total_tokens = 0
     total_cost = 0.0
+    all_requirements = []
 
     try:
         with open(job_file) as f:
             jobs_data = json.load(f)
 
         for i, job_dict in enumerate(jobs_data, 1):
-            result = _preprocess_single_job(job_dict, chunker, counter, preprocessor, pricing_date, show_estimates, i)
+            result = _preprocess_single_job(
+                job_dict,
+                chunker,
+                counter,
+                preprocessor,
+                pricing_date,
+                show_estimates,
+                i,
+                extract_requirements=extract_requirements,
+                show_requirements=show_requirements,
+            )
             if result:
-                prep_job, tokens, cost = result
+                prep_job, tokens, cost, requirements = result
                 preprocessed_jobs.append(prep_job)
                 total_tokens += tokens
                 total_cost += cost
+                if requirements:
+                    all_requirements.extend(requirements)
             else:
                 failed_count += 1
 
     except Exception as e:
         logger.error(f"Failed to process {job_file}: {e}")
 
-    return preprocessed_jobs, failed_count
+    return preprocessed_jobs, failed_count, all_requirements
 
 
 def _save_preprocessed_jobs(jobs: List[Any], output_path: Path) -> None:
@@ -1474,17 +1509,33 @@ def preprocess(
         "--dry-run",
         help="Preview jobs without modifying database",
     ),
+    extract_requirements: bool = typer.Option(
+        True,
+        "--extract-requirements/--no-extract-requirements",
+        help="Enable/disable trigger-based requirement extraction (Phase 8, default enabled)",
+    ),
+    export_requirements_json: Optional[str] = typer.Option(
+        None,
+        "--export-requirements-json",
+        help="Export full requirements JSON to file (optional)",
+    ),
 ) -> None:
-    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities).
+    """Preprocess job postings (clean HTML, chunk, count tokens, extract entities, extract requirements).
 
-    Supports version tracking for cost analysis and selective re-preprocessing.
+    Supports version tracking for cost analysis, selective re-preprocessing, and trigger-based requirement extraction.
 
     Examples:
-        # Preprocess with default v2.0 (boilerplate removal)
+        # Preprocess with default v2.0 (boilerplate removal) + requirement extraction
         uv run python -m src.cli preprocess --batch-size 10
 
         # Preprocess with legacy v1.0 (no boilerplate)
         uv run python -m src.cli preprocess --preprocessing-version 1.0
+
+        # Preprocess without requirement extraction
+        uv run python -m src.cli preprocess --no-extract-requirements
+
+        # Preprocess and export requirements to JSON
+        uv run python -m src.cli preprocess --export-requirements-json data/requirements.json
 
         # Re-preprocess only v1.0 jobs to v2.0
         uv run python -m src.cli preprocess --re-preprocess-only-v1 --preprocessing-version 2.0
@@ -1656,15 +1707,24 @@ def preprocess(
         job_files = _validate_and_load_job_files(extracted_dir)
         typer.echo(f"📂 Processing {len(job_files)} job files...\n")
 
+        all_requirements_extracted = []
         for job_file in job_files:
             typer.echo(f"📂 Processing {job_file.name}...")
-            preprocessed_jobs, file_failed = _preprocess_job_file(
-                job_file, chunker, counter, preprocessor, pricing_date, show_estimates
+            preprocessed_jobs, file_failed, file_requirements = _preprocess_job_file(
+                job_file,
+                chunker,
+                counter,
+                preprocessor,
+                pricing_date,
+                show_estimates,
+                extract_requirements=extract_requirements,
+                show_requirements=show_estimates,  # Show requirements if showing estimates
             )
             all_preprocessed.extend(preprocessed_jobs)
             failed_count += file_failed
             total_tokens += sum(j.token_count for j in preprocessed_jobs)
             total_cost += sum(j.estimated_cost for j in preprocessed_jobs)
+            all_requirements_extracted.extend(file_requirements)
 
     # Display summary
     typer.echo("\n✅ Preprocessing complete!\n")
@@ -1675,6 +1735,9 @@ def preprocess(
     typer.echo(f"   Total tokens: {total_tokens}")
     typer.echo(f"   Total cost: ${total_cost:.4f}")
 
+    if extract_requirements and "all_requirements_extracted" in locals():
+        typer.echo(f"   Trigger-based requirements: {len(all_requirements_extracted)} extracted")
+
     if all_preprocessed and not is_selective_reprocess:
         avg_tokens = total_tokens // len(all_preprocessed)
         typer.echo(f"   Avg tokens/job: {avg_tokens}")
@@ -1684,6 +1747,14 @@ def preprocess(
         output_file = extracted_dir / "preprocessed_jobs.json"
         _save_preprocessed_jobs(all_preprocessed, output_file)
         _update_job_timelines(all_preprocessed)
+
+        # Export requirements JSON if requested
+        if extract_requirements and export_requirements_json and "all_requirements_extracted" in locals():
+            export_path = Path(export_requirements_json)
+            export_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(export_path, "w") as f:
+                json.dump(all_requirements_extracted, f, indent=2)
+            typer.echo(f"   ✓ Exported {len(all_requirements_extracted)} requirements to: {export_path}")
 
 
 # ============================================================================
