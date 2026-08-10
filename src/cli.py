@@ -1308,6 +1308,9 @@ def _preprocess_single_job(
         # Extract entities
         skills, technologies, requirements = preprocessor.extract_entities(clean_text)
 
+        # Extract trigger-based requirements (Phase 8)
+        trigger_requirements = preprocessor.extract_trigger_requirements(clean_text)
+
         # Generate or use existing job ID
         job_id = job.id or generate_job_id(
             company=job.company,
@@ -1327,6 +1330,7 @@ def _preprocess_single_job(
             skills=skills,
             technologies=technologies,
             requirements=requirements,
+            trigger_requirements=trigger_requirements,
             token_count=token_count,
             estimated_cost=estimated_cost,
             model_name=counter.model,
