@@ -1,3 +1,9 @@
+---
+applyTo: '**/*'
+model: claude-sonnet-5
+context: minimal
+---
+
 # Copilot Instructions
 
 Routes to [CLAUDE.md](../CLAUDE.md), [AGENTS.md](../AGENTS.md), and [Constraints](.claude/CONSTRAINTS.md). Path-scoped rules in [.claude/copilot-routing.json](.claude/copilot-routing.json).
