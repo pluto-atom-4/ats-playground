@@ -162,6 +162,14 @@ Compare token usage across versions:
 
 Expected benefit: v2.0 produces ~30% fewer tokens vs v1.0 (boilerplate removed).
 
+## Requirement Extraction (Phase 8a, Issue #252)
+
+**CLI:** `--extract-requirements` (default), `--no-extract-requirements`, `--export-requirements-json <file>`
+
+**Trigger Patterns:** 18 patterns (Tier 1-3, confidence 0.40-0.95). See `.claude/rules/phase8/patterns.md` for details.
+
+**Database:** Nullable `requirements` column (JSON array). <50ms overhead per job, <5% token increase.
+
 ## Verification Commands
 
 See [Preprocessing Commands](./_common.md#preprocessing-token-estimates) for token estimates, queries, and test commands.

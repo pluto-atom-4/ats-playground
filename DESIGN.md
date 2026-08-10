@@ -131,6 +131,60 @@ HTML → MarkItDown (primary, ~50ms)
 
 ---
 
+## 5B. Trigger-Based Requirement Extraction (Phase 8a, Issue #248-252)
+
+**Architecture:** spaCy pipeline component + CLI integration for pattern-based requirement extraction.
+
+```
+Raw Job Description
+  ↓
+spaCy NLP Pipeline
+  ├─ Tokenization (whitespace)
+  ├─ Requirement Filter Component (18 trigger patterns)
+  │  ├─ Tier 1 (0.83-0.95): required, must, essential, ability to, experience, proficiency, knowledge, understanding
+  │  ├─ Tier 2 (0.65-0.89): should, prefer, degree, years of
+  │  └─ Tier 3 (0.40-0.55): nice to have, ideal, bonus
+  └─ NER (existing)
+  ↓
+Confidence-Scored Requirements
+  ├─ Context adjustments: negation (-0.25), conditional (-0.15), parenthetical (-0.10)
+  ├─ Deduplication (by text)
+  └─ JSON output: {text, trigger_word, confidence, span, token_count}
+```
+
+**Component:** `requirement_filter` (spaCy @Language.component decorator)
+- Registers custom `Doc._.requirements` attribute
+- Processes cleaned text (pre-spaCy, 100–600 token chunks)
+- Returns list of requirement dicts with confidence scores
+- <50ms per job, <5% token overhead
+
+**CLI Integration:**
+- `--extract-requirements` (default): Enable extraction, display count + top 5 per job
+- `--no-extract-requirements`: Disable (backward compatible)
+- `--export-requirements-json <file>`: Save all requirements to JSON for downstream analysis
+
+**Database Storage:** Nullable `requirements TEXT` column in `preprocessed_jobs` table. Old jobs (v1.0) have NULL; new jobs (v2.0+) contain JSON array.
+
+**Example:** Raw description → Extracted requirements
+```
+Raw: "We seek a Senior Python Developer. Required: 5+ years Python, knowledge of Django.
+       Must have REST API experience. Proficiency in Docker is mandatory."
+
+Extracted JSON:
+[
+  {"text": "5+ years Python", "trigger_word": "Required", "confidence": 0.91, "span": (61, 76), "token_count": 3},
+  {"text": "knowledge of Django", "trigger_word": "knowledge of", "confidence": 0.87, "span": (79, 98), "token_count": 4},
+  {"text": "REST API experience", "trigger_word": "Must have", "confidence": 0.88, "span": (127, 146), "token_count": 3},
+  {"text": "Proficiency in Docker", "trigger_word": "Proficiency", "confidence": 0.89, "span": (159, 180), "token_count": 4}
+]
+```
+
+**Tests:** 39 unit tests (trigger detection, confidence scoring, edge cases, fixture coverage) + 9 integration tests (full pipeline, latency, JSON export, CLI flags). All passing.
+
+See `.claude/rules/phase8/patterns.md` for complete trigger list, edge cases, confidence adjustment rules.
+
+---
+
 ## 5. PHASE-SPECIFIC RULES & COORDINATION
 
 Phase documentation organized in `.claude/rules/`:
