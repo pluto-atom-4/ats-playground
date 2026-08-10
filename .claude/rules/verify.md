@@ -35,7 +35,7 @@ uv run python -m src.cli assess --cv data/cv.json
 
 ## Cost Transparency
 
-Always show cost estimate before sending to LLM:
+See [Core Constraints](../../.claude/CONSTRAINTS.md#always-rules-mandatory) (constraint: always show cost estimate before LLM calls). Example format:
 ```
 Title: Senior Python Developer
 Location: Remote
@@ -48,16 +48,7 @@ Track actual cost after assessment. Compare in cost_tracking table.
 
 ## Verification Commands
 
-```bash
-# Interactive review (shows each job, prompts confirm/reject)
-uv run python -m src.cli review --interactive
-
-# Show cost estimates for pending jobs
-uv run python -m src.cli preprocess --show-estimates
-
-# Query by status
-uv run python -m src.cli query --keyword "python" --status confirmed
-```
+See [Verification Commands](./_common.md#verification-interactive) for interactive review, cost estimates, and status query commands.
 
 ## Important Notes
 

@@ -164,13 +164,4 @@ Expected benefit: v2.0 produces ~30% fewer tokens vs v1.0 (boilerplate removed).
 
 ## Verification Commands
 
-```bash
-# Token estimates for all jobs
-uv run python -m src.cli preprocess --show-estimates
-
-# Query by keyword
-uv run python -m src.cli query --keyword "python" --min-score 0
-
-# Run tokenization tests
-uv run pytest tests/tokenization/ -v
-```
+See [Preprocessing Commands](./_common.md#preprocessing-token-estimates) for token estimates, queries, and test commands.

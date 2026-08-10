@@ -32,10 +32,7 @@ async with BrowserManager() as browser:
 
 ## Error Handling
 
-- **Page timeout**: Increase timeout in config, check selectors
-- **Login required**: Move to config; don't automate login in code
-- **Rate limited (429)**: Backoff strategy built in; wait & retry
-- **Invalid selector**: Logs error, skips job, continues crawling
+See [Crawl-Phase Error Handling](./_common.md#crawl-phase-error-handling) for timeout, login, rate limiting, and selector issues.
 
 ## Config File Format
 
@@ -60,13 +57,4 @@ async with BrowserManager() as browser:
 
 ## Verification Commands
 
-```bash
-# Test crawler on single config
-uv run python -m src.cli crawl --config config/companies.json
-
-# Crawl entire directory
-uv run python -m src.cli crawl --config-dir ./config
-
-# Watch logs for errors
-tail -f logs/app.log
-```
+See [Crawling Commands](./_common.md#crawling-extraction) for test, directory crawl, and log watching commands.

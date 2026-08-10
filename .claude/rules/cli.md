@@ -66,27 +66,11 @@ async def crawl(...) -> None:
 
 ## Error Handling
 
-- **Log all errors** before raising
-- **Fail fast**: If config invalid, exit immediately
-- **Show user-friendly messages**: "Config file not found: ./config/companies.json"
-- **Exit codes**: 0 (success), 1 (user error), 2 (internal error)
+Log all errors, fail fast on invalid config, show user-friendly messages, use standard exit codes (0 success, 1 user error, 2 internal).
 
 ## Verification Commands
 
-```bash
-# Test command help
-uv run python -m src.cli --help
-uv run python -m src.cli crawl --help
-
-# Preprocess with token estimates
-uv run python -m src.cli preprocess --show-estimates
-
-# Dry-run (if supported)
-uv run python -m src.cli crawl --config config/companies.json
-
-# Watch logs
-tail -f logs/app.log
-```
+Test with `--help` flags, run preprocess with `--show-estimates`, test crawl with config, watch logs. See [Testing & Quality](./_common.md#testing--quality) for pre-commit and test commands.
 
 ## HTML Cleaning Integration (Issue #230 Phase 4 – IMPLEMENTED)
 

@@ -5,96 +5,18 @@
     "commit": "Co-Authored-By: Claude <claude@anthropic.com>"
   },
   "permissions": {
-    "allow": [
-      "Read",
-      "Edit",
-      "Write",
-      "Bash(uv *)",
-      "Bash(pytest *)",
-      "Bash(black *)",
-      "Bash(ruff *)",
-      "Bash(ls *)",
-      "Bash(grep *)",
-      "Bash(find *)",
-      "Bash(cat *)",
-      "Bash(tail *)",
-      "Bash(head *)",
-      "Bash(pwd *)",
-      "Bash(echo *)",
-      "Bash(which *)",
-      "Bash(pip *)",
-      "Bash(poetry *)"
-    ],
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)",
-      "Bash(git clean -fd*)",
-      "Bash(drop *)",
-      "Bash(truncate *)",
-      "Read(.env*)",
-      "Edit(.env*)"
-    ],
-    "ask": [
-      "Bash(rm *)",
-      "Bash(git push *)",
-      "Bash(git rebase *)",
-      "Edit(.github/*)",
-      "Edit(.env*)",
-      "Bash(npm *)",
-      "Bash(yarn *)"
-    ],
-    "defaultMode": "default"
+    "allow": ["Read", "Edit", "Write", "Bash(uv *)", "Bash(pytest *)", "Bash(ruff *)", "Bash(grep *)", "Bash(find *)", "Bash(tail *)"],
+    "deny": ["Bash(rm -rf *)", "Bash(git push --force*)", "Bash(git reset --hard*)", "Read(.env*)", "Edit(.env*)"],
+    "ask": ["Bash(rm *)", "Bash(git push *)", "Bash(git rebase *)", "Edit(.github/*)", "Bash(npm *)"]
   },
   "model": "claude-haiku-4-5-20251001",
   "hooks": {
     "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/post-edit-quality.sh",
-            "timeout": 60,
-            "statusMessage": "Running quality checks on edited file..."
-          }
-        ]
-      },
-      {
-        "matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)|Edit(.claude/skills/**)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/validate-instructions.sh",
-            "timeout": 30,
-            "statusMessage": "Validating instruction compliance..."
-          }
-        ]
-      },
-      {
-        "matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/gate1-plan-approval.sh",
-            "timeout": 30,
-            "statusMessage": "Checking plan approval (Gate 1)..."
-          }
-        ]
-      }
+      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "bash .claude/hooks/post-edit-quality.sh", "timeout": 60}]},
+      {"matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)", "hooks": [{"type": "command", "command": "bash .claude/hooks/gate1-plan-approval.sh", "timeout": 30}]}
     ],
     "PostToolBatch": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/gate2-evidence.sh",
-            "timeout": 30,
-            "statusMessage": "Verifying evidence artifacts (Gate 2)..."
-          }
-        ]
-      }
+      {"matcher": "", "hooks": [{"type": "command", "command": "bash .claude/hooks/gate2-evidence.sh", "timeout": 30}]}
     ]
   },
   "enabledPlugins": {
@@ -117,58 +39,9 @@
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": true,
   "autoCompactWindow": 150000,
-  "fastMode": false,
-  "claudeMdExcludes": [
-    "**/vendor/**/CLAUDE.md",
-    "**/node_modules/**/CLAUDE.md"
-  ],
-  "pathScoping": {
-    ".claude/rules/crawl.md": {
-      "phases": ["crawl"],
-      "appliesTo": ["src/browser/**", "src/parsers/**"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/preprocess.md": {
-      "phases": ["preprocess"],
-      "appliesTo": ["src/tokenization/**", "src/parsers/**"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/assess.md": {
-      "phases": ["assess"],
-      "appliesTo": ["src/llm/**", "src/assessment/**"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/verify.md": {
-      "phases": ["verify"],
-      "appliesTo": ["src/cli/**"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/storage.md": {
-      "phases": ["storage"],
-      "appliesTo": ["src/storage/**"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/cli.md": {
-      "phases": ["cli"],
-      "appliesTo": ["src/cli.py"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/tui/": {
-      "phases": ["tui"],
-      "appliesTo": ["src/tui/**"],
-      "roles": ["coder", "reviewer"]
-    },
-    ".claude/rules/multi-agent.md": {
-      "phases": ["coordination"],
-      "appliesTo": ["tasks.md", ".claude/**"],
-      "roles": ["architect"]
-    }
-  },
-  "verbose": true,
   "autoCompactEnabled": true,
   "fileCheckpointingEnabled": true,
-  "showTurnDuration": false,
-  "showMessageTimestamps": false,
+  "pathScopingReference": ".claude/copilot-routing.json",
   "mcpServers": {
     "playwright": {
       "type": "local",

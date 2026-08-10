@@ -1,0 +1,146 @@
+{
+  "$schema": "permissions-matrix-schema",
+  "description": "Unified permissions matrix. Reference only (settings.json is enforced).",
+  "matrix": {
+    "roles": {
+      "architect": {
+        "name": "Architect/Planner",
+        "model": "claude-sonnet-5",
+        "capabilities": [
+          "Draft implementation plans (tasks.md)",
+          "Design module boundaries + APIs",
+          "Write architectural decisions",
+          "Read codebase",
+          "Write tasks.md + docs/"
+        ],
+        "forbidden": [
+          "Write production code",
+          "Modify CLAUDE.md, AGENTS.md, settings.json"
+        ]
+      },
+      "coder": {
+        "name": "Coder/Implementer",
+        "model": "claude-haiku-4.5",
+        "capabilities": [
+          "Implement features, write tests",
+          "Create commits",
+          "Write src/, tests/",
+          "Run tests"
+        ],
+        "forbidden": [
+          "Modify tasks.md, CLAUDE.md, AGENTS.md",
+          "Skip tests",
+          "Write to .claude/ configuration"
+        ]
+      },
+      "reviewer": {
+        "name": "Reviewer/Tester",
+        "model": "claude-haiku-4.5",
+        "capabilities": [
+          "Verify implementation vs tasks.md",
+          "Run full test suite (pytest, coverage, lint)",
+          "Check test coverage, code quality",
+          "Read codebase",
+          "Run verification commands"
+        ],
+        "forbidden": [
+          "Modify production code",
+          "Merge without human approval"
+        ]
+      }
+    },
+    "filePermissions": {
+      "tasks.md": {
+        "architect": "W",
+        "coder": "R",
+        "reviewer": "R",
+        "human": "R"
+      },
+      "src/**": {
+        "architect": "R",
+        "coder": "W",
+        "reviewer": "R",
+        "human": "R"
+      },
+      "tests/**": {
+        "architect": "R",
+        "coder": "W",
+        "reviewer": "R",
+        "human": "R"
+      },
+      "docs/**": {
+        "architect": "W",
+        "coder": "R",
+        "reviewer": "W",
+        "human": "R"
+      },
+      "CLAUDE.md": {
+        "architect": "R",
+        "coder": "DENY",
+        "reviewer": "R",
+        "human": "W"
+      },
+      "AGENTS.md": {
+        "architect": "R",
+        "coder": "DENY",
+        "reviewer": "R",
+        "human": "W"
+      },
+      ".claude/**": {
+        "architect": "R",
+        "coder": "DENY",
+        "reviewer": "R",
+        "human": "W"
+      },
+      ".env*": {
+        "architect": "DENY",
+        "coder": "DENY",
+        "reviewer": "DENY",
+        "human": "W"
+      }
+    },
+    "toolPermissions": {
+      "bash": {
+        "allowed": [
+          "uv *",
+          "pytest *",
+          "black *",
+          "ruff *",
+          "ls *",
+          "grep *",
+          "find *",
+          "cat *",
+          "tail *",
+          "head *",
+          "pwd",
+          "echo *",
+          "which *",
+          "pip *",
+          "poetry *"
+        ],
+        "denied": [
+          "rm -rf *",
+          "git push --force*",
+          "git reset --hard*",
+          "git clean -fd*",
+          "drop *",
+          "truncate *"
+        ],
+        "ask": [
+          "rm *",
+          "git push *",
+          "git rebase *",
+          "npm *",
+          "yarn *"
+        ]
+      }
+    }
+  },
+  "notes": {
+    "enforcement": "settings.json (enforced) > permissions-base.json (reference only)",
+    "roles": "Defined in AGENTS.md; override via .claude/agents/<role>.json per configuration",
+    "filePermissions": "W=write, R=read, DENY=forbidden"
+  },
+  "lastUpdated": "2026-08-09",
+  "version": "1.0"
+}

@@ -111,19 +111,7 @@ export_markdown(
 
 ## Verification Commands
 
-```bash
-# Initialize database
-uv run python src/storage/db.py --init
-
-# Export markdown report
-uv run python -m src.cli export --output data/assessments/report.md
-
-# Query database
-uv run python -m src.cli query --keyword "python" --min-score 75
-
-# Show stats (job count, avg score)
-uv run python -m src.cli stats --show-token-usage
-```
+See [Database Commands](./_common.md#database) for init, export, query, and stats commands.
 
 ## Important Notes
 
