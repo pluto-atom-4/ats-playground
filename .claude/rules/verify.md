@@ -35,7 +35,7 @@ uv run python -m src.cli assess --cv data/cv.json
 
 ## Cost Transparency
 
-Always show cost estimate before sending to LLM:
+See [Core Constraints](../../.claude/CONSTRAINTS.md#always-rules-mandatory) (constraint: always show cost estimate before LLM calls). Example format:
 ```
 Title: Senior Python Developer
 Location: Remote

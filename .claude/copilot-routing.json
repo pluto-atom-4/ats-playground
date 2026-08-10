@@ -1,0 +1,66 @@
+{
+  "$schema": "copilot-routing-schema",
+  "description": "Path-scoped rule routing. Extracted from settings.json pathScoping.",
+  "routes": {
+    "src/browser/**": {
+      "rules": [".claude/rules/crawl.md"],
+      "phases": ["crawl"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/parsers/**": {
+      "rules": [
+        ".claude/rules/crawl.md",
+        ".claude/rules/preprocess.md"
+      ],
+      "phases": ["crawl", "preprocess"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/tokenization/**": {
+      "rules": [".claude/rules/preprocess.md"],
+      "phases": ["preprocess"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/llm/**": {
+      "rules": [".claude/rules/assess.md"],
+      "phases": ["assess"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/assessment/**": {
+      "rules": [".claude/rules/assess.md"],
+      "phases": ["assess"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/cli/**": {
+      "rules": [".claude/rules/cli.md", ".claude/rules/verify.md"],
+      "phases": ["verify", "cli"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/cli.py": {
+      "rules": [".claude/rules/cli.md", ".claude/rules/verify.md"],
+      "phases": ["cli", "verify"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/storage/**": {
+      "rules": [".claude/rules/storage.md"],
+      "phases": ["storage"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/tui/**": {
+      "rules": [".claude/rules/tui/index.md", ".claude/rules/tui/architecture.md", ".claude/rules/tui/widgets.md", ".claude/rules/tui/patterns.md"],
+      "phases": ["tui"],
+      "roles": ["coder", "reviewer"]
+    },
+    "tasks.md": {
+      "rules": [".claude/rules/multi-agent.md"],
+      "phases": ["coordination"],
+      "roles": ["architect"]
+    },
+    ".claude/**": {
+      "rules": [".claude/rules/multi-agent.md"],
+      "phases": ["coordination"],
+      "roles": ["architect"]
+    }
+  },
+  "lastUpdated": "2026-08-09",
+  "version": "1.0"
+}

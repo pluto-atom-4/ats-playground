@@ -4,7 +4,7 @@ Claude API integration, prompt design, rate limiting, error handling, cost track
 
 ## Claude API Client Pattern
 
-**Never hardcode API calls.** Use LLMProvider abstraction:
+See [Core Constraints](../../.claude/CONSTRAINTS.md#never-rules-critical) (constraint: don't hardcode API calls). Use LLMProvider abstraction:
 
 ```python
 from src.llm.provider import LLMProvider
@@ -72,6 +72,6 @@ See [Assessment Commands](./_common.md#assessment-api) for assess, token usage, 
 
 ## Important Notes
 
-- **Don't assess unconfirmed jobs**: Use `--confirmed-only` (default) to filter.
+- See [Core Constraints](../../.claude/CONSTRAINTS.md#never-rules-critical) (constraint: don't assess unconfirmed jobs). Use `--confirmed-only` (default) to filter.
 - **API key required**: Set `ANTHROPIC_API_KEY` in `.env`. Loaded automatically.
 - **Cost estimates may differ**: tiktoken vs Claude's actual token count. Logged in cost_tracking.
