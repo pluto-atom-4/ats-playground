@@ -105,6 +105,7 @@ SCHEMA = {
             chunks TEXT NOT NULL,
             token_count INTEGER NOT NULL,
             estimated_cost REAL NOT NULL,
+            requirements TEXT,
             processed_date DATETIME NOT NULL,
             FOREIGN KEY(job_id) REFERENCES jobs(id)
         );

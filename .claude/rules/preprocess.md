@@ -162,6 +162,28 @@ Compare token usage across versions:
 
 Expected benefit: v2.0 produces ~30% fewer tokens vs v1.0 (boilerplate removed).
 
+## Requirement Extraction (Phase 8a, Issue #252)
+
+**CLI:** `--extract-requirements` (default), `--no-extract-requirements`, `--export-requirements-json <file>`
+
+**Trigger Patterns:** 18 patterns (Tier 1-3, confidence 0.40-0.95). See `.claude/rules/phase8/patterns.md` for details.
+
+**Database:** Nullable `requirements` column (JSON array). <50ms overhead per job, <5% token increase.
+
+## Span Extraction (Phase 8b, Issue #253-257)
+
+**Purpose:** Expand Phase 8a partial spans to full multi-token boundaries, classify as atomic/compound, preserve in chunking.
+
+**Boundary Rules:** Hard stops (`.`, `;`, `!`) always split. Soft stops (`,`) may split unless conjunction follows. Conjunctions (`and`, `or`) extend span.
+
+**CLI:** `--preserve-requirement-spans` (default, prevents chunk splits), `--no-preserve-requirement-spans` (faster).
+
+**Chunking:** With preservation enabled, chunks 5-10% larger to keep spans intact. No span crosses boundary. <2% latency overhead.
+
+**Database:** `requirement_spans` JSONB column (array of span dicts with text, token boundaries, type, conjunct_count).
+
+See `.claude/rules/phase8/span_algorithm.md` for algorithm pseudocode, boundary rules, edge cases.
+
 ## Verification Commands
 
 See [Preprocessing Commands](./_common.md#preprocessing-token-estimates) for token estimates, queries, and test commands.

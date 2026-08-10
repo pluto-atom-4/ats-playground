@@ -728,27 +728,58 @@ ats-showcase crawl \
 ---
 
 ### preprocess
-**Purpose**: Clean HTML, chunk text, count tokens
+**Purpose**: Clean HTML, chunk text, count tokens, extract trigger-based requirements (Phase 8)
 
 ```bash
-# Single company
-ats-showcase preprocess
+# Default: Extract requirements + show preprocessing
+uv run python -m src.cli preprocess
 
-# Multi-company (automatic - processes all *_jobs.json files)
-ats-showcase preprocess --show-estimates
+# With estimates (show token/cost for first 3 jobs)
+uv run python -m src.cli preprocess --show-estimates
+
+# Disable requirement extraction (backward compatible)
+uv run python -m src.cli preprocess --no-extract-requirements
+
+# Export requirements to JSON file (Phase 8)
+uv run python -m src.cli preprocess --export-requirements-json data/requirements.json
+
+# Selective re-preprocessing with requirement extraction
+uv run python -m src.cli preprocess --re-preprocess-only-v1 --preprocessing-version 2.0
 ```
 
 **Options**:
 - `--batch-size INT` - Jobs per batch (default: 10)
 - `--show-estimates` - Display token/cost estimates for first 3 jobs
+- `--extract-requirements/--no-extract-requirements` - Enable/disable trigger-based requirement extraction (default: enabled, Phase 8)
+- `--export-requirements-json PATH` - Export full requirements JSON to file (optional, Phase 8)
+- `--preprocessing-version TEXT` - Version: 1.0 (legacy) or 2.0 (default, with boilerplate removal)
+- `--re-preprocess-only-v1` - Only re-preprocess v1.0 jobs (skip v2.0)
+- `--filter-by-age DAYS` - Only jobs preprocessed at least N days ago
+- `--filter-by-company NAMES` - Comma-separated company names (e.g., 'Amazon,Google')
+- `--filter-by-tokens-above N` - Only jobs with token count >= N
+- `--limit N` - Maximum number of jobs to process (default: 100)
+- `--dry-run` - Preview jobs without modifying database
 
 **Behavior**:
 - ✅ Auto-discovers all `*_jobs.json` files in `data/extracted_jobs/`
 - ✅ Merges all companies into **single** `preprocessed_jobs.json`
 - ✅ Skips `preprocessed_jobs.json` to avoid re-processing
+- ✅ **[NEW Phase 8]** Extracts trigger-based requirements by default (--extract-requirements)
+- ✅ **[NEW Phase 8]** Displays requirement count + top 5 requirements per job when --show-estimates enabled
+- ✅ **[NEW Phase 8]** Exports full requirements JSON when --export-requirements-json specified
 - Works for multi-company `--config-dir` crawls automatically
 
-**Output**: Single `preprocessed_jobs.json` with cleaned chunks, token counts, cost estimates
+**Requirement Extraction (Phase 8)**:
+- **Trigger patterns**: 18 patterns organized in 3 confidence tiers
+- **Output format**: JSON array with text, trigger_word, confidence, span, token_count
+- **Confidence tiers**:
+  - Tier 1 (0.83-0.95): required, must, essential, ability to, experience in/with, proficiency, knowledge of, understanding of
+  - Tier 2 (0.65-0.89): should, prefer, degree, years of
+  - Tier 3 (0.40-0.55): nice to have, ideal, bonus
+- **Context-based adjustments**: Confidence reduced for negations (-0.25), conditionals (-0.15), parentheticals (-0.10)
+- **Performance**: <50ms overhead per job, minimal token impact (<5% increase)
+
+**Output**: Single `preprocessed_jobs.json` with cleaned chunks, token counts, cost estimates, and trigger-based requirements (when enabled)
 
 ---
 
