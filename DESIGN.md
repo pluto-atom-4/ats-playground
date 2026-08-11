@@ -133,146 +133,33 @@ HTML → MarkItDown (primary, ~50ms)
 
 ## 5B. Trigger-Based Requirement Extraction (Phase 8a, Issue #248-252)
 
-**Architecture:** spaCy pipeline component + CLI integration for pattern-based requirement extraction.
+**Architecture:** spaCy component with 18 regex patterns in 3 tiers (Tier 1: required/must/essential 0.83–0.95; Tier 2: should/prefer 0.65–0.89; Tier 3: nice-to-have 0.40–0.55). Confidence adjustments: negation (-0.25), conditional (-0.15), parenthetical (-0.10).
 
-```
-Raw Job Description
-  ↓
-spaCy NLP Pipeline
-  ├─ Tokenization (whitespace)
-  ├─ Requirement Filter Component (18 trigger patterns)
-  │  ├─ Tier 1 (0.83-0.95): required, must, essential, ability to, experience, proficiency, knowledge, understanding
-  │  ├─ Tier 2 (0.65-0.89): should, prefer, degree, years of
-  │  └─ Tier 3 (0.40-0.55): nice to have, ideal, bonus
-  └─ NER (existing)
-  ↓
-Confidence-Scored Requirements
-  ├─ Context adjustments: negation (-0.25), conditional (-0.15), parenthetical (-0.10)
-  ├─ Deduplication (by text)
-  └─ JSON output: {text, trigger_word, confidence, span, token_count}
-```
+**Component:** `requirement_filter` (spaCy @Language.component) exposes `Doc._.requirements` with `{text, trigger_word, confidence, span, token_count}`.
 
-**Component:** `requirement_filter` (spaCy @Language.component decorator)
-- Registers custom `Doc._.requirements` attribute
-- Processes cleaned text (pre-spaCy, 100–600 token chunks)
-- Returns list of requirement dicts with confidence scores
-- <50ms per job, <5% token overhead
+**CLI:** `--extract-requirements` (default), `--no-extract-requirements`, `--export-requirements-json <file>`.
 
-**CLI Integration:**
-- `--extract-requirements` (default): Enable extraction, display count + top 5 per job
-- `--no-extract-requirements`: Disable (backward compatible)
-- `--export-requirements-json <file>`: Save all requirements to JSON for downstream analysis
+**Storage:** `requirements TEXT` (JSON array) in `preprocessed_jobs`.
 
-**Database Storage:** Nullable `requirements TEXT` column in `preprocessed_jobs` table. Old jobs (v1.0) have NULL; new jobs (v2.0+) contain JSON array.
+**Tests:** 48 total (39 unit + 9 integration). Performance: <50ms per job, <5% overhead.
 
-**Example:** Raw description → Extracted requirements
-```
-Raw: "We seek a Senior Python Developer. Required: 5+ years Python, knowledge of Django.
-       Must have REST API experience. Proficiency in Docker is mandatory."
-
-Extracted JSON:
-[
-  {"text": "5+ years Python", "trigger_word": "Required", "confidence": 0.91, "span": (61, 76), "token_count": 3},
-  {"text": "knowledge of Django", "trigger_word": "knowledge of", "confidence": 0.87, "span": (79, 98), "token_count": 4},
-  {"text": "REST API experience", "trigger_word": "Must have", "confidence": 0.88, "span": (127, 146), "token_count": 3},
-  {"text": "Proficiency in Docker", "trigger_word": "Proficiency", "confidence": 0.89, "span": (159, 180), "token_count": 4}
-]
-```
-
-**Tests:** 39 unit tests (trigger detection, confidence scoring, edge cases, fixture coverage) + 9 integration tests (full pipeline, latency, JSON export, CLI flags). All passing.
-
-See `.claude/rules/phase8/patterns.md` for complete trigger list, edge cases, confidence adjustment rules.
+See `.claude/rules/phase8/patterns.md` for trigger details and edge cases.
 
 ---
 
 ## 5C. Span Boundary Extraction (Phase 8b, Issue #253-257)
 
-**Architecture:** spaCy pipeline component for multi-token requirement span extraction with intelligent boundary detection.
+**Architecture:** spaCy component expanding Phase 8a requirement spans using POS/DEP tag analysis. Detects hard stops (`.;!`), soft stops (`,` without conj.), conjunctions (`and`/`or`), and hyphenated compounds.
 
-```
-Phase 8a Confidence-Scored Requirements
-  ↓
-Span Categorizer Component
-  ├─ Token Adjacency Analysis (POS/DEP tags)
-  ├─ Hard Stops: period, semicolon, exclamation (always split)
-  ├─ Soft Stops: commas without conjunctions (may split)
-  └─ Span Type Classification: atomic (1 conjunct) vs compound (2+ conjuncts)
-  ↓
-Multi-Token Requirement Spans
-  ├─ span_text: "Python and JavaScript"
-  ├─ start_token, end_token: token indices
-  ├─ span_type: "compound"
-  ├─ conjunct_count: 2
-  └─ confidence: inherited from Phase 8a
-  ↓
-Semantic Chunker (Phase 2)
-  └─ preserve_requirement_spans=True → chunks never split spans
-```
+**Span Types:** Atomic (1 conjunct) vs compound (2+ with `and`/`or`). Example: "Python and JavaScript" → compound; "Docker" → atomic.
 
-**Component:** `span_categorizer` (spaCy @Language.component decorator)
-- Receives Phase 8a requirements with partial text spans
-- Expands boundaries using token adjacency and POS/DEP tag analysis
-- Validates compound requirements (with "and"/"or") as single units
-- Registers `Doc._.requirement_spans` attribute (list of span dicts)
-- <50ms per job, <2% token overhead
+**Chunking:** When `preserve_requirement_spans=True` (default), semantic chunker avoids splitting spans across boundaries, keeping chunks ~5-10% larger. Performance: <2% overhead.
 
-**Span Boundary Rules:**
+**Storage:** `requirement_spans` JSONB column tracks `{span_text, start_token, end_token, span_type, conjunct_count}`.
 
-| Boundary Type | Trigger | Behavior |
-|---|---|---|
-| **Hard Stop** | `.`, `;`, `!` | Always split (boundary guaranteed) |
-| **Soft Stop** | `,` (without conj.) | May split (if no "and"/"or" follows) |
-| **Conjunction** | `and`, `or` | Extend span to include next noun/verb |
-| **Hyphen** | `-` (in compound) | Extend span (e.g., "self-motivated") |
+**Tests:** 79 Phase 8b tests (unit, edge case, integration). Performance: +1.03ms baseline (<5% cost).
 
-**Example: Requirement Span Extraction**
-
-*Input (Phase 8a):*
-```
-Raw: "Must have: Python and JavaScript expertise, Docker deployment skills,
-       and ability to manage teams and mentor developers."
-```
-
-*Output (Phase 8b):*
-```json
-[
-  {"span_text": "Python and JavaScript expertise", "start_token": 5, "end_token": 9,
-   "span_type": "compound", "conjunct_count": 2},
-  {"span_text": "Docker deployment skills", "start_token": 11, "end_token": 14,
-   "span_type": "atomic", "conjunct_count": 1},
-  {"span_text": "ability to manage teams and mentor developers", "start_token": 17, "end_token": 26,
-   "span_type": "compound", "conjunct_count": 2}
-]
-```
-
-*Chunking Impact (preserve_requirement_spans=True):*
-```
-Chunk 1: "Must have: Python and JavaScript expertise, Docker deployment skills, and"
-Chunk 2: "ability to manage teams and mentor developers. [Additional requirements...]"
-
-✓ Span "Python and JavaScript expertise" stays intact in Chunk 1
-✓ Span "ability to manage teams and mentor developers" stays intact in Chunk 2
-✓ No span split across chunk boundaries
-```
-
-**Chunking Integration:** When `preserve_requirement_spans=True` (default):
-- Semantic chunker checks if accumulating next sentence would split a span
-- If yes: starts new chunk instead
-- Result: chunks may be slightly larger (5-10% variance) to preserve span integrity
-- Performance: <5% latency increase, negligible for typical batch processing
-
-**CLI Integration:**
-- `--preserve-requirement-spans` (default): Enable span preservation in chunks
-- `--no-preserve-requirement-spans`: Disable (backward compatible, faster chunking)
-- Metadata: chunks include `requirement_spans_in_chunk` list (assessment phase can access)
-
-**Database Storage:** `requirement_spans` JSONB column in `preprocessed_jobs`. Contains array of span dicts with boundary information.
-
-**Tests:** 39 unit tests (boundary detection, compound validation, edge cases) + 25 edge case tests (negation, parenthetical, multi-line) + 15 integration tests (span preservation in chunking, 10 sample jobs, performance validation). All passing, 203+ total Phase 8 tests.
-
-**Performance:** +1.03ms overhead on 23.60ms baseline (<5% cost). Target <150ms per job met with 98.7% headroom. See `.claude/rules/phase8/performance.md` for benchmark results.
-
-See `.claude/rules/phase8/span_algorithm.md` for detailed boundary detection algorithm, pseudocode, edge case handling.
+See `.claude/rules/phase8/span_algorithm.md` for algorithm details and `.claude/rules/phase8/performance.md` for benchmarks.
 
 ---
 
