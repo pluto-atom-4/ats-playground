@@ -214,6 +214,16 @@ uv run python -m src.cli preprocess --show-estimates
 |--------|---------|-------------|
 | `--batch-size` | `10` | Number of jobs per batch (for memory management) |
 | `--show-estimates` | `false` | Display token/cost estimates for first 3 jobs per file |
+| `--extract-requirements` | `true` | Enable trigger-based requirement extraction (Phase 8) |
+| `--no-extract-requirements` | N/A | Disable requirement extraction (backward compatible) |
+| `--export-requirements-json` | N/A | Export full requirements JSON to file path (optional, Phase 8) |
+| `--preprocessing-version` | `2.0` | Version: 1.0 (legacy, no boilerplate) or 2.0 (with boilerplate, default) |
+| `--re-preprocess-only-v1` | `false` | Only re-preprocess v1.0 jobs (skip v2.0) |
+| `--filter-by-age` | N/A | Only jobs preprocessed at least N days ago |
+| `--filter-by-company` | N/A | Comma-separated company names (e.g., 'Amazon,Google') |
+| `--filter-by-tokens-above` | N/A | Only jobs with token count >= N |
+| `--limit` | `100` | Maximum number of jobs to process |
+| `--dry-run` | `false` | Preview jobs without modifying database |
 
 ### Multi-Company Auto-Merge ✓
 
@@ -226,12 +236,13 @@ When using `crawl --config-dir` for multiple companies:
 ### What It Does
 
 1. **Scans directory** - Finds all `*_jobs.json` files (skips `preprocessed_jobs.json`)
-2. **Cleans HTML (NEW - Issue #230)** - Uses consolidated `clean_html()` with 70+ boilerplate patterns (legal, headers, company info, time refs, salary, formatting, navigation)
+2. **Cleans HTML (Issue #230)** - Uses consolidated `clean_html()` with 70+ boilerplate patterns (legal, headers, company info, time refs, salary, formatting, navigation)
 3. **Converts to Markdown** - MarkItDown (primary) or BeautifulSoup (fallback) HTML→Markdown
 4. **Chunks text** - Splits into semantic chunks (sentence-based)
 5. **Counts tokens** - Estimates Claude API tokens using tiktoken
 6. **Estimates costs** - Calculates API cost per job
-7. **Merges all** - Combines all companies into single output file
+7. **Extracts requirements (NEW - Phase 8, Issue #252)** - Trigger-based requirement extraction with 18 patterns across 3 confidence tiers
+8. **Merges all** - Combines all companies into single output file
 
 ### Output
 
@@ -291,6 +302,59 @@ Example: Assessing 100 jobs
   Raw (no preprocessing):  $1.80
   ATS Playground (v2.0):   $0.20
   Total savings:           $1.60 (89%)
+```
+
+### Trigger-Based Requirement Extraction (Phase 8, NEW)
+
+Automatic requirement extraction using 18 trigger patterns across 3 confidence tiers. Disabled by default in text mode; enable with `--extract-requirements`.
+
+**Usage**:
+```bash
+# Enable extraction (default for new pipelines)
+uv run python -m src.cli preprocess --extract-requirements
+
+# Disable extraction (backward compatible)
+uv run python -m src.cli preprocess --no-extract-requirements
+
+# Export requirements to JSON (optional)
+uv run python -m src.cli preprocess --export-requirements-json data/requirements.json
+
+# With estimates (shows requirement count + top 5 per job)
+uv run python -m src.cli preprocess --show-estimates --extract-requirements
+```
+
+**Output with `--show-estimates`**:
+```
+📂 Processing test_jobs.json...
+   Job 1: Senior Python Developer...
+      Tokens: 342 | Cost: $0.0021
+      Requirements: 8 extracted
+         1. 5+ years of Python experience... (confidence: 0.89)
+         2. knowledge of Django and FastAPI... (confidence: 0.87)
+         3. REST API design... (confidence: 0.85)
+         4. Proficiency in Docker... (confidence: 0.88)
+         5. ability to work with distributed systems... (confidence: 0.84)
+
+✅ Preprocessing complete!
+
+📊 Summary:
+   ...
+   Trigger-based requirements: 42 extracted
+```
+
+**Requirement Extraction Features**:
+- **18 trigger patterns** organized by confidence tier (Tier 1: 0.83-0.95, Tier 2: 0.65-0.89, Tier 3: 0.40-0.55)
+- **Tier 1 patterns**: required, must, essential, ability to, experience in/with, proficiency, knowledge of, understanding of
+- **Tier 2 patterns**: should, prefer, degree, years of
+- **Tier 3 patterns**: nice to have, ideal, bonus
+- **Context-based adjustments**: Confidence adjusted for negations, conditionals, parentheticals, soft skills mentions
+- **Performance**: <50ms overhead per job, minimal token impact (<5% increase)
+- **JSON output format**: `{text, trigger_word, confidence, span, token_count}`
+
+**When to use**:
+- `--extract-requirements` (default): Enable pattern-based requirement extraction
+- `--no-extract-requirements`: Skip extraction for faster processing
+- `--export-requirements-json <file>`: Save all requirements to JSON for downstream analysis (e.g., skills gap analysis, curriculum building)
 ```
 
 ### Boilerplate Categories Removed

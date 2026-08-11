@@ -1,0 +1,476 @@
+{
+  "cases": [
+    {
+      "category": "atomic_simple",
+      "id": "atomic_001",
+      "description": "Simple single-noun requirement",
+      "raw_requirement": "Required: 5+ years Python experience",
+      "expected_spans": [
+        {
+          "text": "5+ years Python experience",
+          "start_token": 0,
+          "end_token": 4,
+          "span_type": "atomic",
+          "conjunct_count": 1
+        }
+      ]
+    },
+    {
+      "category": "atomic_simple",
+      "id": "atomic_002",
+      "description": "Knowledge of requirement",
+      "raw_requirement": "Knowledge of Docker and Kubernetes",
+      "expected_spans": [
+        {
+          "text": "Docker and Kubernetes",
+          "start_token": 2,
+          "end_token": 5,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "note": "Conjunction 'and' makes this compound despite single trigger"
+        }
+      ]
+    },
+    {
+      "category": "atomic_simple",
+      "id": "atomic_003",
+      "description": "Must have with verb phrase",
+      "raw_requirement": "Must have strong communication skills",
+      "expected_spans": [
+        {
+          "text": "strong communication skills",
+          "start_token": 2,
+          "end_token": 5,
+          "span_type": "atomic",
+          "conjunct_count": 1
+        }
+      ]
+    },
+    {
+      "category": "atomic_simple",
+      "id": "atomic_004",
+      "description": "Essential skill with preposition",
+      "raw_requirement": "Essential: experience with REST APIs",
+      "expected_spans": [
+        {
+          "text": "experience with REST APIs",
+          "start_token": 1,
+          "end_token": 5,
+          "span_type": "atomic",
+          "conjunct_count": 1
+        }
+      ]
+    },
+    {
+      "category": "atomic_simple",
+      "id": "atomic_005",
+      "description": "Proficiency in single technology",
+      "raw_requirement": "Proficiency in Java programming",
+      "expected_spans": [
+        {
+          "text": "Java programming",
+          "start_token": 2,
+          "end_token": 4,
+          "span_type": "atomic",
+          "conjunct_count": 1
+        }
+      ]
+    },
+    {
+      "category": "compound_conjunction",
+      "id": "compound_001",
+      "description": "Multiple skills with and",
+      "raw_requirement": "Required: 5+ years Python and strong REST API design skills",
+      "expected_spans": [
+        {
+          "text": "5+ years Python and strong REST API design skills",
+          "start_token": 0,
+          "end_token": 9,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "conjunct_at": [3]
+        }
+      ]
+    },
+    {
+      "category": "compound_conjunction",
+      "id": "compound_002",
+      "description": "Three technologies with or",
+      "raw_requirement": "Knowledge of Docker or Kubernetes or containerization tools",
+      "expected_spans": [
+        {
+          "text": "Docker or Kubernetes or containerization tools",
+          "start_token": 2,
+          "end_token": 8,
+          "span_type": "compound",
+          "conjunct_count": 3,
+          "conjunct_at": [3, 5]
+        }
+      ]
+    },
+    {
+      "category": "compound_conjunction",
+      "id": "compound_003",
+      "description": "Comma-separated list with and",
+      "raw_requirement": "Ability to manage teams, mentor developers, and communicate findings",
+      "expected_spans": [
+        {
+          "text": "manage teams, mentor developers, and communicate findings",
+          "start_token": 2,
+          "end_token": 10,
+          "span_type": "compound",
+          "conjunct_count": 3,
+          "conjunct_at": [4, 7],
+          "note": "Commas followed by continuation detected"
+        }
+      ]
+    },
+    {
+      "category": "compound_conjunction",
+      "id": "compound_004",
+      "description": "Mixed technologies and skills",
+      "raw_requirement": "Must have Python, JavaScript, and database design experience",
+      "expected_spans": [
+        {
+          "text": "Python, JavaScript, and database design experience",
+          "start_token": 2,
+          "end_token": 9,
+          "span_type": "compound",
+          "conjunct_count": 3,
+          "note": "Oxford comma with multiple adjectives"
+        }
+      ]
+    },
+    {
+      "category": "compound_conjunction",
+      "id": "compound_005",
+      "description": "Hyphenated compound modifier",
+      "raw_requirement": "Required: cross-functional team management and leadership",
+      "expected_spans": [
+        {
+          "text": "cross-functional team management and leadership",
+          "start_token": 0,
+          "end_token": 6,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "note": "Hyphen in compound noun should not break span"
+        }
+      ]
+    },
+    {
+      "category": "multiline",
+      "id": "multiline_001",
+      "description": "Requirement split across sentences",
+      "raw_requirement": "Must have knowledge of...\n...production systems and cloud platforms",
+      "expected_spans": [
+        {
+          "text": "knowledge of production systems and cloud platforms",
+          "start_token": 2,
+          "end_token": 10,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "note": "Ellipsis continuation detected, merged across line break"
+        }
+      ]
+    },
+    {
+      "category": "multiline",
+      "id": "multiline_002",
+      "description": "List format requirement",
+      "raw_requirement": "Required:\n(1) 5+ years Python\n(2) Strong communication\n(3) Leadership experience",
+      "expected_spans": [
+        {
+          "text": "5+ years Python",
+          "start_token": 2,
+          "end_token": 4,
+          "span_type": "atomic",
+          "conjunct_count": 1,
+          "item_index": 1
+        },
+        {
+          "text": "Strong communication",
+          "start_token": 6,
+          "end_token": 8,
+          "span_type": "atomic",
+          "conjunct_count": 1,
+          "item_index": 2
+        },
+        {
+          "text": "Leadership experience",
+          "start_token": 10,
+          "end_token": 12,
+          "span_type": "atomic",
+          "conjunct_count": 1,
+          "item_index": 3,
+          "note": "Each numbered item extracted separately"
+        }
+      ]
+    },
+    {
+      "category": "multiline",
+      "id": "multiline_003",
+      "description": "Bullet point list",
+      "raw_requirement": "Required:\n- 5+ years Python\n- REST API design\n- Cloud deployment",
+      "expected_spans": [
+        {
+          "text": "5+ years Python",
+          "start_token": 1,
+          "end_token": 3,
+          "span_type": "atomic"
+        },
+        {
+          "text": "REST API design",
+          "start_token": 5,
+          "end_token": 8,
+          "span_type": "atomic"
+        },
+        {
+          "text": "Cloud deployment",
+          "start_token": 10,
+          "end_token": 12,
+          "span_type": "atomic"
+        }
+      ]
+    },
+    {
+      "category": "negation",
+      "id": "negation_001",
+      "description": "Negated requirement",
+      "raw_requirement": "No experience required",
+      "expected_spans": [],
+      "note": "Phase 8a filters negations (confidence = 0.0), no span extracted"
+    },
+    {
+      "category": "negation",
+      "id": "negation_002",
+      "description": "Don't need requirement",
+      "raw_requirement": "You don't need prior experience",
+      "expected_spans": [],
+      "note": "Negation detected, span excluded"
+    },
+    {
+      "category": "negation",
+      "id": "negation_003",
+      "description": "Not required but preferred",
+      "raw_requirement": "Must have Python. Not required: advanced async patterns",
+      "expected_spans": [
+        {
+          "text": "Python",
+          "start_token": 2,
+          "end_token": 2,
+          "span_type": "atomic",
+          "sentence_index": 0
+        }
+      ],
+      "note": "First requirement included; second sentence negated requirement excluded"
+    },
+    {
+      "category": "parenthetical",
+      "id": "paren_001",
+      "description": "Parenthetical context",
+      "raw_requirement": "Required: 5+ years (in production environments)",
+      "expected_spans": [
+        {
+          "text": "5+ years",
+          "start_token": 0,
+          "end_token": 2,
+          "span_type": "atomic",
+          "has_parenthetical_context": true,
+          "parenthetical_text": "in production environments"
+        }
+      ]
+    },
+    {
+      "category": "parenthetical",
+      "id": "paren_002",
+      "description": "Relative clause parenthetical",
+      "raw_requirement": "Experience with Java (which powers 80% of enterprise)",
+      "expected_spans": [
+        {
+          "text": "Experience with Java",
+          "start_token": 0,
+          "end_token": 3,
+          "span_type": "atomic",
+          "has_relative_clause": true,
+          "note": "Stop before relative clause 'which'"
+        }
+      ]
+    },
+    {
+      "category": "degree",
+      "id": "degree_001",
+      "description": "Multiple degree options",
+      "raw_requirement": "Bachelor's degree in Computer Science or equivalent",
+      "expected_spans": [
+        {
+          "text": "Bachelor's degree in Computer Science or equivalent",
+          "start_token": 0,
+          "end_token": 7,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "note": "'or equivalent' makes compound"
+        }
+      ]
+    },
+    {
+      "category": "degree",
+      "id": "degree_002",
+      "description": "Multiple degree programs",
+      "raw_requirement": "Degree in Computer Science, Engineering, or related field",
+      "expected_spans": [
+        {
+          "text": "Computer Science, Engineering, or related field",
+          "start_token": 2,
+          "end_token": 8,
+          "span_type": "compound",
+          "conjunct_count": 3,
+          "note": "Oxford comma list"
+        }
+      ]
+    },
+    {
+      "category": "soft_skills",
+      "id": "soft_001",
+      "description": "Communication requirement",
+      "raw_requirement": "Strong communication and analytical problem-solving skills",
+      "expected_spans": [
+        {
+          "text": "Strong communication and analytical problem-solving skills",
+          "start_token": 0,
+          "end_token": 6,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "note": "Hyphenated compound modifier in conjunction"
+        }
+      ]
+    },
+    {
+      "category": "soft_skills",
+      "id": "soft_002",
+      "description": "Leadership requirement",
+      "raw_requirement": "Ability to lead cross-functional teams and mentor junior staff",
+      "expected_spans": [
+        {
+          "text": "lead cross-functional teams and mentor junior staff",
+          "start_token": 2,
+          "end_token": 9,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "note": "Infinitive phrase with compound verbs"
+        }
+      ]
+    },
+    {
+      "category": "infinitive",
+      "id": "infinitive_001",
+      "description": "Ability to verb phrase",
+      "raw_requirement": "Ability to manage complex projects",
+      "expected_spans": [
+        {
+          "text": "manage complex projects",
+          "start_token": 2,
+          "end_token": 5,
+          "span_type": "atomic",
+          "note": "Include 'to' particle + object"
+        }
+      ]
+    },
+    {
+      "category": "infinitive",
+      "id": "infinitive_002",
+      "description": "Understanding of verb phrase",
+      "raw_requirement": "Understanding of how to design scalable systems",
+      "expected_spans": [
+        {
+          "text": "design scalable systems",
+          "start_token": 4,
+          "end_token": 7,
+          "span_type": "atomic",
+          "note": "Relative clause context included"
+        }
+      ]
+    },
+    {
+      "category": "cross_boundary",
+      "id": "boundary_001",
+      "description": "Span ending at period",
+      "raw_requirement": "Required: 5+ years Python experience. Knowledge of Docker also preferred.",
+      "expected_spans": [
+        {
+          "text": "5+ years Python experience",
+          "start_token": 0,
+          "end_token": 4,
+          "span_type": "atomic",
+          "boundary_type": "sentence_end"
+        }
+      ],
+      "note": "First span stops at period; second requirement separate"
+    },
+    {
+      "category": "cross_boundary",
+      "id": "boundary_002",
+      "description": "Span ending at semicolon",
+      "raw_requirement": "Must have Python; JavaScript is optional",
+      "expected_spans": [
+        {
+          "text": "Python",
+          "start_token": 2,
+          "end_token": 2,
+          "span_type": "atomic",
+          "boundary_type": "semicolon"
+        }
+      ],
+      "note": "Semicolon creates hard boundary"
+    },
+    {
+      "category": "complex",
+      "id": "complex_001",
+      "description": "Complex requirement with conditionals",
+      "raw_requirement": "Required: 5+ years Python, if expertise in async patterns is preferred",
+      "expected_spans": [
+        {
+          "text": "5+ years Python",
+          "start_token": 0,
+          "end_token": 2,
+          "span_type": "atomic",
+          "note": "Conditional 'if' creates boundary; async is separate"
+        }
+      ]
+    },
+    {
+      "category": "complex",
+      "id": "complex_002",
+      "description": "Nice to have with alternatives",
+      "raw_requirement": "Nice to have: 3+ years Rust (if available) or Go experience",
+      "expected_spans": [
+        {
+          "text": "3+ years Rust or Go experience",
+          "start_token": 3,
+          "end_token": 10,
+          "span_type": "compound",
+          "conjunct_count": 2,
+          "parenthetical_at": [5, 6],
+          "note": "Parenthetical context included mid-span, 'or' connects alternatives"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "total_cases": 27,
+    "categories": {
+      "atomic_simple": 5,
+      "compound_conjunction": 5,
+      "multiline": 3,
+      "negation": 3,
+      "parenthetical": 2,
+      "degree": 2,
+      "soft_skills": 2,
+      "infinitive": 2,
+      "cross_boundary": 2,
+      "complex": 2
+    },
+    "test_notes": "Cases cover: simple atomics, conjunctions (and/or), list formats, negations, parenthetical context, degree alternatives, soft skills with compounds, infinitive phrases, sentence/semicolon boundaries, complex conditionals. Expected to test POS/DEP tag detection, boundary rules, conjunct identification, and cross-sentence logic.",
+    "version": "Phase 8b.1",
+    "created": "2026-08-12"
+  }
+}

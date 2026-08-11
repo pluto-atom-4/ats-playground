@@ -1,0 +1,256 @@
+{
+  "fixtures": [
+    {
+      "id": "req_001_required_basic",
+      "sentence": "Python programming is required for this role.",
+      "expected_matches": [
+        {
+          "trigger_word": "required",
+          "matched_text": "required for this role",
+          "confidence": 0.95,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_002_must_have",
+      "sentence": "You must have 5+ years of experience with cloud platforms.",
+      "expected_matches": [
+        {
+          "trigger_word": "must",
+          "matched_text": "must have 5+ years of experience with cloud platforms",
+          "confidence": 0.93,
+          "span_type": "experience_level"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_003_essential",
+      "sentence": "Strong communication skills are essential to succeed in this position.",
+      "expected_matches": [
+        {
+          "trigger_word": "essential",
+          "matched_text": "essential to succeed",
+          "confidence": 0.90,
+          "span_type": "soft_skill"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_004_ability_to",
+      "sentence": "Ability to manage large-scale distributed systems is critical.",
+      "expected_matches": [
+        {
+          "trigger_word": "ability to",
+          "matched_text": "Ability to manage large-scale distributed systems",
+          "confidence": 0.92,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_005_experience_in",
+      "sentence": "Experience in Kubernetes and Docker is required.",
+      "expected_matches": [
+        {
+          "trigger_word": "experience in",
+          "matched_text": "Experience in Kubernetes and Docker",
+          "confidence": 0.88,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_006_proficiency",
+      "sentence": "Proficiency in Python, Java, and C++ is mandatory.",
+      "expected_matches": [
+        {
+          "trigger_word": "proficiency",
+          "matched_text": "Proficiency in Python, Java, and C++",
+          "confidence": 0.91,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_007_knowledge_of",
+      "sentence": "Knowledge of relational databases and SQL is expected.",
+      "expected_matches": [
+        {
+          "trigger_word": "knowledge of",
+          "matched_text": "Knowledge of relational databases and SQL",
+          "confidence": 0.85,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_008_understanding_of",
+      "sentence": "Understanding of microservices architecture is important.",
+      "expected_matches": [
+        {
+          "trigger_word": "understanding of",
+          "matched_text": "Understanding of microservices architecture",
+          "confidence": 0.83,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1"
+    },
+    {
+      "id": "req_009_should_have",
+      "sentence": "Candidates should have experience with React or Vue.js.",
+      "expected_matches": [
+        {
+          "trigger_word": "should",
+          "matched_text": "should have experience with React or Vue.js",
+          "confidence": 0.70,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier2"
+    },
+    {
+      "id": "req_010_bachelor_degree",
+      "sentence": "Bachelor's degree in Computer Science or equivalent required.",
+      "expected_matches": [
+        {
+          "trigger_word": "degree",
+          "matched_text": "Bachelor's degree in Computer Science",
+          "confidence": 0.89,
+          "span_type": "education"
+        }
+      ],
+      "category": "positive_education"
+    },
+    {
+      "id": "req_011_years_of_experience",
+      "sentence": "Minimum 7 years of software development in a team environment.",
+      "expected_matches": [
+        {
+          "trigger_word": "years of",
+          "matched_text": "7 years of software development",
+          "confidence": 0.80,
+          "span_type": "experience_level"
+        }
+      ],
+      "category": "positive_tier2"
+    },
+    {
+      "id": "req_012_nice_to_have",
+      "sentence": "Nice to have experience with machine learning frameworks.",
+      "expected_matches": [
+        {
+          "trigger_word": "nice to have",
+          "matched_text": "Nice to have experience with machine learning frameworks",
+          "confidence": 0.40,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier3"
+    },
+    {
+      "id": "req_013_parenthetical",
+      "sentence": "Experience with container orchestration (Kubernetes or Docker) is essential.",
+      "expected_matches": [
+        {
+          "trigger_word": "essential",
+          "matched_text": "essential",
+          "confidence": 0.90,
+          "span_type": "technical"
+        },
+        {
+          "trigger_word": "experience_in_parenthetical",
+          "matched_text": "(Kubernetes or Docker)",
+          "confidence": 0.80,
+          "span_type": "technical"
+        }
+      ],
+      "category": "edge_case_parenthetical"
+    },
+    {
+      "id": "req_014_no_experience_required",
+      "sentence": "No prior experience with our internal tools is required.",
+      "expected_matches": [],
+      "category": "negative_negation"
+    },
+    {
+      "id": "req_015_conditional_if",
+      "sentence": "If you have AWS certification, that's a great bonus.",
+      "expected_matches": [
+        {
+          "trigger_word": "bonus",
+          "matched_text": "bonus",
+          "confidence": 0.30,
+          "span_type": "technical"
+        }
+      ],
+      "category": "edge_case_conditional"
+    },
+    {
+      "id": "req_016_soft_skills",
+      "sentence": "Must be a strong problem solver with excellent attention to detail.",
+      "expected_matches": [
+        {
+          "trigger_word": "must",
+          "matched_text": "Must be a strong problem solver",
+          "confidence": 0.93,
+          "span_type": "soft_skill"
+        }
+      ],
+      "category": "positive_soft_skill"
+    },
+    {
+      "id": "req_017_vendor_specific",
+      "sentence": "Proficiency in Salesforce CRM administration is required.",
+      "expected_matches": [
+        {
+          "trigger_word": "proficiency",
+          "matched_text": "Proficiency in Salesforce CRM administration",
+          "confidence": 0.91,
+          "span_type": "vendor_specific"
+        }
+      ],
+      "category": "positive_vendor"
+    },
+    {
+      "id": "req_018_multiple_requirements_list",
+      "sentence": "Required skills: Python, AWS, and experience with CI/CD pipelines.",
+      "expected_matches": [
+        {
+          "trigger_word": "required",
+          "matched_text": "Required skills",
+          "confidence": 0.95,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier1_list"
+    },
+    {
+      "id": "req_019_preferred_section",
+      "sentence": "Preferred: 3+ years of experience with Go programming language.",
+      "expected_matches": [
+        {
+          "trigger_word": "prefer",
+          "matched_text": "Preferred",
+          "confidence": 0.65,
+          "span_type": "technical"
+        }
+      ],
+      "category": "positive_tier2_preferred"
+    },
+    {
+      "id": "req_020_no_trigger",
+      "sentence": "We are looking for a talented individual to join our growing team.",
+      "expected_matches": [],
+      "category": "negative_no_trigger"
+    }
+  ]
+}

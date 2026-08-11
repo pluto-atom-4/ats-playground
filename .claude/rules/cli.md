@@ -32,7 +32,7 @@ def crawl(
 | Command | Purpose |
 |---------|---------|
 | `crawl` | Fetch raw HTML from career pages |
-| `preprocess` | Clean HTML, chunk text, count tokens |
+| `preprocess` | Clean HTML, chunk text, count tokens, extract trigger-based requirements |
 | `review` | Interactive verification before LLM |
 | `assess` | Claude API evaluation of CV fit |
 | `export` | Generate markdown reports |
@@ -97,3 +97,7 @@ Tracks preprocessing pipeline versions in `job_reviews.preprocessing_version` (d
 - `v2.0` – Current (70+ patterns, 3-tier fallback)
 
 **CLI:** `--preprocessing-version 2.0`, `--show-version-stats`, `--re-preprocess-only-v1`
+
+## Requirement Extraction Flags (Issue #252)
+
+Preprocess command supports: `--extract-requirements` (default), `--no-extract-requirements`, `--export-requirements-json <file>`. <50ms overhead, <5% token increase.

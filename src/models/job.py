@@ -61,6 +61,7 @@ class PreprocessedJob(BaseModel):
     skills: List[str] = Field(default_factory=list, description="Extracted skills (NLP)")
     technologies: List[str] = Field(default_factory=list, description="Extracted technologies (NLP)")
     requirements: List[str] = Field(default_factory=list, description="Extracted requirements (NLP)")
+    trigger_requirements: Optional[str] = Field(None, description="Trigger-based requirements as JSON (Phase 8)")
     token_count: int = Field(..., description="Total tokens")
     estimated_cost: float = Field(..., description="Estimated LLM cost in USD (model-specific)")
     model_name: str = Field(
