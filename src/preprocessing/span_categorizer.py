@@ -213,12 +213,17 @@ def _expand_span(
     if current_end >= len(doc):
         current_end = len(doc) - 1
 
-    while current_end >= current_start:
+    # Trim trailing punctuation, but don't make end < start (Bug #3 fix)
+    while current_end > current_start:
         token = doc[current_end]
         if token.pos_ == "PUNCT" and token.text in [".", ";", "!", "?"]:
             current_end -= 1
         else:
             break
+
+    # Guard: ensure valid range (start <= end)
+    if current_end < current_start:
+        current_end = current_start
 
     return current_start, current_end
 

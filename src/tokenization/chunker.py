@@ -181,16 +181,22 @@ class SemanticChunker:
                 # Span is completely within chunk, no split
                 continue
 
-            # Check if span crosses the chunk boundary
-            # This is a simplified check: if the span text partially overlaps
-            chunk_end_pos = len(normalized_chunk_text)
-            span_start = normalized_chunk_text.find(normalized_span_text)
+            # Bug #1 fix: Check for partial span existence (span boundary overlap)
+            # Problem: substring find() misses split spans like "Python and Docker"
+            # split into "Python and" + "Docker" (complete text not found)
+            # Solution: Detect if span words appear partially
+            words = normalized_span_text.split()
+            if len(words) > 1:
+                # Multi-word span: check if first word exists but span is incomplete
+                first_word = words[0]
+                if first_word in normalized_chunk_text and normalized_span_text not in normalized_chunk_text:
+                    logger.debug(f"Would split requirement span: {normalized_span_text[:30]}...")
+                    return True
 
-            if span_start != -1:
-                # Span starts in this chunk
-                span_end = span_start + len(normalized_span_text)
-                if span_end > chunk_end_pos:
-                    # Span extends beyond chunk boundary
+            # Check span prefix (for cases like "Python and Docker" → chunk ends at "Python and")
+            if len(normalized_span_text) > 3:
+                span_prefix = normalized_span_text[: len(normalized_span_text) // 2]
+                if span_prefix in normalized_chunk_text and normalized_span_text not in normalized_chunk_text:
                     logger.debug(f"Would split requirement span: {normalized_span_text[:30]}...")
                     return True
 

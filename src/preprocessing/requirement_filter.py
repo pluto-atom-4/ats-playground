@@ -135,11 +135,11 @@ def _apply_confidence_adjustments(
     """
     adjusted = base_confidence
 
-    # Check for negation (Bug #3 fix: expanded to all trigger words)
+    # Check for negation (Bug #3 fix + Bug #2: expanded to include require/requires)
     negation_pattern = (
-        r"(?:no|not|don't|doesn't|didn't)\s+(?:prior\s+)?"
-        r"(?:experience|requirement|required|must|essential|ability\s+to|proficiency|"
-        r"knowledge|understanding)"
+        r"(?:no|not|don't|doesn't|didn't|without)\s+(?:prior\s+)?"
+        r"(?:experience|requirement|required|require|requires|must|essential|ability\s+to|"
+        r"proficiency|knowledge|understanding)"
     )
     if re.search(negation_pattern, full_sentence, re.IGNORECASE):
         return 0.0
