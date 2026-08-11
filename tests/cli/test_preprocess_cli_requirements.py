@@ -5,6 +5,7 @@ and --export-requirements-json for Phase 8 requirement extraction.
 """
 
 import json
+import re
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -16,6 +17,18 @@ from typer.testing import CliRunner
 from src.cli import app
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    Args:
+        text: Text potentially containing ANSI color/formatting codes
+
+    Returns:
+        Text with all ANSI escape sequences removed
+    """
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 @pytest.fixture
@@ -157,11 +170,13 @@ class TestPreprocessCLIRequirementExtraction:
         result = runner.invoke(app, ["preprocess", "--help"])
 
         assert result.exit_code == 0
+        # Strip ANSI codes before assertions
+        help_output_clean = strip_ansi(result.stdout)
         # Check for flag names (may be truncated in help due to column width)
-        assert "extract-requireme" in result.stdout or "--extract-requirements" in result.stdout
-        assert "no-extract-requi" in result.stdout or "--no-extract-requirements" in result.stdout
-        assert "export-requiremen" in result.stdout or "--export-requirements-json" in result.stdout
-        assert "trigger-based requirement extraction" in result.stdout.lower()
+        assert "extract-requireme" in help_output_clean or "--extract-requirements" in help_output_clean
+        assert "no-extract-requi" in help_output_clean or "--no-extract-requirements" in help_output_clean
+        assert "export-requiremen" in help_output_clean or "--export-requirements-json" in help_output_clean
+        assert "trigger-based requirement extraction" in help_output_clean.lower()
 
     def test_default_extract_requirements_enabled(self):
         """Test that requirement extraction is enabled by default."""
@@ -169,8 +184,10 @@ class TestPreprocessCLIRequirementExtraction:
         result = runner.invoke(app, ["preprocess", "--help"])
 
         assert result.exit_code == 0
+        # Strip ANSI codes before assertion
+        help_output_clean = strip_ansi(result.stdout)
         # Look for default mention in the help
-        assert "extract-requirement" in result.stdout.lower()
+        assert "extract-requirement" in help_output_clean.lower()
 
     def test_requirement_extraction_produces_json_output(self, sample_jobs_file):
         """Test that requirement extraction produces valid JSON output."""
