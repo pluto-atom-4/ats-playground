@@ -96,8 +96,10 @@ def _extract_span_boundaries(
     end_token_idx = None
 
     for token in doc:
-        if start_token_idx is None and token.idx >= char_start:
+        # Include token if it starts before or at char_start AND ends after char_start (overlaps start)
+        if start_token_idx is None and token.idx + len(token.text) > char_start:
             start_token_idx = token.i
+        # End token: found token that ends at or after char_end
         if token.idx + len(token.text) >= char_end:
             end_token_idx = token.i
             break

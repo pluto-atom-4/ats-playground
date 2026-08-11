@@ -135,21 +135,18 @@ def _apply_confidence_adjustments(
     """
     adjusted = base_confidence
 
-    # Check for negation (bidirectional: handles both "not required" and "required ... not")
+    # Check for negation within matched text span only (not full sentence)
     # Pattern 1: Negation before trigger word (e.g., "not required", "no experience")
     negation_before_pattern = (
         r"(?:no|not|don't|doesn't|didn't|without)\s+(?:prior\s+)?"
         r"(?:experience|requirement|required|require|requires|must|essential|ability\s+to|"
         r"proficiency|knowledge|understanding)"
     )
-    # Pattern 2: Trigger word followed by negation (e.g., "required skills are not available")
-    negation_after_pattern = (
-        r"(?:experience|requirement|required|require|requires|must|essential|ability\s+to|"
-        r"proficiency|knowledge|understanding)\b.*?\b(?:not|no|don't|doesn't|didn't|without)\b"
-    )
-    if re.search(negation_before_pattern, full_sentence, re.IGNORECASE) or re.search(
-        negation_after_pattern, full_sentence, re.IGNORECASE
-    ):
+    if re.search(negation_before_pattern, text, re.IGNORECASE):
+        return 0.0
+
+    # Pattern 2: Negation within matched text itself (e.g., "not required")
+    if re.search(r"(?:not|no|don't|doesn't|didn't|without)\b", text, re.IGNORECASE):
         return 0.0
 
     # Check for parenthetical context

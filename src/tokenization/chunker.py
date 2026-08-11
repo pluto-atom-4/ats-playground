@@ -107,13 +107,17 @@ class SemanticChunker:
             if current_word_count + word_count > (self.target_chunk_size / 4) and current_chunk:
                 chunk_text = " ".join(current_chunk)
 
-                # Don't split if it breaks a requirement span
+                # Check if finalizing would split a requirement span
                 if self.preserve_requirement_spans and requirement_spans:
                     if self._would_split_requirement_span(chunk_text, requirement_spans):
-                        current_chunk.append(sentence)
-                        current_word_count += word_count
-                        continue
+                        # Can't finalize yet—keep current chunk, force add sentence anyway
+                        # (safety net: if chunk gets too large, will finalize on next iteration)
+                        if current_word_count < self.target_chunk_size:  # Only if not already huge
+                            current_chunk.append(sentence)
+                            current_word_count += word_count
+                            continue
 
+                # Finalize chunk (split approved or no span preservation)
                 chunks.append(chunk_text)
                 current_chunk = [sentence]
                 current_word_count = word_count
