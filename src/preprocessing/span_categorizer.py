@@ -209,6 +209,10 @@ def _expand_span(
         current_end += 1
 
     # Trim trailing hard boundary tokens
+    # Ensure current_end is within bounds (may have incremented past end)
+    if current_end >= len(doc):
+        current_end = len(doc) - 1
+
     while current_end >= current_start:
         token = doc[current_end]
         if token.pos_ == "PUNCT" and token.text in [".", ";", "!", "?"]:
