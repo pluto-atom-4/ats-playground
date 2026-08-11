@@ -126,7 +126,7 @@ class Preprocessor:
                     # Add component after requirement_filter
                     self.nlp.add_pipe("span_categorizer", after="requirement_filter")
                     logger.info("Added span_categorizer component to pipeline")
-        except OSError as e:
+        except (OSError, ValueError) as e:
             logger.error(
                 f"Failed to load spaCy model '{self.model_name}': {e}. "
                 "Ensure it's installed: python -m spacy download en_core_web_md"
