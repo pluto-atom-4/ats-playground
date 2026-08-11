@@ -1335,9 +1335,9 @@ def _preprocess_single_job(
             # Get requirements from doc instead of re-processing
             requirements_data = getattr(doc._, "requirements", None)
             if requirements_data:
+                # Use data directly; avoid unnecessary JSON roundtrip
+                trigger_requirements_list = requirements_data
                 trigger_requirements_json = json.dumps(requirements_data, ensure_ascii=False)
-            if trigger_requirements_json:
-                trigger_requirements_list = json.loads(trigger_requirements_json)
 
         # Generate or use existing job ID
         job_id = job.id or generate_job_id(
@@ -1585,7 +1585,7 @@ def preprocess(
     # Initialize components
     chunker = SemanticChunker(target_chunk_size=400)
     counter = TokenCounter()
-    preprocessor = Preprocessor()
+    preprocessor = Preprocessor(extract_requirements=extract_requirements, preserve_requirement_spans=True)
     pricing_date = date_class.today().isoformat()
 
     all_preprocessed = []

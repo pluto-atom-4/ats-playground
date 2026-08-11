@@ -184,12 +184,17 @@ class SemanticChunker:
             # Bug #1 fix: Check for partial span existence (span boundary overlap)
             # Problem: substring find() misses split spans like "Python and Docker"
             # split into "Python and" + "Docker" (complete text not found)
-            # Solution: Detect if span words appear partially
+            # Solution: Detect if span words appear partially with word boundaries
             words = normalized_span_text.split()
             if len(words) > 1:
-                # Multi-word span: check if first word exists but span is incomplete
+                # Multi-word span: check if first word exists (word boundary) but span is incomplete
                 first_word = words[0]
-                if first_word in normalized_chunk_text and normalized_span_text not in normalized_chunk_text:
+                # Use word boundary regex to avoid false positives (e.g., "Python" in "Cython")
+                first_word_pattern = r"\b" + re.escape(first_word) + r"\b"
+                if (
+                    re.search(first_word_pattern, normalized_chunk_text)
+                    and normalized_span_text not in normalized_chunk_text
+                ):
                     logger.debug(f"Would split requirement span: {normalized_span_text[:30]}...")
                     return True
 
