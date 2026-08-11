@@ -1,7 +1,7 @@
 """Data models for cost analysis and comparison reporting."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, List, Optional
 
 
 @dataclass
@@ -71,7 +71,7 @@ class CostComparisonReport:
             return 0.0
         return (self.total_jobs_v2_0 / total) * 100
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert report to dictionary for serialization."""
         return {
             "total_jobs_v1_0": self.total_jobs_v1_0,
@@ -154,7 +154,7 @@ class QualityComparisonReport:
             return 0.0
         return sum(m.score_delta for m in self.quality_metrics) / self.total_comparisons
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert report to dictionary for serialization."""
         return {
             "total_comparisons": self.total_comparisons,
