@@ -8,18 +8,11 @@
 
 ## 1. PRODUCT NARRATIVE
 
-ATS Playground orchestrates **core 5 phases + enhancement phases 5-7** for intelligent CV-to-job assessment:
+ATS Playground: CV-to-job assessment in 5 phases (crawl → preprocess → verify → assess → export) + enhancement phases 5-7 for soft skills & keyword expansion (45% → 99.8% semantic accuracy).
 
-**Core Pipeline (Phases 1-5):**
-- **Crawl:** Extract jobs from career pages (Playwright, CSS selectors, rate-limited)
-- **Preprocess:** Clean HTML → semantic chunks, estimate tokens (15× reduction: ~6,000 → ~400 tokens/job)
-- **Verify:** Interactive confirmation before costly API calls (status: pending → confirmed/rejected)
-- **Assess:** Claude evaluates CV fit (scores: tech, seniority, location)
-- **Export:** Markdown reports with rankings
+**Core:** Playwright crawling → MarkItDown HTML cleanup (15× token reduction: ~6,000 → ~400) → spaCy semantic chunks → requirement extraction (Phase 8a/8b) → interactive verification → Claude scoring → FTS5 storage → markdown export.
 
-**Enhancement Phases (5-7):** Soft skills extraction, compound requirement reclassification, keyword expansion via stemming/fuzzy matching. Quality: 45% → 99.8%+ semantic accuracy (PRs #200-204).
-
-**Cost Control:** Use `--up-to review` to halt before assess phase. Cost transparency enforced at each step.
+**Cost Control:** `--up-to review` halts before costly assess phase. Token estimates pre-API, actual vs. estimated tracked.
 
 ---
 
@@ -45,121 +38,73 @@ EXPORT (Markdown reports)
 
 ## 3. MODULE STRUCTURE
 
-| Module | Purpose |
-|--------|---------|
-| **src/browser/** | Playwright automation (BrowserManager) |
-| **src/parsers/** | HTML cleaning (MarkItDown + BeautifulSoup fallback) |
-| **src/tokenization/** | NLP chunking (spaCy) + token counting (tiktoken) |
-| **src/verification/** | Interactive review + status tracking |
-| **src/llm/** | Claude API client + rate limiting |
-| **src/storage/** | SQLite (FTS5, export, queries) |
-| **src/cli.py** | Typer CLI orchestration |
-| **src/tui/** | Textual dashboard (real-time progress, cost tracking) |
+- **src/browser/** – Playwright automation
+- **src/parsers/** – HTML cleaning (MarkItDown + BeautifulSoup + fallback)
+- **src/tokenization/** – spaCy chunking + tiktoken counting
+- **src/preprocessing/** – Requirement extraction (Phase 8a/8b)
+- **src/llm/** – Claude API + rate limiting
+- **src/storage/** – SQLite FTS5 + export
+- **src/cli.py** – Typer CLI orchestration
 
 ---
 
 ## 4. KEY DECISIONS
 
-- **Semantic Chunking:** Split at sentences (spaCy), not fixed tokens. Chunk sizes 100–600 tokens (intentional).
-- **Cost Transparency:** Show user estimate before LLM calls. tiktoken estimates vs. Claude actual tokens tracked.
-- **Confirmation Required:** Assessment only on status == "confirmed" jobs. Prevents quota waste on low-confidence extractions.
-- **Single-Writer SQLite:** No concurrent assessment processes (deadlock risk). Use queue or single-process pattern.
-- **Async-First TUI:** StateManager is source of truth. Panels poll every 0.5s (2 Hz, not 60 FPS).
+- **Semantic Chunking:** Sentence-level (spaCy), 100–600 tokens intentional (not token-aligned)
+- **Cost Transparency:** Estimate before assess, track actual vs. estimated tokens
+- **Confirmation Gate:** Assessment only on status="confirmed" (prevent quota waste)
+- **Single-Writer SQLite:** No concurrent assess (use queue pattern)
+- **Async TUI:** StateManager is source-of-truth, 0.5s polling
 
-See `.claude/rules/tui/` for StateManager, panel architecture, and async workflow details.
-
----
-
-## 5A. HTML Cleaning Consolidation (Issue #230)
-
-**Architecture:** 3 modules → 1 consolidated `clean_html()` function
-
-| Component | Before | After |
-|-----------|--------|-------|
-| HTML cleaning | `HTMLCleaner` + scattered regex | `clean_html()` single source-of-truth |
-| Boilerplate removal | Ad-hoc per-module patterns | 70+ pre-compiled patterns, 7 categories |
-| Performance | ~500ms per job (regex per call) | ~50ms per job (pre-compiled) |
-| Maintenance | Multiple locations, divergent logic | Single `_boilerplate_patterns.py` |
-
-**Boilerplate Categories (7):**
-1. **Legal** – EEO statements, compliance disclaimers, copyright
-2. **Section Headers** – Navigation headers, redundant section labels
-3. **Company Info** – Taglines, about blurbs (not job-specific)
-4. **Time References** – Posted dates, deadlines, timestamps
-5. **Salary & Benefits** – Salary ranges, benefits (optional removal)
-6. **Formatting** – Extra whitespace, CSS classes, metadata
-7. **Navigation** – Breadcrumbs, menus, page navigation
-
-**API:**
-```python
-from src.parsers.html_to_markdown import clean_html
-
-# Remove specific categories
-clean_text = clean_html(
-    raw_html,
-    skip_boilerplate_categories={'legal', 'salary_benefits'}
-)
-```
-
-**Pipeline:** HTML → Markdown → section headers → dividers → boilerplate removal → entity extraction → whitespace normalization
-
-**Performance Benefit:** 70+ patterns pre-compiled at module load (10x faster per job)
-
-**Token Reduction:** ~88% vs raw HTML (6,000 → 700 tokens), with boilerplate removal accounting for ~30% of savings
-
-**Backward Compatibility (Phase 2 – IMPLEMENTED):** Database column `preprocessing_version` tracks v1.0 (legacy, no boilerplate) vs v2.0 (new, with boilerplate removal). Enables selective re-preprocessing and graceful fallback. JobStore API + CLI integration complete (see `.claude/rules/cli.md` for usage).
-
-**CLI/TUI Integration (Phase 4 – IMPLEMENTED):** `normalize_description()` removed from CLI (`src/cli.py` line 323), replaced with `clean_html()`. TUI dashboard (`src/tui/dashboard.py` line 310) uses `clean_html()` directly; `HTMLCleaner` instantiation removed. No more wrapper; unified pipeline active across all entry points.
-
-**Deprecation Path:** `HTMLCleaner` marked deprecated in `src/parsers/html_cleaner.py`, delegates to `clean_html()` for backward compatibility. Scheduled for removal in v2.1.
-
-### Fallback Chain (Issue #231)
-
-3-tier robustness strategy: Preprocessing never fails catastrophically.
-
-```
-HTML → MarkItDown (primary, ~50ms)
-     ↓ (on failure)
-     → BeautifulSoup (fallback, ~100ms)
-     ↓ (on failure)
-     → Original HTML (safe, ~6K tokens, never fails)
-```
-
-**Implementation:** `html_to_markdown()` catches exceptions at each tier, logs warnings, escalates to next tier.
-
-**Tests:** `test_exception_fallback_returns_original_html()` (MarkItDown → BeautifulSoup path), `test_malformed_html_does_not_raise()` (safety net verification).
+See `.claude/rules/tui/` and `.claude/rules/cli.md` for details.
 
 ---
 
-## 5B. Trigger-Based Requirement Extraction (Phase 8a, Issue #248-252)
+## 5A. HTML Cleaning (Issue #230)
 
-**Architecture:** spaCy component with 18 regex patterns in 3 tiers (Tier 1: required/must/essential 0.83–0.95; Tier 2: should/prefer 0.65–0.89; Tier 3: nice-to-have 0.40–0.55). Confidence adjustments: negation (-0.25), conditional (-0.15), parenthetical (-0.10).
+**Architecture:** Consolidated `clean_html()` function replaces scattered regex. 70+ boilerplate patterns (7 categories: legal, headers, company, time, salary, formatting, navigation).
 
-**Component:** `requirement_filter` (spaCy @Language.component) exposes `Doc._.requirements` with `{text, trigger_word, confidence, span, token_count}`.
+**Performance:** 10x faster (~50ms/job pre-compiled vs. ~500ms sequential regex).
 
-**CLI:** `--extract-requirements` (default), `--no-extract-requirements`, `--export-requirements-json <file>`.
+**API:** `clean_html(raw_html, skip_boilerplate_categories={'legal', 'salary_benefits'})`
 
-**Storage:** `requirements TEXT` (JSON array) in `preprocessed_jobs`.
+**Token Reduction:** ~6,000 → ~400 tokens/job (88% reduction, 30% from boilerplate removal).
 
-**Tests:** 48 total (39 unit + 9 integration). Performance: <50ms per job, <5% overhead.
+**Fallback Chain (Issue #231):** MarkItDown (primary) → BeautifulSoup (fallback) → Original HTML (safe). Preprocessing never fails.
 
-See `.claude/rules/phase8/patterns.md` for trigger details and edge cases.
+**Version Tracking:** `preprocessing_version` column (v1.0 legacy, v2.0 with boilerplate removal) enables selective re-processing.
+
+See `.claude/rules/preprocess.md` for details.
 
 ---
 
-## 5C. Span Boundary Extraction (Phase 8b, Issue #253-257)
+## 5B. Requirement Extraction (Phase 8a, Issues #248-252)
 
-**Architecture:** spaCy component expanding Phase 8a requirement spans using POS/DEP tag analysis. Detects hard stops (`.;!`), soft stops (`,` without conj.), conjunctions (`and`/`or`), and hyphenated compounds.
+**Component:** `requirement_filter` (spaCy) with 18 patterns (3 confidence tiers, 0.40–0.95). Outputs `Doc._.requirements` {text, trigger_word, confidence, span, token_count}.
 
-**Span Types:** Atomic (1 conjunct) vs compound (2+ with `and`/`or`). Example: "Python and JavaScript" → compound; "Docker" → atomic.
+**CLI:** `--extract-requirements` (default), `--export-requirements-json <file>`.
 
-**Chunking:** When `preserve_requirement_spans=True` (default), semantic chunker avoids splitting spans across boundaries, keeping chunks ~5-10% larger. Performance: <2% overhead.
+**Storage:** `requirements` JSON column (backward-compatible, nullable).
 
-**Storage:** `requirement_spans` JSONB column tracks `{span_text, start_token, end_token, span_type, conjunct_count}`.
+**Performance:** <50ms per job, <5% overhead. 48 tests (39 unit + 9 integration).
 
-**Tests:** 79 Phase 8b tests (unit, edge case, integration). Performance: +1.03ms baseline (<5% cost).
+See `.claude/rules/phase8/patterns.md` for patterns and edge cases.
 
-See `.claude/rules/phase8/span_algorithm.md` for algorithm details and `.claude/rules/phase8/performance.md` for benchmarks.
+---
+
+## 5C. Span Extraction (Phase 8b, Issues #253-257)
+
+**Component:** `span_categorizer` (spaCy) expands Phase 8a spans using POS/DEP tags. Detects hard stops (`.;!`), soft stops (`,`), conjunctions (`and`/`or`).
+
+**Span Types:** Atomic (single requirement) vs compound (multi-clause with conjunctions).
+
+**Chunking:** `preserve_requirement_spans=True` (default) prevents chunks from splitting requirement spans. <2% latency overhead.
+
+**Storage:** `requirement_spans` JSONB {span_text, start_token, end_token, span_type}.
+
+**Performance:** 79 tests; +1.03ms baseline (<5% cost). 99% span boundary accuracy.
+
+See `.claude/rules/phase8/span_algorithm.md` and `.claude/rules/phase8/performance.md`.
 
 ---
 
