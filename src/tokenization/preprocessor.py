@@ -108,15 +108,26 @@ class Preprocessor:
             logger.info(f"Loading spaCy model: {self.model_name}")
             self.nlp = spacy.load(self.model_name)
             logger.info(f"Successfully loaded spaCy model: {self.model_name}")
+        except OSError as e:
+            logger.error(
+                f"Failed to load spaCy model '{self.model_name}': {e}. "
+                "Ensure it's installed: python -m spacy download en_core_web_md"
+            )
+            raise
 
-            # Add requirement_filter component for trigger-based requirement extraction (Phase 8a)
-            if self.extract_requirements:
+        # Add requirement_filter component for trigger-based requirement extraction (Phase 8a)
+        if self.extract_requirements:
+            try:
                 # Import the component to register it via decorator
                 import src.preprocessing.requirement_filter  # noqa: F401
 
                 if "requirement_filter" not in self.nlp.pipe_names:
-                    # Add component after tokenizer, before existing pipes
-                    self.nlp.add_pipe("requirement_filter", before="ner")
+                    # Add component before 'ner' if it exists, otherwise at end
+                    anchor = "ner" if "ner" in self.nlp.pipe_names else None
+                    if anchor:
+                        self.nlp.add_pipe("requirement_filter", before=anchor)
+                    else:
+                        self.nlp.add_pipe("requirement_filter")
                     logger.info("Added requirement_filter component to pipeline")
 
                 # Add span_categorizer component for span extraction (Phase 8b)
@@ -126,12 +137,12 @@ class Preprocessor:
                     # Add component after requirement_filter
                     self.nlp.add_pipe("span_categorizer", after="requirement_filter")
                     logger.info("Added span_categorizer component to pipeline")
-        except (OSError, ValueError) as e:
-            logger.error(
-                f"Failed to load spaCy model '{self.model_name}': {e}. "
-                "Ensure it's installed: python -m spacy download en_core_web_md"
-            )
-            raise
+            except ValueError as e:
+                logger.warning(
+                    f"Failed to register requirement extraction components: {e}. "
+                    "Requirement extraction disabled. Processing will continue without extracted requirements."
+                )
+                self.extract_requirements = False
 
     def segment_sentences(self, text: str) -> List[str]:
         """Split text into sentences using spaCy sentence segmentation.
