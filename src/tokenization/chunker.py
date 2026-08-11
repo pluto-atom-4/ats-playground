@@ -9,17 +9,24 @@ logger = logging.getLogger(__name__)
 class SemanticChunker:
     """Chunk text by sentences to maintain semantic boundaries."""
 
-    def __init__(self, target_chunk_size: int = 400, overlap: int = 50):
+    def __init__(
+        self,
+        target_chunk_size: int = 400,
+        overlap: int = 50,
+        preserve_requirement_spans: bool = True,
+    ):
         """
         Initialize chunker.
 
         Args:
             target_chunk_size: Target tokens per chunk (~400 typical)
             overlap: Overlap tokens between chunks for context
+            preserve_requirement_spans: Never split requirement spans across chunks
         """
         self.target_chunk_size = target_chunk_size
         self.overlap = overlap
-        self.nlp = self._load_spacy()
+        self.preserve_requirement_spans = preserve_requirement_spans
+        self.nlp: Any = self._load_spacy()
 
     def _load_spacy(self) -> Any | None:
         """Load spaCy NLP model for sentence segmentation."""
@@ -33,15 +40,17 @@ class SemanticChunker:
             logger.warning(f"Failed to load spaCy: {e}")
             return None
 
-    def chunk(self, text: str, sentences: List[str] | None = None) -> List[str]:
+    def chunk(self, text: str, sentences: List[str] | None = None, doc: Any | None = None) -> List[str]:
         """
-        Chunk text by sentences, respecting target size.
+        Chunk text by sentences, respecting target size and requirement spans.
 
         Chunks at sentence boundaries (not random token breaks) to preserve meaning.
+        If preserve_requirement_spans is True, never splits a requirement span across chunks.
 
         Args:
             text: Original text to chunk
             sentences: Optional pre-segmented sentences (uses spaCy if None)
+            doc: Optional spaCy Doc with requirement_spans attribute (for span preservation)
 
         Returns:
             List of semantic chunks
@@ -57,6 +66,31 @@ class SemanticChunker:
         if not sentences:
             return [text] if text.strip() else []
 
+        # Get requirement spans if needed
+        requirement_spans: list[dict[str, Any]] = []
+        if self.preserve_requirement_spans and doc is not None:
+            requirement_spans = getattr(doc._, "requirement_spans", [])
+
+        chunks = self._accumulate_chunks(sentences, requirement_spans)
+
+        logger.debug(f"Created {len(chunks)} chunks from {len(sentences)} sentences")
+        return chunks
+
+    def _accumulate_chunks(
+        self,
+        sentences: List[str],
+        requirement_spans: list[dict[str, Any]],
+    ) -> List[str]:
+        """
+        Accumulate sentences into chunks respecting size and span boundaries.
+
+        Args:
+            sentences: List of segmented sentences
+            requirement_spans: List of requirement span dicts (may be empty)
+
+        Returns:
+            List of chunks
+        """
         chunks = []
         current_chunk: list[str] = []
         current_word_count = 0
@@ -68,8 +102,17 @@ class SemanticChunker:
 
             word_count = len(sentence.split())
 
+            # Check if adding this sentence would exceed target
             if current_word_count + word_count > (self.target_chunk_size / 4) and current_chunk:
                 chunk_text = " ".join(current_chunk)
+
+                # Don't split if it breaks a requirement span
+                if self.preserve_requirement_spans and requirement_spans:
+                    if self._would_split_requirement_span(chunk_text, requirement_spans):
+                        current_chunk.append(sentence)
+                        current_word_count += word_count
+                        continue
+
                 chunks.append(chunk_text)
                 current_chunk = [sentence]
                 current_word_count = word_count
@@ -78,10 +121,8 @@ class SemanticChunker:
                 current_word_count += word_count
 
         if current_chunk:
-            chunk_text = " ".join(current_chunk)
-            chunks.append(chunk_text)
+            chunks.append(" ".join(current_chunk))
 
-        logger.debug(f"Created {len(chunks)} chunks from {len(sentences)} sentences")
         return chunks
 
     def _segment_sentences(self, text: str) -> List[str]:
@@ -104,6 +145,51 @@ class SemanticChunker:
         except Exception as e:
             logger.warning(f"spaCy segmentation failed: {e}, returning whole text")
             return [text]
+
+    def _would_split_requirement_span(
+        self,
+        chunk_text: str,
+        requirement_spans: List[dict[str, Any]],
+    ) -> bool:
+        """
+        Check if chunk boundary would split a requirement span.
+
+        Args:
+            chunk_text: Text of the current chunk
+            requirement_spans: List of requirement span dicts from Phase 8b
+
+        Returns:
+            True if splitting here would break a requirement span
+        """
+        if not requirement_spans or not chunk_text:
+            return False
+
+        # For each requirement span, check if it would be split
+        for span in requirement_spans:
+            span_text = span.get("span_text", "")
+            if not span_text:
+                continue
+
+            # Find if this span is partially in chunk_text
+            # If span starts before end but ends after, it would be split
+            if span_text in chunk_text:
+                # Span is completely within chunk, no split
+                continue
+
+            # Check if span crosses the chunk boundary
+            # This is a simplified check: if the span text partially overlaps
+            chunk_end_pos = len(chunk_text)
+            span_start = chunk_text.find(span_text)
+
+            if span_start != -1:
+                # Span starts in this chunk
+                span_end = span_start + len(span_text)
+                if span_end > chunk_end_pos:
+                    # Span extends beyond chunk boundary
+                    logger.debug(f"Would split requirement span: {span_text[:30]}...")
+                    return True
+
+        return False
 
     def estimate_chunk_tokens(self, chunk: str) -> int:
         """

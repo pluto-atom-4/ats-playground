@@ -79,15 +79,22 @@ class Preprocessor:
         "contingent upon award",
     }
 
-    def __init__(self, model: str = "en_core_web_md", extract_requirements: bool = True):
+    def __init__(
+        self,
+        model: str = "en_core_web_md",
+        extract_requirements: bool = True,
+        preserve_requirement_spans: bool = True,
+    ):
         """Initialize preprocessor with spaCy model.
 
         Args:
             model: spaCy model name (e.g., en_core_web_md)
             extract_requirements: Whether to extract trigger-based requirements (default: True)
+            preserve_requirement_spans: Whether to respect requirement spans during chunking
         """
         self.model_name = model
         self.extract_requirements = extract_requirements
+        self.preserve_requirement_spans = preserve_requirement_spans
         self.nlp: Optional[Language] = None
         self._load_model()
 
@@ -102,7 +109,7 @@ class Preprocessor:
             self.nlp = spacy.load(self.model_name)
             logger.info(f"Successfully loaded spaCy model: {self.model_name}")
 
-            # Add requirement_filter component for trigger-based requirement extraction
+            # Add requirement_filter component for trigger-based requirement extraction (Phase 8a)
             if self.extract_requirements:
                 # Import the component to register it via decorator
                 import src.preprocessing.requirement_filter  # noqa: F401
@@ -111,6 +118,14 @@ class Preprocessor:
                     # Add component after tokenizer, before existing pipes
                     self.nlp.add_pipe("requirement_filter", before="ner")
                     logger.info("Added requirement_filter component to pipeline")
+
+                # Add span_categorizer component for span extraction (Phase 8b)
+                import src.preprocessing.span_categorizer  # noqa: F401
+
+                if "span_categorizer" not in self.nlp.pipe_names:
+                    # Add component after requirement_filter
+                    self.nlp.add_pipe("span_categorizer", after="requirement_filter")
+                    logger.info("Added span_categorizer component to pipeline")
         except OSError as e:
             logger.error(
                 f"Failed to load spaCy model '{self.model_name}': {e}. "
