@@ -41,7 +41,7 @@ class TestPreprocessSingleJobFieldMapping:
         )
 
         assert result is not None
-        preprocessed, token_count, estimated_cost = result
+        preprocessed, token_count, estimated_cost, trigger_requirements = result
 
         assert preprocessed.title == job_dict["title"]
         # markdown_description now includes title + location + description (via _build_preprocess_clean_text)
