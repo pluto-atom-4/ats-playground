@@ -1,0 +1,319 @@
+"""Multi-token span extraction component for requirement boundaries.
+
+Implements Phase 8b span extraction using token adjacency and POS tags.
+Converts Phase 8a requirements to spaCy Span objects with boundary detection.
+"""
+
+from typing import Any, Dict, List
+
+from spacy.language import Language
+from spacy.tokens import Doc, Span
+
+# Register custom attribute if not already registered
+if not Doc.has_extension("requirement_spans"):
+    Doc.set_extension("requirement_spans", default=None)
+
+
+def _get_span_type_and_conjunct_count(tokens: List[int], doc: Doc) -> tuple[str, int]:
+    """Determine span type (atomic/compound) and conjunct count.
+
+    Args:
+        tokens: List of token indices in span
+        doc: spaCy Doc object
+
+    Returns:
+        Tuple of (span_type, conjunct_count)
+    """
+    conjunct_count = 1
+    for idx in tokens:
+        token = doc[idx]
+        if token.pos_ == "CCONJ" and token.text.lower() in ["and", "or"]:
+            conjunct_count += 1
+
+    span_type = "compound" if conjunct_count > 1 else "atomic"
+    return span_type, conjunct_count
+
+
+def _is_hard_boundary(token_text: str, token_pos: str, token_dep: str) -> bool:
+    """Check if token marks hard span boundary.
+
+    Args:
+        token_text: Text of token
+        token_pos: POS tag
+        token_dep: Dependency tag
+
+    Returns:
+        True if hard boundary
+    """
+    if token_pos == "PUNCT":
+        if token_text in [".", ";", "!", "?"]:
+            return True
+        if token_text == ")":
+            return True
+    return False
+
+
+def _is_soft_boundary(
+    token_text: str,
+    token_pos: str,
+    next_token_text: str | None = None,
+) -> bool:
+    """Check if token marks soft boundary.
+
+    Args:
+        token_text: Text of token
+        token_pos: POS tag
+        next_token_text: Text of next token (if available)
+
+    Returns:
+        True if soft boundary
+    """
+    if token_pos == "PUNCT" and token_text == ",":
+        # Soft stop unless followed by 'and' or 'or'
+        if next_token_text and next_token_text.lower() in ["and", "or"]:
+            return False
+        return True
+    return False
+
+
+def _extract_span_boundaries(
+    doc: Doc,
+    char_start: int,
+    char_end: int,
+) -> tuple[int, int]:
+    """Extract token indices for character span.
+
+    Args:
+        doc: spaCy Doc object
+        char_start: Character start offset
+        char_end: Character end offset
+
+    Returns:
+        Tuple of (start_token_idx, end_token_idx) or (None, None) if invalid
+    """
+    # Find token indices corresponding to character offsets
+    start_token_idx = None
+    end_token_idx = None
+
+    for token in doc:
+        if start_token_idx is None and token.idx >= char_start:
+            start_token_idx = token.i
+        if token.idx + len(token.text) >= char_end:
+            end_token_idx = token.i
+            break
+
+    # If end not found, use last token
+    if end_token_idx is None:
+        end_token_idx = len(doc) - 1
+
+    if start_token_idx is None:
+        start_token_idx = 0
+
+    return start_token_idx, end_token_idx
+
+
+def _skip_initial_articles(doc: Doc, start_idx: int) -> int:
+    """Skip articles and SPACE tokens at span start.
+
+    Args:
+        doc: spaCy Doc object
+        start_idx: Initial start index
+
+    Returns:
+        First non-article token index
+    """
+    current = start_idx
+    while current < len(doc):
+        token = doc[current]
+        if token.pos_ in ["DET", "SPACE"]:
+            current += 1
+        else:
+            break
+    return current
+
+
+def _should_stop_at_token(
+    token: str,
+    token_pos: str,
+    next_token_text: str | None,
+) -> bool:
+    """Check if we should stop expanding span at this token.
+
+    Args:
+        token: Token text
+        token_pos: POS tag
+        next_token_text: Next token text (if available)
+
+    Returns:
+        True if should stop
+    """
+    if token_pos == "PUNCT":
+        if token in [".", ";", "!", "?"]:
+            return True
+        if token == ")":
+            return True
+        if token == "," and not (next_token_text and next_token_text.lower() in ["and", "or"]):
+            return True
+
+    if token_pos == "SCONJ" and token.lower() in ["if", "unless", "because"]:
+        return True
+
+    return False
+
+
+def _expand_span(
+    doc: Doc,
+    start_idx: int,
+    end_idx: int,
+) -> tuple[int, int]:
+    """Expand span boundaries using POS/DEP tag logic.
+
+    Args:
+        doc: spaCy Doc object
+        start_idx: Initial start token index
+        end_idx: Initial end token index
+
+    Returns:
+        Tuple of (expanded_start, expanded_end)
+    """
+    # Skip articles at start
+    current_start = _skip_initial_articles(doc, start_idx)
+
+    # Scan forward from initial end for boundary conditions
+    current_end = end_idx
+    while current_end < len(doc) - 1:
+        token = doc[current_end]
+        next_token = doc[current_end + 1] if current_end + 1 < len(doc) else None
+        next_token_text = next_token.text if next_token else None
+
+        # Check stop conditions
+        if _should_stop_at_token(token.text, token.pos_, next_token_text):
+            break
+
+        # Conjunction expansion (and/or)
+        if token.pos_ == "CCONJ" and token.text.lower() in ["and", "or"]:
+            current_end += 1
+            continue
+
+        # Hyphenated compounds should not break
+        if token.pos_ == "PUNCT" and token.text == "-" and token.dep_ == "compound":
+            current_end += 1
+            continue
+
+        # Include relative clauses
+        if token.pos_ == "SCONJ" and token.text.lower() in ["that", "which"]:
+            current_end += 1
+            continue
+
+        # Continue accumulating
+        current_end += 1
+
+    # Trim trailing hard boundary tokens
+    while current_end >= current_start:
+        token = doc[current_end]
+        if token.pos_ == "PUNCT" and token.text in [".", ";", "!", "?"]:
+            current_end -= 1
+        else:
+            break
+
+    return current_start, current_end
+
+
+def _create_requirement_span_dict(
+    span: Span,
+    requirement: Dict[str, Any],
+    span_type: str,
+    conjunct_count: int,
+) -> Dict[str, Any]:
+    """Create enriched requirement span dictionary.
+
+    Args:
+        span: spaCy Span object
+        requirement: Original requirement dict from Phase 8a
+        span_type: "atomic" or "compound"
+        conjunct_count: Number of conjuncts
+
+    Returns:
+        Enriched requirement dict with span metadata
+    """
+    return {
+        "text": requirement["text"],
+        "trigger_word": requirement["trigger_word"],
+        "confidence": requirement["confidence"],
+        "original_span": requirement["span"],
+        "expanded_span": (span.start_char, span.end_char),
+        "span_text": span.text,
+        "start_token": span.start,
+        "end_token": span.end,
+        "span_type": span_type,
+        "conjunct_count": conjunct_count,
+        "token_count": len(span),
+    }
+
+
+@Language.component("span_categorizer")
+def span_categorizer(doc: Doc) -> Doc:
+    """Extract multi-token requirement spans using POS/DEP tag boundaries.
+
+    Phase 8b component that processes Doc._.requirements (from Phase 8a)
+    and creates spaCy Span objects with accurate boundaries.
+
+    Args:
+        doc: spaCy Doc object with Doc._.requirements populated
+
+    Returns:
+        Doc with Doc._.requirement_spans attribute set
+    """
+    requirement_spans: List[Dict[str, Any]] = []
+
+    # Skip if no requirements from Phase 8a
+    if not doc._.requirements:
+        doc._.requirement_spans = requirement_spans
+        return doc
+
+    # Process each requirement from Phase 8a
+    for requirement in doc._.requirements:
+        char_start, char_end = requirement["span"]
+
+        # Map character offsets to token indices
+        start_token_idx, end_token_idx = _extract_span_boundaries(
+            doc,
+            char_start,
+            char_end,
+        )
+
+        if start_token_idx is None or end_token_idx is None:
+            continue
+
+        # Expand span using boundary rules
+        expanded_start, expanded_end = _expand_span(
+            doc,
+            start_token_idx,
+            end_token_idx,
+        )
+
+        # Create spaCy Span object
+        try:
+            span = doc[expanded_start : expanded_end + 1]
+        except (IndexError, ValueError):
+            continue
+
+        # Determine span type and conjunct count
+        token_indices = list(range(expanded_start, expanded_end + 1))
+        span_type, conjunct_count = _get_span_type_and_conjunct_count(
+            token_indices,
+            doc,
+        )
+
+        # Create enriched requirement dict
+        enriched_req = _create_requirement_span_dict(
+            span,
+            requirement,
+            span_type,
+            conjunct_count,
+        )
+
+        requirement_spans.append(enriched_req)
+
+    doc._.requirement_spans = requirement_spans
+    return doc

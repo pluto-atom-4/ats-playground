@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I {} bash -c 'gh run view {} --log 2>&1 | grep -B 3 \"exit code\\\\|FAILED\" | tail -20')",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(uv run pre-commit *)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run .claude/prototypes/phase3_validation.py *)",
+      "Bash(uv run .claude/prototypes/test_confidence_scoring.py *)",
+      "Bash(uv run ruff *)",
+      "Bash(bash .claude/scripts/run-local-ci.sh *)",
+      "Bash(uv run flake8 *)",
+      "Bash(uv run python3 -m randon cc *)",
+      "Bash(python -m flake8 *)",
+      "Bash(python -m radon cc *)",
+      "Bash(uv run radon cc *)",
+      "Bash(uv run python -m flake8)",
+      "Bash(radon cc *)",
+      "Bash(uv run mypy *)",
+      "Bash(gh pr view *)",
+      "Bash(gh run view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh issue view *)",
+      "Bash(git branch *)",
+      "Bash(git fetch *)",
+      "Bash(git stash *)",
+      "Bash(gh issue list *)",
+      "Bash(gh label *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh repo view *)",
+      "Bash(bash /home/pluto-atom-4/Documents/full-stack/ats-playground/.claude/scripts/run-local-ci.sh --tests)",
+      "Bash(python -m pytest *)",
+      "Bash(/home/pluto-atom-4/Documents/full-stack/ats-playground/.venv/bin/python -m pytest *)",
+      "Bash(awk '{printf \"  Actual: %d bytes \\(%s\\)\\\\n\", $1, \\($1 < 2048 ? \"✅ PASS\" : \"❌ FAIL\"\\)}')",
+      "Bash(awk '{printf \"  Actual: %d lines \\(%s\\)\\\\n\", $1, \\($1 < 100 ? \"✅ PASS\" : \"❌ FAIL\"\\)}')",
+      "Bash(awk '{printf \"  Actual: %d lines \\(%s\\)\\\\n\", $1, \\($1 < 30 ? \"✅ PASS\" : \"❌ FAIL\"\\)}')",
+      "Bash(cat)",
+      "Bash(bash /tmp/verify_refs.sh)",
+      "Bash(git commit -m 'feat\\(phase8\\): implement requirement_filter spaCy component for Issue #249 *)",
+      "Bash(git commit -m 'docs\\(phase8a\\): document requirement extraction design and patterns for Issue #253 *)",
+      "Bash(git commit -m 'feat: implement Phase 8b.2 SpanCategorizer component for requirement span extraction *)"
+    ]
+  },
+  "skillOverrides": {
+    "python-header-note": "off",
+    "example-skills:brand-guidelines": "off"
+  },
+  "enabledPlugins": {
+    "pyright-lsp@claude-plugins-official": false
+  }
+}
