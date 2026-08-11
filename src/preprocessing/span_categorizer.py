@@ -181,7 +181,7 @@ def _expand_span(
 
     # Scan forward from initial end for boundary conditions
     current_end = end_idx
-    while current_end < len(doc) - 1:
+    while current_end < len(doc):  # Bug #4 fix: removed -1 to include last token
         token = doc[current_end]
         next_token = doc[current_end + 1] if current_end + 1 < len(doc) else None
         next_token_text = next_token.text if next_token else None

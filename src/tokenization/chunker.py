@@ -1,6 +1,7 @@
 """Semantic chunking of text for optimal token efficiency."""
 
 import logging
+import re
 from typing import Any, List
 
 logger = logging.getLogger(__name__)
@@ -170,23 +171,27 @@ class SemanticChunker:
             if not span_text:
                 continue
 
+            # Normalize whitespace for matching (Bug #5 fix)
+            normalized_span_text = re.sub(r"\s+", " ", span_text).strip()
+            normalized_chunk_text = re.sub(r"\s+", " ", chunk_text).strip()
+
             # Find if this span is partially in chunk_text
             # If span starts before end but ends after, it would be split
-            if span_text in chunk_text:
+            if normalized_span_text in normalized_chunk_text:
                 # Span is completely within chunk, no split
                 continue
 
             # Check if span crosses the chunk boundary
             # This is a simplified check: if the span text partially overlaps
-            chunk_end_pos = len(chunk_text)
-            span_start = chunk_text.find(span_text)
+            chunk_end_pos = len(normalized_chunk_text)
+            span_start = normalized_chunk_text.find(normalized_span_text)
 
             if span_start != -1:
                 # Span starts in this chunk
-                span_end = span_start + len(span_text)
+                span_end = span_start + len(normalized_span_text)
                 if span_end > chunk_end_pos:
                     # Span extends beyond chunk boundary
-                    logger.debug(f"Would split requirement span: {span_text[:30]}...")
+                    logger.debug(f"Would split requirement span: {normalized_span_text[:30]}...")
                     return True
 
         return False

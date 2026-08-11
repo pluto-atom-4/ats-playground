@@ -327,7 +327,7 @@ def _build_preprocess_clean_text(job: dict[str, Any]) -> str:
 
 
 def _preprocess_job_for_phase(
-    job: dict[str, Any], idx: int, chunker: Any, counter: Any
+    job: dict[str, Any], idx: int, chunker: Any, counter: Any, preprocessor: Any = None
 ) -> Tuple[Optional[dict[str, Any]], int, float]:
     """Preprocess a single job.
 
@@ -336,6 +336,7 @@ def _preprocess_job_for_phase(
         idx: Job index for logging
         chunker: SemanticChunker instance
         counter: TokenCounter instance
+        preprocessor: Preprocessor instance for span preservation (optional)
 
     Returns:
         Tuple of (preprocessed_job dict or None, token_count, estimated_cost)
@@ -343,7 +344,9 @@ def _preprocess_job_for_phase(
     """
     try:
         clean_text = _build_preprocess_clean_text(job)
-        chunks = chunker.chunk(clean_text)
+        # Get doc with requirement spans for chunking (Bug #1 fix)
+        doc = preprocessor.nlp(clean_text) if preprocessor else None
+        chunks = chunker.chunk(clean_text, doc=doc)
         token_count = sum(counter.count_tokens(c) for c in chunks)
         estimated_cost = counter.estimate_cost(token_count)
 
@@ -370,13 +373,19 @@ def _preprocess_job_for_phase(
         return None, 0, 0.0
 
 
-def _preprocess_jobs_file(job_file: Path, chunker: Any, counter: Any) -> Tuple[list[dict[str, Any]], int, int, float]:
+def _preprocess_jobs_file(
+    job_file: Path,
+    chunker: Any,
+    counter: Any,
+    preprocessor: Any = None,
+) -> Tuple[list[dict[str, Any]], int, int, float]:
     """Process all jobs in a file.
 
     Args:
         job_file: Path to jobs JSON file
         chunker: SemanticChunker instance
         counter: TokenCounter instance
+        preprocessor: Preprocessor instance for span preservation (optional)
 
     Returns:
         Tuple of (preprocessed_jobs, failed_count, total_tokens, total_cost)
@@ -392,7 +401,7 @@ def _preprocess_jobs_file(job_file: Path, chunker: Any, counter: Any) -> Tuple[l
     typer.echo(f"📂 Processing {job_file.name}...")
 
     for i, job in enumerate(jobs):
-        preprocessed_job, tokens, cost = _preprocess_job_for_phase(job, i, chunker, counter)
+        preprocessed_job, tokens, cost = _preprocess_job_for_phase(job, i, chunker, counter, preprocessor)
         if preprocessed_job:
             preprocessed_jobs.append(preprocessed_job)
             total_tokens += tokens
@@ -457,6 +466,9 @@ def _run_phase_preprocess(up_to: Optional[str]) -> Tuple[List[dict[str, Any]], f
     extracted_dir = _validate_preprocess_directory()
     chunker = SemanticChunker()
     counter = TokenCounter()
+    from src.tokenization.preprocessor import Preprocessor
+
+    preprocessor = Preprocessor()
 
     all_preprocessed = []
     total_failed = 0
@@ -466,7 +478,7 @@ def _run_phase_preprocess(up_to: Optional[str]) -> Tuple[List[dict[str, Any]], f
     job_files = [f for f in extracted_dir.glob("*_jobs.json") if "preprocessed" not in f.name]
 
     for job_file in job_files:
-        preprocessed_jobs, failed, tokens, cost = _preprocess_jobs_file(job_file, chunker, counter)
+        preprocessed_jobs, failed, tokens, cost = _preprocess_jobs_file(job_file, chunker, counter, preprocessor)
         all_preprocessed.extend(preprocessed_jobs)
         total_failed += failed
         total_tokens += tokens
@@ -1304,19 +1316,26 @@ def _preprocess_single_job(
         # Build clean text from job fields using clean_html (Issue #230 Phase 4)
         clean_text = _build_preprocess_clean_text(job_dict)
 
-        # Process text
-        chunks = chunker.chunk(clean_text)
+        # Process text with spaCy to extract requirement spans (Phase 8b)
+        # This sets doc._.requirements and doc._.requirement_spans for chunking
+        doc = preprocessor.nlp(clean_text)
+
+        # Process text with span preservation (Bug #1 fix: pass doc to chunker)
+        chunks = chunker.chunk(clean_text, doc=doc)
         token_count = sum(counter.count_tokens(c) for c in chunks)
         estimated_cost = counter.estimate_cost(token_count)
 
         # Extract entities
         skills, technologies, requirements = preprocessor.extract_entities(clean_text)
 
-        # Extract trigger-based requirements (Phase 8)
+        # Extract trigger-based requirements (Phase 8) from doc._.requirements
         trigger_requirements_json = None
         trigger_requirements_list = None
         if extract_requirements:
-            trigger_requirements_json = preprocessor.extract_trigger_requirements(clean_text)
+            # Get requirements from doc instead of re-processing
+            requirements_data = getattr(doc._, "requirements", None)
+            if requirements_data:
+                trigger_requirements_json = json.dumps(requirements_data, ensure_ascii=False)
             if trigger_requirements_json:
                 trigger_requirements_list = json.loads(trigger_requirements_json)
 

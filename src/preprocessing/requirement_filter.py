@@ -135,8 +135,12 @@ def _apply_confidence_adjustments(
     """
     adjusted = base_confidence
 
-    # Check for negation
-    negation_pattern = r"(?:no|not|don't|doesn't|didn't)\s+(?:prior\s+)?(?:experience|requirement)"
+    # Check for negation (Bug #3 fix: expanded to all trigger words)
+    negation_pattern = (
+        r"(?:no|not|don't|doesn't|didn't)\s+(?:prior\s+)?"
+        r"(?:experience|requirement|required|must|essential|ability\s+to|proficiency|"
+        r"knowledge|understanding)"
+    )
     if re.search(negation_pattern, full_sentence, re.IGNORECASE):
         return 0.0
 
@@ -188,8 +192,16 @@ def requirement_filter(doc: Doc) -> Doc:
             span_start = match.start(1)
             span_end = match.end(1)
 
+            # Extract sentence containing this match (Bug #2 fix)
+            # Find which sentence contains this character position
+            full_sentence = text  # fallback to full text if no sentence found
+            for sent in doc.sents:
+                if sent.start_char <= span_start < sent.end_char:
+                    full_sentence = sent.text
+                    break
+
             # Apply confidence adjustments
-            adjusted_confidence = _apply_confidence_adjustments(base_confidence, matched_text, text)
+            adjusted_confidence = _apply_confidence_adjustments(base_confidence, matched_text, full_sentence)
 
             # Skip if confidence is 0 (negation case)
             if adjusted_confidence <= 0.0:
