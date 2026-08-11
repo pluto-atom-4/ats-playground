@@ -29,6 +29,8 @@ BUDGETS = {
     "DESIGN.md": 3000,
     "AGENTS.md": 1000,
     ".github/copilot-instructions.md": 1000,
+    # Shared patterns file (referenced by all phases)
+    ".claude/rules/_common.md": 1500,
     # Rules files (flexible, but track)
     ".claude/rules/crawl.md": 2000,
     ".claude/rules/preprocess.md": 2000,
