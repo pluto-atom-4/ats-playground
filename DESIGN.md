@@ -185,6 +185,97 @@ See `.claude/rules/phase8/patterns.md` for complete trigger list, edge cases, co
 
 ---
 
+## 5C. Span Boundary Extraction (Phase 8b, Issue #253-257)
+
+**Architecture:** spaCy pipeline component for multi-token requirement span extraction with intelligent boundary detection.
+
+```
+Phase 8a Confidence-Scored Requirements
+  ↓
+Span Categorizer Component
+  ├─ Token Adjacency Analysis (POS/DEP tags)
+  ├─ Hard Stops: period, semicolon, exclamation (always split)
+  ├─ Soft Stops: commas without conjunctions (may split)
+  └─ Span Type Classification: atomic (1 conjunct) vs compound (2+ conjuncts)
+  ↓
+Multi-Token Requirement Spans
+  ├─ span_text: "Python and JavaScript"
+  ├─ start_token, end_token: token indices
+  ├─ span_type: "compound"
+  ├─ conjunct_count: 2
+  └─ confidence: inherited from Phase 8a
+  ↓
+Semantic Chunker (Phase 2)
+  └─ preserve_requirement_spans=True → chunks never split spans
+```
+
+**Component:** `span_categorizer` (spaCy @Language.component decorator)
+- Receives Phase 8a requirements with partial text spans
+- Expands boundaries using token adjacency and POS/DEP tag analysis
+- Validates compound requirements (with "and"/"or") as single units
+- Registers `Doc._.requirement_spans` attribute (list of span dicts)
+- <50ms per job, <2% token overhead
+
+**Span Boundary Rules:**
+
+| Boundary Type | Trigger | Behavior |
+|---|---|---|
+| **Hard Stop** | `.`, `;`, `!` | Always split (boundary guaranteed) |
+| **Soft Stop** | `,` (without conj.) | May split (if no "and"/"or" follows) |
+| **Conjunction** | `and`, `or` | Extend span to include next noun/verb |
+| **Hyphen** | `-` (in compound) | Extend span (e.g., "self-motivated") |
+
+**Example: Requirement Span Extraction**
+
+*Input (Phase 8a):*
+```
+Raw: "Must have: Python and JavaScript expertise, Docker deployment skills,
+       and ability to manage teams and mentor developers."
+```
+
+*Output (Phase 8b):*
+```json
+[
+  {"span_text": "Python and JavaScript expertise", "start_token": 5, "end_token": 9,
+   "span_type": "compound", "conjunct_count": 2},
+  {"span_text": "Docker deployment skills", "start_token": 11, "end_token": 14,
+   "span_type": "atomic", "conjunct_count": 1},
+  {"span_text": "ability to manage teams and mentor developers", "start_token": 17, "end_token": 26,
+   "span_type": "compound", "conjunct_count": 2}
+]
+```
+
+*Chunking Impact (preserve_requirement_spans=True):*
+```
+Chunk 1: "Must have: Python and JavaScript expertise, Docker deployment skills, and"
+Chunk 2: "ability to manage teams and mentor developers. [Additional requirements...]"
+
+✓ Span "Python and JavaScript expertise" stays intact in Chunk 1
+✓ Span "ability to manage teams and mentor developers" stays intact in Chunk 2
+✓ No span split across chunk boundaries
+```
+
+**Chunking Integration:** When `preserve_requirement_spans=True` (default):
+- Semantic chunker checks if accumulating next sentence would split a span
+- If yes: starts new chunk instead
+- Result: chunks may be slightly larger (5-10% variance) to preserve span integrity
+- Performance: <5% latency increase, negligible for typical batch processing
+
+**CLI Integration:**
+- `--preserve-requirement-spans` (default): Enable span preservation in chunks
+- `--no-preserve-requirement-spans`: Disable (backward compatible, faster chunking)
+- Metadata: chunks include `requirement_spans_in_chunk` list (assessment phase can access)
+
+**Database Storage:** `requirement_spans` JSONB column in `preprocessed_jobs`. Contains array of span dicts with boundary information.
+
+**Tests:** 39 unit tests (boundary detection, compound validation, edge cases) + 25 edge case tests (negation, parenthetical, multi-line) + 15 integration tests (span preservation in chunking, 10 sample jobs, performance validation). All passing, 203+ total Phase 8 tests.
+
+**Performance:** +1.03ms overhead on 23.60ms baseline (<5% cost). Target <150ms per job met with 98.7% headroom. See `.claude/rules/phase8/performance.md` for benchmark results.
+
+See `.claude/rules/phase8/span_algorithm.md` for detailed boundary detection algorithm, pseudocode, edge case handling.
+
+---
+
 ## 5. PHASE-SPECIFIC RULES & COORDINATION
 
 Phase documentation organized in `.claude/rules/`:

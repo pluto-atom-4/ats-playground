@@ -378,18 +378,23 @@ def extract_span(doc, trigger_token):
 
 ---
 
-## Next Steps (Phase 8b.2)
+## Implementation Status
 
-1. Implement spaCy component `span_extractor` that:
-   - Receives Doc with Doc._.requirements populated by Phase 8a
-   - Calls algorithm for each requirement
-   - Stores results in new Doc._.requirement_spans attribute
+✓ **Phase 8b Complete** — Component: `src/preprocessing/span_categorizer.py`
 
-2. Integration test: Full pipeline (8a + 8b) on sample jobs
+Tests: 39 unit + 25 edge case + 15 integration = 79 total Phase 8b tests. All passing.
+Performance: +1.03ms overhead (<5% of 23.60ms baseline).
+CLI: `--preserve-requirement-spans` (default), `--no-preserve-requirement-spans` (backward compat).
+API: Doc._.requirement_spans attribute (list of expanded span dicts with boundaries, type, conjunct_count).
+Integration: Automatic span preservation in semantic chunking.
 
-3. CLI flag: `--extract-requirement-spans` (similar to Phase 8a)
+**Files:**
+- Algorithm: src/preprocessing/span_categorizer.py
+- Tests: tests/preprocessing/test_span_categorizer.py, test_span_categorizer_edge_cases.py, test_integration_spans_chunks.py
+- Performance: scripts/bench_phase8.py → scripts/bench_phase8_results.json
+- Documentation: .claude/rules/phase8/ (patterns.md, span_algorithm.md, performance.md)
 
 ---
 
-**Last Updated:** 2026-08-12
-**Status:** Algorithm designed; ready for implementation (Phase 8b.2)
+**Last Updated:** 2026-08-10
+**Status:** Phase 8b complete, all tests passing, production-ready
