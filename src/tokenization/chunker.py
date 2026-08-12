@@ -107,13 +107,17 @@ class SemanticChunker:
             if current_word_count + word_count > (self.target_chunk_size / 4) and current_chunk:
                 chunk_text = " ".join(current_chunk)
 
-                # Don't split if it breaks a requirement span
+                # Check if finalizing would split a requirement span
                 if self.preserve_requirement_spans and requirement_spans:
                     if self._would_split_requirement_span(chunk_text, requirement_spans):
-                        current_chunk.append(sentence)
-                        current_word_count += word_count
-                        continue
+                        # Can't finalize yet—keep current chunk, force add sentence anyway
+                        # (safety net: if chunk gets too large, will finalize on next iteration)
+                        if current_word_count < self.target_chunk_size:  # Only if not already huge
+                            current_chunk.append(sentence)
+                            current_word_count += word_count
+                            continue
 
+                # Finalize chunk (split approved or no span preservation)
                 chunks.append(chunk_text)
                 current_chunk = [sentence]
                 current_word_count = word_count
@@ -184,12 +188,17 @@ class SemanticChunker:
             # Bug #1 fix: Check for partial span existence (span boundary overlap)
             # Problem: substring find() misses split spans like "Python and Docker"
             # split into "Python and" + "Docker" (complete text not found)
-            # Solution: Detect if span words appear partially
+            # Solution: Detect if span words appear partially with word boundaries
             words = normalized_span_text.split()
             if len(words) > 1:
-                # Multi-word span: check if first word exists but span is incomplete
+                # Multi-word span: check if first word exists (word boundary) but span is incomplete
                 first_word = words[0]
-                if first_word in normalized_chunk_text and normalized_span_text not in normalized_chunk_text:
+                # Use word boundary regex to avoid false positives (e.g., "Python" in "Cython")
+                first_word_pattern = r"\b" + re.escape(first_word) + r"\b"
+                if (
+                    re.search(first_word_pattern, normalized_chunk_text)
+                    and normalized_span_text not in normalized_chunk_text
+                ):
                     logger.debug(f"Would split requirement span: {normalized_span_text[:30]}...")
                     return True
 

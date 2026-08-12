@@ -135,13 +135,28 @@ def _apply_confidence_adjustments(
     """
     adjusted = base_confidence
 
-    # Check for negation (Bug #3 fix + Bug #2: expanded to include require/requires)
-    negation_pattern = (
+    # Check for negation patterns (within a local context window, not entire sentence)
+    # Extract ~50 chars before and after matched text for local context
+    text_start = max(0, full_sentence.find(text) - 50)
+    text_end = min(len(full_sentence), full_sentence.find(text) + len(text) + 50)
+    local_context = full_sentence[text_start:text_end]
+
+    # Pattern 1: Negation before trigger word (e.g., "not required", "no experience")
+    negation_before_pattern = (
         r"(?:no|not|don't|doesn't|didn't|without)\s+(?:prior\s+)?"
         r"(?:experience|requirement|required|require|requires|must|essential|ability\s+to|"
         r"proficiency|knowledge|understanding)"
     )
-    if re.search(negation_pattern, full_sentence, re.IGNORECASE):
+    if re.search(negation_before_pattern, local_context, re.IGNORECASE):
+        return 0.0
+
+    # Pattern 2: Negation after trigger word (e.g., "experience is not required")
+    # Limited to local context to avoid false positives across unrelated clauses
+    negation_after_pattern = (
+        r"(?:experience|requirement|required|require|requires|must|essential|ability\s+to|"
+        r"proficiency|knowledge|understanding)\b.*?\b(?:not|no|don't|doesn't|didn't|without)\b"
+    )
+    if re.search(negation_after_pattern, local_context, re.IGNORECASE):
         return 0.0
 
     # Check for parenthetical context

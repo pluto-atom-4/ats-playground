@@ -5,6 +5,7 @@ and --export-requirements-json for Phase 8 requirement extraction.
 """
 
 import json
+import re
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -18,9 +19,25 @@ from src.cli import app
 runner = CliRunner()
 
 
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    Args:
+        text: Text potentially containing ANSI color/formatting codes
+
+    Returns:
+        Text with all ANSI escape sequences removed
+    """
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
 @pytest.fixture
 def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, None]:
-    """Create a temporary sample jobs file for testing."""
+    """Create sample jobs in data/extracted_jobs/ for testing.
+
+    Writes test jobs to data/extracted_jobs/test_jobs.json during test,
+    then removes them after test completes.
+    """
     sample_jobs = [
         {
             "id": "job_001",
@@ -94,16 +111,18 @@ def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, Non
         },
     ]
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir_path = Path(tmpdir)
-        extracted_dir = tmpdir_path / "extracted_jobs"
-        extracted_dir.mkdir(exist_ok=True)
+    extracted_dir = Path("data/extracted_jobs")
+    extracted_dir.mkdir(parents=True, exist_ok=True)
 
-        job_file = extracted_dir / "test_jobs.json"
-        with open(job_file, "w") as f:
-            json.dump(sample_jobs, f)
+    job_file = extracted_dir / "test_jobs.json"
+    with open(job_file, "w") as f:
+        json.dump(sample_jobs, f)
 
+    try:
         yield job_file, sample_jobs
+    finally:
+        if job_file.exists():
+            job_file.unlink()
 
 
 class TestPreprocessCLIRequirementExtraction:
@@ -157,11 +176,13 @@ class TestPreprocessCLIRequirementExtraction:
         result = runner.invoke(app, ["preprocess", "--help"])
 
         assert result.exit_code == 0
+        # Strip ANSI codes before assertions
+        help_output_clean = strip_ansi(result.stdout)
         # Check for flag names (may be truncated in help due to column width)
-        assert "extract-requireme" in result.stdout or "--extract-requirements" in result.stdout
-        assert "no-extract-requi" in result.stdout or "--no-extract-requirements" in result.stdout
-        assert "export-requiremen" in result.stdout or "--export-requirements-json" in result.stdout
-        assert "trigger-based requirement extraction" in result.stdout.lower()
+        assert "extract-requireme" in help_output_clean or "--extract-requirements" in help_output_clean
+        assert "no-extract-requi" in help_output_clean or "--no-extract-requirements" in help_output_clean
+        assert "export-requiremen" in help_output_clean or "--export-requirements-json" in help_output_clean
+        assert "trigger-based requirement extraction" in help_output_clean.lower()
 
     def test_default_extract_requirements_enabled(self):
         """Test that requirement extraction is enabled by default."""
@@ -169,8 +190,10 @@ class TestPreprocessCLIRequirementExtraction:
         result = runner.invoke(app, ["preprocess", "--help"])
 
         assert result.exit_code == 0
+        # Strip ANSI codes before assertion
+        help_output_clean = strip_ansi(result.stdout)
         # Look for default mention in the help
-        assert "extract-requirement" in result.stdout.lower()
+        assert "extract-requirement" in help_output_clean.lower()
 
     def test_requirement_extraction_produces_json_output(self, sample_jobs_file):
         """Test that requirement extraction produces valid JSON output."""
@@ -258,8 +281,10 @@ class TestPreprocessCLITokenCostAnalysis:
             percent_increase = ((tokens_with - tokens_without) / tokens_without) * 100
             assert percent_increase < 5.0, f"Token increase too high: {percent_increase:.2f}% (expected <5%)"
 
-    def test_cost_reporting_with_requirements(self):
+    def test_cost_reporting_with_requirements(self, sample_jobs_file):
         """Test that cost is reported correctly with requirement extraction."""
+        job_file, _ = sample_jobs_file
+
         result = runner.invoke(
             app,
             ["preprocess", "--extract-requirements", "--show-estimates"],
