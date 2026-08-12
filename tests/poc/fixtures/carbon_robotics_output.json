@@ -1,0 +1,60 @@
+{
+  "company": "Carbon Robotics",
+  "min_requirements": 8,
+  "expected_requirements": [
+    {
+      "text": "2-7 years of experience in deep learning or computer vision",
+      "trigger_word": "years of",
+      "confidence_min": 0.75,
+      "confidence_max": 0.95
+    },
+    {
+      "text": "3+ years working with Python in production systems",
+      "trigger_word": "years of",
+      "confidence_min": 0.75,
+      "confidence_max": 0.95
+    },
+    {
+      "text": "Experience with PyTorch or TensorFlow is essential",
+      "trigger_word": "essential",
+      "confidence_min": 0.80,
+      "confidence_max": 0.95
+    },
+    {
+      "text": "Proficiency in C++ and Python",
+      "trigger_word": "proficiency",
+      "confidence_min": 0.80,
+      "confidence_max": 0.95
+    },
+    {
+      "text": "Knowledge of CUDA and GPU programming",
+      "trigger_word": "knowledge of",
+      "confidence_min": 0.75,
+      "confidence_max": 0.90
+    },
+    {
+      "text": "Understanding of real-time systems",
+      "trigger_word": "understanding of",
+      "confidence_min": 0.75,
+      "confidence_max": 0.90
+    },
+    {
+      "text": "Ability to optimize deep learning models for edge devices",
+      "trigger_word": "ability to",
+      "confidence_min": 0.80,
+      "confidence_max": 0.95
+    },
+    {
+      "text": "Bachelor's degree in Computer Science, Electrical Engineering, or related field",
+      "trigger_word": "degree",
+      "confidence_min": 0.80,
+      "confidence_max": 0.95
+    }
+  ],
+  "metadata_checks": {
+    "has_company": true,
+    "has_requirements": true,
+    "has_metadata": true,
+    "pipeline_components": ["sentencizer", "requirement_filter", "span_categorizer"]
+  }
+}
