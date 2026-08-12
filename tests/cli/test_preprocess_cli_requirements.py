@@ -33,7 +33,11 @@ def strip_ansi(text: str) -> str:
 
 @pytest.fixture
 def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, None]:
-    """Create a temporary sample jobs file for testing."""
+    """Create sample jobs in data/extracted_jobs/ for testing.
+
+    Writes test jobs to data/extracted_jobs/test_jobs.json during test,
+    then removes them after test completes.
+    """
     sample_jobs = [
         {
             "id": "job_001",
@@ -107,16 +111,18 @@ def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, Non
         },
     ]
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir_path = Path(tmpdir)
-        extracted_dir = tmpdir_path / "extracted_jobs"
-        extracted_dir.mkdir(exist_ok=True)
+    extracted_dir = Path("data/extracted_jobs")
+    extracted_dir.mkdir(parents=True, exist_ok=True)
 
-        job_file = extracted_dir / "test_jobs.json"
-        with open(job_file, "w") as f:
-            json.dump(sample_jobs, f)
+    job_file = extracted_dir / "test_jobs.json"
+    with open(job_file, "w") as f:
+        json.dump(sample_jobs, f)
 
+    try:
         yield job_file, sample_jobs
+    finally:
+        if job_file.exists():
+            job_file.unlink()
 
 
 class TestPreprocessCLIRequirementExtraction:
@@ -275,8 +281,10 @@ class TestPreprocessCLITokenCostAnalysis:
             percent_increase = ((tokens_with - tokens_without) / tokens_without) * 100
             assert percent_increase < 5.0, f"Token increase too high: {percent_increase:.2f}% (expected <5%)"
 
-    def test_cost_reporting_with_requirements(self):
+    def test_cost_reporting_with_requirements(self, sample_jobs_file):
         """Test that cost is reported correctly with requirement extraction."""
+        job_file, _ = sample_jobs_file
+
         result = runner.invoke(
             app,
             ["preprocess", "--extract-requirements", "--show-estimates"],
