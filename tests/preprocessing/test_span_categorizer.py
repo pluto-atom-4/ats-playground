@@ -27,7 +27,7 @@ def spacy_model() -> Generator[Language, None, None]:
     """
     # Load or create base model
     try:
-        nlp = spacy.load("en_core_web_sm")
+        nlp = spacy.load("en_core_web_md")
     except OSError:
         pytest.skip("en_core_web_sm not installed")
 

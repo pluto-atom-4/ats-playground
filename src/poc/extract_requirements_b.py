@@ -116,7 +116,7 @@ def extract_requirements_standalone(
     logger.info("Starting standalone requirement extraction pipeline")
 
     # Stage 1: Load model
-    nlp = load_spacy_model("en_core_web_sm")
+    nlp = load_spacy_model("en_core_web_md")
 
     # Stage 1.5: Normalize bullet points
     normalized_markdown = normalize_bullet_points(markdown)
@@ -161,7 +161,7 @@ def extract_requirements_standalone(
     metadata = {
         "sentences_analyzed": len(sentences),
         "requirements_extracted": len(unique_reqs),
-        "spacy_model": "en_core_web_sm",
+        "spacy_model": "en_core_web_md",
         "pipeline_components": ["sentencizer", "pattern_matching", "deduplication"],
         "min_confidence_threshold": min_confidence,
         "max_requirements_limit": max_requirements,

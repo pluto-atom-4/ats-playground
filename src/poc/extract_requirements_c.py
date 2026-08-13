@@ -147,7 +147,7 @@ def _clamp_confidence(value: float) -> float:
 
 
 def load_spacy_model(
-    model_name: str = "en_core_web_sm",
+    model_name: str = "en_core_web_md",
     patterns: Optional[List[Dict[str, Any]]] = None,
 ) -> Language:
     """Load spaCy model, add section_ruler pipe, and configure for section detection.
@@ -511,7 +511,7 @@ def extract_requirements_c(
     if target_sections is None:
         target_sections = DEFAULT_TARGET_SECTIONS
 
-    nlp = load_spacy_model("en_core_web_sm", patterns=patterns)
+    nlp = load_spacy_model("en_core_web_md", patterns=patterns)
     logger.debug(f"Loaded spaCy model: {nlp.meta.get('name', 'unknown')}")
 
     # =========================================================================
