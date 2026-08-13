@@ -1,0 +1,49 @@
+# Combined, deduplicated, and organized for maintenance
+TECH_TERMS = {
+    # --- Carbon Robotics / AI / Robotics Specific ---
+    "PyTorch",
+    "C++",
+    "computer vision",
+    "vision transformers",
+    "anchor-free detectors",
+    "embeddings",
+    "web services",
+    "ADAS",
+    "sensor fusion",
+    "perception pipelines",
+    "real-time inference",
+    "Large Plant Model",
+    "LPM",
+    # --- Languages ---
+    "python",
+    "java",
+    "javascript",
+    "rust",
+    "go",
+    "c#",
+    # --- Frameworks & Libraries ---
+    "react",
+    "angular",
+    "vue",
+    "django",
+    "flask",
+    "spring",
+    "tensorflow",
+    "sklearn",
+    # --- Cloud & Infrastructure ---
+    "aws",
+    "azure",
+    "gcp",
+    "kubernetes",
+    "docker",
+    # --- Databases & Search ---
+    "postgresql",
+    "mongodb",
+    "redis",
+    "elasticsearch",
+    # --- Tools & Collaboration ---
+    "git",
+    "github",
+    "gitlab",
+    "jira",
+}
