@@ -104,21 +104,18 @@ SECTION_RULER_PATTERNS: List[Dict[str, Any]] = [
         "label": "SECTION_BENEFITS",
         "pattern": [
             {"LOWER": "benefits"},
-            {"IS_PUNCT": False, "OP": "*"},
         ],
     },
     {
         "label": "SECTION_COMPENSATION",
         "pattern": [
             {"LOWER": {"IN": ["salary", "compensation", "pay"]}},
-            {"IS_PUNCT": False, "OP": "*"},
         ],
     },
     {
         "label": "SECTION_HIRING_PROCESS",
         "pattern": [
             {"LOWER": {"IN": ["hiring", "application", "process"]}},
-            {"IS_PUNCT": False, "OP": "*"},
         ],
     },
 ]
