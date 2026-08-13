@@ -120,6 +120,7 @@ known-first-party = ["models", "browser", "cli", "llm", "parsers", "storage", "t
 "src/nlp/company_parsers.py" = ["C901"]  # parse_requirements complexity (multiple sections)
 "src/nlp/ner.py" = ["C901"]  # extract/fallback methods complexity (multiple passes + domains)
 "src/tokenization/preprocessor.py" = ["C901"]  # _filter, _extract_markdown, _extract_entities complexity
+"src/poc/*" = ["C901"]  # POC pipelines (9-stage orchestration)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

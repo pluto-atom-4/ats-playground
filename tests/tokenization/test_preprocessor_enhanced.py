@@ -16,8 +16,8 @@ class TestPreprocessorInit:
     def test_init_with_custom_model(self, monkeypatch, mock_spacy_model):
         """Preprocessor can be initialized with custom model name."""
         monkeypatch.setattr("spacy.load", lambda model: mock_spacy_model)
-        preprocessor = Preprocessor(model="en_core_web_sm")
-        assert preprocessor.model_name == "en_core_web_sm"
+        preprocessor = Preprocessor(model="en_core_web_md")
+        assert preprocessor.model_name == "en_core_web_md"
 
     def test_load_model_failure(self):
         """Preprocessor raises OSError for non-existent model."""
