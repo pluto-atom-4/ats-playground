@@ -388,10 +388,10 @@ def contains_bullets(text: str) -> bool:
     """Check if text contains bullet point markers.
 
     Looks for patterns like:
-    - \n* text
-    - \n- text
-    - \n+ text
-    - \n1. text (numbered bullets)
+    - * text (at start or after newline)
+    - - text
+    - + text
+    - 1. text (numbered bullets)
 
     Args:
         text: Text to check
@@ -400,7 +400,8 @@ def contains_bullets(text: str) -> bool:
         True if text contains bullet markers, False otherwise
     """
     # Check for unordered bullets (*, -, +) or numbered bullets
-    return bool(re.search(r"\n[*\-+]\s+|\n\d+\.\s+", text))
+    # Match at start of text or after newline
+    return bool(re.search(r"(^|\n)[*\-+]\s+|(^|\n)\d+\.\s+", text, re.MULTILINE))
 
 
 def split_by_bullet_markers(text: str) -> list[str]:

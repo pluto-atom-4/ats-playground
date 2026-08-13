@@ -150,6 +150,155 @@ class TestRegexPatterns:
         assert isinstance(labels, set)
 
 
+class TestSectionInOffice:
+    """Comprehensive tests for SECTION_IN_OFFICE extraction (Issue #265)."""
+
+    def test_section_in_office_detected(self, raw_job_description):
+        """Verify detect_sections() recognizes SECTION_IN_OFFICE header."""
+        nlp = load_spacy_model("en_core_web_sm")
+        doc = detect_sections(nlp, raw_job_description)
+
+        # Check that SECTION_IN_OFFICE was detected
+        labels = doc._.section_labels
+        assert "SECTION_IN_OFFICE" in labels, (
+            f"SECTION_IN_OFFICE not detected in {sorted(labels)}. "
+            f"Raw text contains 'In Office Requirements' on lines 47-49."
+        )
+
+        # Verify it's in detected_sections list with proper metadata
+        in_office_sections = [s for s in doc._.detected_sections if s["label"] == "SECTION_IN_OFFICE"]
+        assert len(in_office_sections) > 0, "SECTION_IN_OFFICE should appear in detected_sections"
+
+        # Check display name
+        section_dict = in_office_sections[0]
+        assert section_dict["display_name"] == "In Office Requirements"
+
+    def test_section_in_office_content_extracted(self, raw_job_description):
+        """Verify extract_target_section_content() retrieves content from SECTION_IN_OFFICE."""
+        from src.poc.extract_requirements_c import extract_target_section_content
+
+        nlp = load_spacy_model("en_core_web_sm")
+        doc = detect_sections(nlp, raw_job_description)
+
+        # Extract from target sections (should include SECTION_IN_OFFICE by default)
+        extracted = extract_target_section_content(doc, target_sections=None, split_by_bullets=True)
+
+        # Find SECTION_IN_OFFICE content
+        in_office_content = [content for content, label, _ in extracted if label == "SECTION_IN_OFFICE"]
+
+        assert len(in_office_content) > 0, (
+            f"SECTION_IN_OFFICE content not extracted. Extracted sections: "
+            f"{sorted({label for _, label, _ in extracted})}"
+        )
+
+        # Verify it contains the expected text
+        full_content = " ".join(in_office_content)
+        has_keywords = (
+            "collaborative" in full_content.lower()
+            or "in-person" in full_content.lower()
+            or "4 days" in full_content.lower()
+        )
+        assert has_keywords, f"SECTION_IN_OFFICE content missing expected keywords. Got: {full_content[:100]}"
+
+    def test_section_in_office_confidence_boost(self, raw_job_description):
+        """Verify classify_sentence_with_section_boost() applies correct boost for SECTION_IN_OFFICE."""
+        nlp = load_spacy_model("en_core_web_sm")
+
+        # Test with a realistic in-office requirement
+        sentence = "This role is based in our Seattle office with at least 4 days per week on-site"
+
+        result = classify_sentence_with_section_boost(
+            sentence,
+            "SECTION_IN_OFFICE",
+            nlp,
+            adjustments=DEFAULT_ADJUSTMENTS,
+            display_names=DEFAULT_DISPLAY_NAMES,
+        )
+
+        if result is not None:
+            # Verify SECTION_IN_OFFICE section boost is applied
+            expected_boost = DEFAULT_ADJUSTMENTS["SECTION_IN_OFFICE"]
+            assert result["section_boost"] == expected_boost, (
+                f"Expected section boost {expected_boost}, got {result['section_boost']}"
+            )
+
+            # Verify final confidence reflects the boost
+            assert result["final_confidence"] >= 0.0 and result["final_confidence"] <= 1.0
+            assert result["source_section"] == "SECTION_IN_OFFICE"
+            assert result["section_display_name"] == "In Office Requirements"
+
+    def test_section_in_office_default_target_sections(self):
+        """Verify SECTION_IN_OFFICE is in DEFAULT_TARGET_SECTIONS."""
+        from src.poc.patterns import DEFAULT_TARGET_SECTIONS
+
+        assert "SECTION_IN_OFFICE" in DEFAULT_TARGET_SECTIONS, (
+            f"SECTION_IN_OFFICE not in DEFAULT_TARGET_SECTIONS: {DEFAULT_TARGET_SECTIONS}"
+        )
+
+    def test_section_in_office_confidence_adjustment_defined(self):
+        """Verify SECTION_IN_OFFICE has confidence adjustment defined."""
+        assert "SECTION_IN_OFFICE" in DEFAULT_ADJUSTMENTS, (
+            f"SECTION_IN_OFFICE not in CONFIDENCE_ADJUSTMENT_BY_SECTION: {DEFAULT_ADJUSTMENTS.keys()}"
+        )
+
+        # Verify it has a positive boost (medium priority)
+        boost = DEFAULT_ADJUSTMENTS["SECTION_IN_OFFICE"]
+        assert 0.0 < boost <= 0.15, f"Expected SECTION_IN_OFFICE boost between 0.0 and 0.15, got {boost}"
+
+    def test_section_in_office_display_name_defined(self):
+        """Verify SECTION_IN_OFFICE has display name defined."""
+        assert "SECTION_IN_OFFICE" in DEFAULT_DISPLAY_NAMES, (
+            f"SECTION_IN_OFFICE not in SECTION_DISPLAY_NAMES: {DEFAULT_DISPLAY_NAMES.keys()}"
+        )
+
+        display_name = DEFAULT_DISPLAY_NAMES["SECTION_IN_OFFICE"]
+        assert display_name == "In Office Requirements"
+
+    def test_section_in_office_in_full_pipeline(self, raw_job_description):
+        """Integration test: verify SECTION_IN_OFFICE content extracted in full pipeline."""
+        result = extract_requirements_c(raw_job_description, min_confidence=0.50)
+
+        # Check that at least one requirement came from SECTION_IN_OFFICE
+        in_office_reqs = [r for r in result.requirements_detailed if r.source_section == "SECTION_IN_OFFICE"]
+
+        assert len(in_office_reqs) > 0, (
+            f"No requirements extracted from SECTION_IN_OFFICE. "
+            f"Requirements by section: {result.metadata.get('requirements_by_section', {})}"
+        )
+
+        # Verify extracted content matches expected pattern
+        in_office_texts = [r.text for r in in_office_reqs]
+        full_text = " ".join(in_office_texts).lower()
+
+        # Should mention on-site, office, or location requirement
+        has_location_mention = any(
+            keyword in full_text for keyword in ["office", "on-site", "on site", "seattle", "location"]
+        )
+        assert has_location_mention, f"SECTION_IN_OFFICE requirement missing location keywords. Got: {full_text}"
+
+    def test_section_in_office_confidence_boost_applied(self, raw_job_description):
+        """Verify SECTION_IN_OFFICE requirements have section_boost applied."""
+        result = extract_requirements_c(raw_job_description, min_confidence=0.50)
+
+        # Get requirements from SECTION_IN_OFFICE
+        in_office_reqs = [r for r in result.requirements_detailed if r.source_section == "SECTION_IN_OFFICE"]
+
+        assert len(in_office_reqs) > 0
+
+        for req in in_office_reqs:
+            # Verify section boost is applied
+            expected_boost = DEFAULT_ADJUSTMENTS["SECTION_IN_OFFICE"]
+            assert req.section_boost == expected_boost, (
+                f"Expected section boost {expected_boost}, got {req.section_boost}"
+            )
+
+            # Verify final confidence is base + boost
+            expected_final = min(1.0, max(0.0, req.base_confidence + req.section_boost))
+            assert req.final_confidence == expected_final, (
+                f"Final confidence should be {expected_final}, got {req.final_confidence}"
+            )
+
+
 class TestFullPipeline:
     """Integration tests for full extraction pipeline."""
 

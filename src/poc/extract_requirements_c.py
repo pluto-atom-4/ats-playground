@@ -42,11 +42,8 @@ from .bullet_point_preprocessor import (
 )
 
 # POC-B imports (Phase 2+ requirement patterns and classification)
-from .extract_requirements_b import (
-    REQUIREMENT_PATTERNS,
-    classify_sentence_as_requirement,
-    extract_company_name_enhanced,
-)
+from .company_extractor import extract_company_name_enhanced
+from .extract_requirements_b import classify_sentence_as_requirement
 from .patterns import (
     CONFIDENCE_ADJUSTMENT_BY_SECTION as DEFAULT_ADJUSTMENTS,
 )
@@ -61,6 +58,7 @@ from .patterns import (
 from .patterns import (
     SECTION_RULER_PATTERNS as DEFAULT_SECTION_PATTERNS,
 )
+from .requirement_patterns import REQUIREMENT_PATTERNS
 
 logger = logging.getLogger(__name__)
 
