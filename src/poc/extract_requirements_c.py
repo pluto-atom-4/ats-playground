@@ -35,7 +35,11 @@ from pydantic import BaseModel, Field
 from spacy.language import Language
 from spacy.tokens import Doc
 
-from .bullet_point_preprocessor import normalize_bullet_points
+from .bullet_point_preprocessor import (
+    contains_bullets,
+    normalize_markdown_artifacts_complete,
+    split_by_bullet_markers,
+)
 
 # POC-B imports (Phase 2+ requirement patterns and classification)
 from .extract_requirements_b import (
@@ -252,20 +256,29 @@ def detect_sections(
     return doc
 
 
-def extract_target_section_content(doc: Doc, target_sections: Optional[List[str]] = None) -> List[Tuple[str, str, int]]:
+def extract_target_section_content(
+    doc: Doc,
+    target_sections: Optional[List[str]] = None,
+    split_by_bullets: bool = True,
+) -> List[Tuple[str, str, int]]:
     """Extract text content from target sections only.
 
     Iterates through doc._.detected_sections, filters by target_sections,
     and extracts text from each section to the next section boundary or end of doc.
 
+    If split_by_bullets=True and section text contains bullet markers, splits
+    each bullet into a separate tuple for granular requirement extraction.
+
     Args:
         doc: spaCy Doc with detected sections (from detect_sections)
         target_sections: Sections to extract from (default: DEFAULT_TARGET_SECTIONS)
                         Filter sections (BENEFITS, COMPENSATION, etc.) automatically excluded
+        split_by_bullets: If True, split bullet-point sections into individual items (default: True)
 
     Returns:
         List of tuples: (text, section_label, section_index)
-        where text is extracted content, section_label is SECTION_*, section_index is position
+        where text is extracted content (single bullet or full section),
+        section_label is SECTION_*, section_index is position in detected_sections
 
     Raises:
         ValueError: If doc has no detected_sections metadata
@@ -283,6 +296,25 @@ def extract_target_section_content(doc: Doc, target_sections: Optional[List[str]
 
     # Sort sections by start position for proper boundary detection
     sorted_sections = sorted(doc._.detected_sections, key=lambda s: s["start"])
+
+    # Remove overlapping sections: if section A is contained within section B, skip A
+    # (prefer longer, more specific matches)
+    non_overlapping_sections = []
+    for section in sorted_sections:
+        is_contained = False
+        for other in sorted_sections:
+            if other is section:
+                continue
+            # Check if this section's span is contained within another
+            if other["start"] <= section["start"] and section["end"] <= other["end"]:
+                if other["start"] != section["start"] or other["end"] != section["end"]:
+                    is_contained = True
+                    logger.debug(f"Skipping contained section {section['label']} within {other['label']}")
+                    break
+        if not is_contained:
+            non_overlapping_sections.append(section)
+
+    sorted_sections = non_overlapping_sections
 
     for idx, section in enumerate(sorted_sections):
         section_label = section["label"]
@@ -307,10 +339,22 @@ def extract_target_section_content(doc: Doc, target_sections: Optional[List[str]
             content_text = content_tokens.text.strip()
 
             if content_text:
-                extracted_content.append((content_text, section_label, idx))
-                logger.debug(
-                    f"Extracted {len(content_text)} chars from {section_label} (tokens {content_start}-{content_end})"
-                )
+                # Phase B: Check if section contains bullets and should be split
+                if split_by_bullets and contains_bullets(content_text):
+                    logger.debug(f"Section {section_label} contains bullets, splitting...")
+                    bullets = split_by_bullet_markers(content_text)
+                    for bullet_idx, bullet in enumerate(bullets):
+                        if bullet.strip():
+                            # Each bullet becomes a separate tuple
+                            extracted_content.append((bullet.strip(), section_label, idx))
+                            logger.debug(f"Added bullet {bullet_idx + 1} from {section_label}: {bullet[:60]}...")
+                else:
+                    # No bullets or split disabled; add full section content as single tuple
+                    extracted_content.append((content_text, section_label, idx))
+                    logger.debug(
+                        f"Extracted {len(content_text)} chars from {section_label} "
+                        f"(tokens {content_start}-{content_end})"
+                    )
         else:
             logger.debug(f"Empty content for section {section_label}")
 
@@ -473,10 +517,13 @@ def extract_requirements_c(
     logger.debug(f"Loaded spaCy model: {nlp.meta.get('name', 'unknown')}")
 
     # =========================================================================
-    # STAGE 2: Normalize Bullets (3 lines)
+    # STAGE 2: Markdown & Unicode Cleaning (Phase A only, preserving bullets for Phase B)
     # =========================================================================
-    normalized_markdown = normalize_bullet_points(markdown)
-    logger.debug("Normalized bullet points")
+    # Phase A: Clean markdown and unicode artifacts
+    # NOTE: Skip normalize_bullet_points() to preserve bullet markers for Phase B splitting
+    cleaned_markdown = normalize_markdown_artifacts_complete(markdown)
+    logger.debug("Cleaned markdown artifacts and unicode characters")
+    normalized_markdown = cleaned_markdown  # Use cleaned markdown without bullet normalization
 
     # =========================================================================
     # STAGE 3: Detect Sections (3 lines)
@@ -485,10 +532,10 @@ def extract_requirements_c(
     logger.debug(f"Detected sections: {sorted(doc._.section_labels) if doc._.section_labels else 'none'}")
 
     # =========================================================================
-    # STAGE 4: Extract Target Sections (3 lines)
+    # STAGE 4: Extract Target Sections (Phase B: Bullet-Level Splitting) (3 lines)
     # =========================================================================
-    extracted_sections = extract_target_section_content(doc, target_sections)
-    logger.info(f"Extracted text from {len(extracted_sections)} target sections")
+    extracted_sections = extract_target_section_content(doc, target_sections, split_by_bullets=True)
+    logger.info(f"Extracted text from {len(extracted_sections)} target sections/bullets")
 
     # =========================================================================
     # STAGE 5: Classify with Section Boost (20-30 lines)

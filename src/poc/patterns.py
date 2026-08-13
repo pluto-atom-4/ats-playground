@@ -25,44 +25,51 @@ SECTION_RULER_PATTERNS: List[Dict[str, Any]] = [
     # =================================================================
     # TARGET SECTIONS (extract requirements from these)
     # =================================================================
-    # REGEX PATTERNS (Multi-word headers, special chars)
+    # TOKEN PATTERNS (Multi-word headers - tokenized to match spaCy output)
     {
         "label": "SECTION_KNOWLEDGE_SKILLS",
-        "pattern": r"(?i)knowledge\s*(?:,\s*)?skills?\s*(?:&|\band\b)\s*abilities",
-        "type": "regex",
+        "pattern": [
+            {"LOWER": "knowledge"},
+            {"IS_PUNCT": True, "OP": "?"},  # optional comma
+            {"LOWER": "skills"},
+            {"LOWER": {"IN": ["&", "and"]}},
+            {"LOWER": "abilities"},
+        ],
     },
     {
         "label": "SECTION_IN_OFFICE",
-        "pattern": r"(?i)in[_\s-]?office\s+(?:requirements|location)",
-        "type": "regex",
+        "pattern": [
+            {"LOWER": {"IN": ["in"]}},
+            {"LOWER": "office"},
+            {"LOWER": {"IN": ["requirements", "location"]}},
+        ],
     },
     {
         "label": "SECTION_WHAT_YOU_DO",
-        "pattern": r"(?i)what\s+(?:you'?ll|you\s+will)\s+do",
-        "type": "regex",
+        "pattern": [
+            {"LOWER": "what"},
+            {"LOWER": {"IN": ["you'll", "you"]}},
+            {"IS_PUNCT": False, "OP": "?"},  # optional 'll or will
+            {"LOWER": "do"},
+        ],
     },
     # TOKEN PATTERNS (Single-word headers, backward compatible)
     {
         "label": "SECTION_REQUIREMENTS",
         "pattern": [
             {"LOWER": "requirements"},
-            {"IS_PUNCT": False, "OP": "*"},
-            {"LOWER": "include", "OP": "?"},
         ],
     },
     {
         "label": "SECTION_QUALIFICATIONS",
         "pattern": [
             {"LOWER": "qualifications"},
-            {"IS_PUNCT": False, "OP": "*"},
         ],
     },
     {
         "label": "SECTION_TECHNICAL_SKILLS",
-        "pattern": [
-            {"LOWER": {"IN": ["technical", "required"]}},
-            {"LOWER": "skills", "OP": "?"},
-        ],
+        "pattern": r"(?i)technical\s+skills",
+        "type": "regex",
     },
     {
         "label": "SECTION_PREFERRED_SKILLS",
@@ -83,15 +90,12 @@ SECTION_RULER_PATTERNS: List[Dict[str, Any]] = [
         "label": "SECTION_EDUCATION",
         "pattern": [
             {"LOWER": "education"},
-            {"IS_PUNCT": False, "OP": "*"},
         ],
     },
     {
         "label": "SECTION_EXPERIENCE",
-        "pattern": [
-            {"LOWER": "experience"},
-            {"IS_PUNCT": False, "OP": "*"},
-        ],
+        "pattern": r"(?i)(?:required\s+)?(?:professional\s+)?experience(?:\s+(?:section|level|required))?(?:\s*$|\n)",
+        "type": "regex",
     },
     # =================================================================
     # FILTER SECTIONS (skip extraction from these)

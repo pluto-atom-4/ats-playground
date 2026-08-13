@@ -2,6 +2,11 @@
 
 Normalizes bullet points (*, -, +, numbered) into sentence-like format.
 Handles embedded newlines, inline headers, and period insertion.
+
+Phase A: Markdown & Unicode Cleaning
+- Normalizes markdown artifacts (**bold**, etc.)
+- Converts unicode characters (em-dash, curly quotes)
+- Removes excessive line breaks while preserving bullet structure
 """
 
 import re
@@ -256,3 +261,221 @@ def normalize_handles_existing_periods(markdown: str) -> str:
             result.append(line)
 
     return "\n".join(result)
+
+
+# =============================================================================
+# PHASE A: MARKDOWN & UNICODE CLEANING
+# =============================================================================
+
+
+def normalize_markdown_artifacts(text: str) -> str:
+    """Normalize markdown bold/italic artifacts before section detection.
+
+    Removes markdown formatting:
+    - **bold** → bold
+    - __italic__ → italic
+    - ***bold-italic*** → bold-italic
+    - _text_ → text
+
+    Preserves section headers (###) as they're used by section detection.
+    Preserves bullet markers (* at start of line).
+
+    Args:
+        text: Text with markdown formatting
+
+    Returns:
+        Text with markdown artifacts removed
+    """
+    # Remove ** (bold) - avoid matching across newlines
+    text = re.sub(r"\*\*([^*\n]+)\*\*", r"\1", text)
+    # Remove __ (bold alternative)
+    text = re.sub(r"__([^_\n]+)__", r"\1", text)
+    # Remove * (italic) - but NOT bullet markers (* at line start)
+    # Only match italic if surrounded by non-newline content
+    text = re.sub(r"(?<!\n)\*([^*\n]+)\*", r"\1", text)
+    # Remove _ (italic)
+    text = re.sub(r"_([^_\n]+)_", r"\1", text)
+    # Note: we preserve ### because section detection uses it
+
+    return text
+
+
+def normalize_unicode_characters(text: str) -> str:
+    """Normalize unicode characters to ASCII equivalents.
+
+    Converts:
+    - — (em dash U+2014) → -
+    - – (en dash U+2013) → -
+    - ' (right single quote U+2019) → '
+    - ' (left single quote U+2018) → '
+    - " (left double quote U+201C) → "
+    - " (right double quote U+201D) → "
+    - … (ellipsis U+2026) → ...
+
+    Args:
+        text: Text with unicode characters
+
+    Returns:
+        Text with unicode characters normalized to ASCII
+    """
+    # Em dash
+    text = text.replace("—", "-")
+    # En dash
+    text = text.replace("–", "-")
+    # Right single quote
+    text = text.replace("’", "'")
+    # Left single quote
+    text = text.replace("‘", "'")
+    # Left double quote
+    text = text.replace("“", '"')
+    # Right double quote
+    text = text.replace("”", '"')
+    # Ellipsis
+    text = text.replace("…", "...")
+
+    return text
+
+
+def remove_excessive_newlines(text: str) -> str:
+    """Remove excessive line breaks (3+ in a row).
+
+    Preserves single and double newlines (important for bullet/section boundaries).
+    Converts 3+ consecutive newlines to just 2 (one blank line).
+
+    Args:
+        text: Text with potential excessive newlines
+
+    Returns:
+        Text with excessive newlines normalized
+    """
+    # Replace 3+ newlines with exactly 2 (one blank line)
+    text = re.sub(r"\n\n\n+", "\n\n", text)
+    return text
+
+
+def normalize_markdown_artifacts_complete(text: str) -> str:
+    """Complete markdown + unicode normalization pipeline.
+
+    Applies all three normalization steps in sequence:
+    1. Markdown artifacts (bold, italic)
+    2. Unicode characters (dashes, quotes, ellipsis)
+    3. Excessive newlines
+
+    Preserves section headers and single newlines between bullets.
+
+    Args:
+        text: Raw text with markdown/unicode artifacts
+
+    Returns:
+        Cleaned text ready for section detection
+    """
+    # Step 1: Remove markdown formatting
+    text = normalize_markdown_artifacts(text)
+    # Step 2: Normalize unicode
+    text = normalize_unicode_characters(text)
+    # Step 3: Remove excessive newlines
+    text = remove_excessive_newlines(text)
+
+    return text
+
+
+# =============================================================================
+# PHASE B: BULLET-LEVEL EXTRACTION HELPERS
+# =============================================================================
+
+
+def contains_bullets(text: str) -> bool:
+    """Check if text contains bullet point markers.
+
+    Looks for patterns like:
+    - \n* text
+    - \n- text
+    - \n+ text
+    - \n1. text (numbered bullets)
+
+    Args:
+        text: Text to check
+
+    Returns:
+        True if text contains bullet markers, False otherwise
+    """
+    # Check for unordered bullets (*, -, +) or numbered bullets
+    return bool(re.search(r"\n[*\-+]\s+|\n\d+\.\s+", text))
+
+
+def split_by_bullet_markers(text: str) -> list[str]:
+    """Split text by bullet point markers into individual bullets.
+
+    Handles:
+    - * Bullet text
+    - - Bullet text
+    - + Bullet text
+    - 1. Bullet text (numbered)
+
+    Preserves bullet content, removes markers. Handles continuation lines
+    (indented text following a bullet).
+
+    Args:
+        text: Text with bullet points
+
+    Returns:
+        List of bullet texts (content only, no markers)
+    """
+    bullets: list[str] = []
+    lines = text.split("\n")
+    current_bullet: list[str] = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+
+        # Check for bullet marker at start of line
+        unordered_match = re.match(r"^[*\-+]\s+(.+)", stripped)
+        numbered_match = re.match(r"^\d+\.\s+(.+)", stripped)
+
+        if unordered_match or numbered_match:
+            # Save previous bullet if exists
+            if current_bullet:
+                bullet_text = " ".join(current_bullet).strip()
+                if bullet_text:
+                    bullets.append(bullet_text)
+                current_bullet = []
+
+            # Start new bullet with content after marker
+            if unordered_match:
+                current_bullet.append(unordered_match.group(1))
+            elif numbered_match:
+                current_bullet.append(numbered_match.group(1))
+
+        elif stripped and indent > 0:
+            # Continuation line (indented follow-up to current bullet)
+            # Only append if we have a current bullet
+            if current_bullet:
+                current_bullet.append(stripped)
+
+        elif stripped and indent == 0 and current_bullet:
+            # Non-indented text without bullet marker
+            # Could be new paragraph or section; treat as end of current bullet
+            if current_bullet:
+                bullet_text = " ".join(current_bullet).strip()
+                if bullet_text:
+                    bullets.append(bullet_text)
+                current_bullet = []
+            # Don't add this line to bullets (it's either a section header or other text)
+
+        elif not stripped and current_bullet:
+            # Blank line; could be end of bullet or separator
+            # Add blank space to current bullet to preserve readability
+            current_bullet.append("")
+
+        i += 1
+
+    # Add final bullet
+    if current_bullet:
+        bullet_text = " ".join(current_bullet).strip()
+        if bullet_text:
+            bullets.append(bullet_text)
+
+    return bullets
