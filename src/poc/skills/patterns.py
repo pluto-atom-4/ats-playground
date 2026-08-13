@@ -1,0 +1,26 @@
+# 1. Define Action Verbs (The "Anchors")
+# We use the root form (lemma). This ensures "designing", "designed",
+# and "design" are all caught by the single keyword "design".
+SKILL_VERBS = [
+    "design",
+    "develop",
+    "deploy",
+    "optimize",
+    "lead",
+    "own",
+    "drive",
+    "explain",
+    "define",
+    "partner",
+    "mentor",
+    "communicate",
+    "integrate",
+    "execute",
+    "validate",
+    "scale",
+    "research",
+    "implement",
+    "scope",
+    "prioritize",
+    "model",
+]
