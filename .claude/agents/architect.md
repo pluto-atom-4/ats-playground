@@ -1,5 +1,6 @@
 ---
 name: architect
+description: Draft implementation plans, design module boundaries, and write architectural decisions
 model: claude-sonnet-5 # Use Sonnet or Opus for deep planning & architecture
 tools:
   - Read
