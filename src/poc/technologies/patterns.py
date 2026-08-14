@@ -18,8 +18,10 @@ TECH_TERMS = {
     "python",
     "java",
     "javascript",
+    "typescript",
     "rust",
     "go",
+    "golang",
     "c#",
     # --- Frameworks & Libraries ---
     "react",
