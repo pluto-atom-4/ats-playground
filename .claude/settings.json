@@ -5,18 +5,65 @@
     "commit": "Co-Authored-By: Claude <claude@anthropic.com>"
   },
   "permissions": {
-    "allow": ["Read", "Edit", "Write", "Bash(uv *)", "Bash(pytest *)", "Bash(ruff *)", "Bash(grep *)", "Bash(find *)", "Bash(tail *)"],
-    "deny": ["Bash(rm -rf *)", "Bash(git push --force*)", "Bash(git reset --hard*)", "Read(.env*)", "Edit(.env*)"],
-    "ask": ["Bash(rm *)", "Bash(git push *)", "Bash(git rebase *)", "Edit(.github/*)", "Bash(npm *)"]
+    "allow": [
+      "Read",
+      "Bash(uv *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(tail *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Read(.env*)",
+      "Edit(.env*)"
+    ],
+    "ask": [
+      "Bash(rm *)",
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Edit(.github/*)",
+      "Bash(npm *)"
+    ]
   },
   "model": "claude-haiku-4-5-20251001",
   "hooks": {
     "PostToolUse": [
-      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "bash .claude/hooks/post-edit-quality.sh", "timeout": 60}]},
-      {"matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)", "hooks": [{"type": "command", "command": "bash .claude/hooks/gate1-plan-approval.sh", "timeout": 30}]}
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit-quality.sh",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "Edit(CLAUDE.md)|Edit(AGENTS.md)|Edit(.claude/settings.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gate1-plan-approval.sh",
+            "timeout": 30
+          }
+        ]
+      }
     ],
     "PostToolBatch": [
-      {"matcher": "", "hooks": [{"type": "command", "command": "bash .claude/hooks/gate2-evidence.sh", "timeout": 30}]}
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gate2-evidence.sh",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {

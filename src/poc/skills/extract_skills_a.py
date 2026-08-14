@@ -1,14 +1,25 @@
+import logging
+
 import spacy
 from spacy.matcher import Matcher
 from spacy.util import filter_spans
 
 from .patterns import SKILL_VERBS
 
+logger = logging.getLogger(__name__)
+
 
 class SkillExtractor:
     def __init__(self, model_name="en_core_web_md"):
-        # Load spaCy model
-        self.nlp = spacy.load(model_name)
+        # Load spaCy model with error handling
+        try:
+            self.nlp = spacy.load(model_name)
+        except OSError:
+            logger.error(
+                f"Failed to load spaCy model '{model_name}'. Ensure it's installed: "
+                f"python -m spacy download {model_name}"
+            )
+            raise
         self.matcher = Matcher(self.nlp.vocab)
 
         # 2. Define the Matcher Pattern
@@ -21,29 +32,38 @@ class SkillExtractor:
             {"POS": {"IN": ["ADP", "DET", "PART"]}, "OP": "?"},
             # The Meat: A sequence of Nouns, Adjectives, or Proper Nouns
             # (e.g., "novel deep learning architectures")
-            {"POS": {"IN": ["ADJ", "NOUN", "PROPN", "ADP"]}, "OP": "+"},
+            # Note: ADP excluded from this group (prepositions shouldn't appear as descriptors)
+            {"POS": {"IN": ["ADJ", "NOUN", "PROPN"]}, "OP": "+"},
         ]
 
         # Add pattern to matcher
         self.matcher.add("SKILL_PHRASE", [pattern])
 
     def extract(self, text):
-        doc = self.nlp(text)
+        try:
+            doc = self.nlp(text)
+        except Exception as e:
+            logger.error(f"Failed to process text with spaCy pipeline: {e}")
+            return []
 
-        # 3. Find matches in the document
-        # 'as_spans=True' returns spaCy Span objects instead of ID tuples
-        matches = self.matcher(doc, as_spans=True)
+        try:
+            # 3. Find matches in the document
+            # 'as_spans=True' returns spaCy Span objects instead of ID tuples
+            matches = self.matcher(doc, as_spans=True)
 
-        # 4. Best Practice: Filter Overlaps
-        # If the matcher finds "design architectures" and "design deep learning architectures",
-        # filter_spans will only keep the longest one.
-        unique_spans = filter_spans(matches)
+            # 4. Best Practice: Filter Overlaps
+            # If the matcher finds "design architectures" and "design deep learning architectures",
+            # filter_spans will only keep the longest one.
+            unique_spans = filter_spans(matches)
 
-        # Clean the text: strip whitespace and convert to lowercase
-        results = [span.text.replace("\n", " ").strip().lower() for span in unique_spans]
+            # Clean the text: strip whitespace and convert to lowercase
+            results = [span.text.replace("\n", " ").strip().lower() for span in unique_spans]
 
-        # Deduplicate and return
-        return sorted(set(results))
+            # Deduplicate and return
+            return sorted(set(results))
+        except Exception as e:
+            logger.error(f"Matcher extraction failed: {e}")
+            return []
 
 
 # --- Implementation Example ---
