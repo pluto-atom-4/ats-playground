@@ -1,5 +1,6 @@
 ---
 name: gate-enforcer
+description: Enforce pre-commit gates (Gate 1 plan review) and verification checkpoints (Gate 2 evidence-based)
 model: claude-sonnet-5 # Architect-level reasoning for gate validation
 tools:
   - Read
