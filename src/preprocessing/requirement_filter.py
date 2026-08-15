@@ -4,6 +4,7 @@ Implements trigger-word detection with regex patterns to extract job requirement
 from prose text. Adds Doc._.requirements custom attribute with structured metadata.
 """
 
+import bisect
 import re
 from typing import Any, Dict, List
 
@@ -100,6 +101,51 @@ TIER_3_PATTERNS: List[Dict[str, Any]] = [
 ALL_PATTERNS: List[Dict[str, Any]] = TIER_1_PATTERNS + TIER_2_PATTERNS + TIER_3_PATTERNS
 
 
+def _build_sentence_char_ranges(doc: Doc) -> List[tuple[int, int]]:
+    """Build list of (start_char, end_char) ranges for each sentence.
+
+    Args:
+        doc: spaCy Doc object
+
+    Returns:
+        List of character boundaries [(sent1_start, sent1_end), ...]
+    """
+    return [(sent.start_char, sent.end_char) for sent in doc.sents]
+
+
+def _find_sentence_for_offset(char_offset: int, sent_ranges: List[tuple[int, int]]) -> tuple[int, int] | None:
+    """Find sentence (start_char, end_char) containing char_offset using bisect.
+
+    Args:
+        char_offset: Character position to find
+        sent_ranges: Precomputed sentence boundaries
+
+    Returns:
+        (sent_start, sent_end) if found, else None
+    """
+    # Binary search: find first sentence that ends after char_offset
+    idx = bisect.bisect_right(sent_ranges, (char_offset, float("inf")))
+    if idx > 0:
+        start, end = sent_ranges[idx - 1]
+        if start <= char_offset < end:
+            return (start, end)
+    return None
+
+
+def _apply_casing_preference(req1: Dict[str, Any], req2: Dict[str, Any]) -> Dict[str, Any]:
+    """Prefer requirement with better casing (more capitals) when confidence tied.
+
+    Args:
+        req1, req2: Requirement dicts with 'text' field
+
+    Returns:
+        Requirement with better casing (or req1 if equal)
+    """
+    caps1 = sum(1 for c in req1["text"] if c.isupper())
+    caps2 = sum(1 for c in req2["text"] if c.isupper())
+    return req1 if caps1 >= caps2 else req2
+
+
 def _token_count(text: str) -> int:
     """Estimate token count using simple whitespace splitting.
 
@@ -136,10 +182,18 @@ def _apply_confidence_adjustments(
     adjusted = base_confidence
 
     # Check for negation patterns (within a local context window, not entire sentence)
-    # Extract ~50 chars before and after matched text for local context
-    text_start = max(0, full_sentence.find(text) - 50)
-    text_end = min(len(full_sentence), full_sentence.find(text) + len(text) + 50)
-    local_context = full_sentence[text_start:text_end]
+    # Use span offsets directly instead of substring search to avoid -1 edge case
+    # when text spans sentence boundary. This accesses the original doc text.
+    # Note: full_sentence may be shorter than matched text, so use full doc.text offsets.
+    # For now, use full_sentence with fallback bounds if not found.
+    offset_in_sentence = full_sentence.find(text)
+    if offset_in_sentence >= 0:
+        text_start = max(0, offset_in_sentence - 50)
+        text_end = min(len(full_sentence), offset_in_sentence + len(text) + 50)
+        local_context = full_sentence[text_start:text_end]
+    else:
+        # Text not found in sentence (spans boundary). Use full_sentence as context.
+        local_context = full_sentence
 
     # Pattern 1: Negation before trigger word (e.g., "not required", "no experience")
     negation_before_pattern = (
@@ -195,6 +249,9 @@ def requirement_filter(doc: Doc) -> Doc:
     requirements: List[Dict[str, Any]] = []
     text = doc.text
 
+    # Precompute sentence boundaries for O(log n) lookup (Flaw #3 fix)
+    sent_ranges = _build_sentence_char_ranges(doc)
+
     # Try each pattern
     for pattern in ALL_PATTERNS:
         regex_str: str = pattern["regex"]
@@ -207,13 +264,9 @@ def requirement_filter(doc: Doc) -> Doc:
             span_start = match.start(1)
             span_end = match.end(1)
 
-            # Extract sentence containing this match (Bug #2 fix)
-            # Find which sentence contains this character position
-            full_sentence = text  # fallback to full text if no sentence found
-            for sent in doc.sents:
-                if sent.start_char <= span_start < sent.end_char:
-                    full_sentence = sent.text
-                    break
+            # Extract sentence containing this match (O(log n) lookup via bisect)
+            sent_range = _find_sentence_for_offset(span_start, sent_ranges)
+            full_sentence = text[sent_range[0] : sent_range[1]] if sent_range else text
 
             # Apply confidence adjustments
             adjusted_confidence = _apply_confidence_adjustments(base_confidence, matched_text, full_sentence)
@@ -236,12 +289,18 @@ def requirement_filter(doc: Doc) -> Doc:
 
             requirements.append(requirement)
 
-    # Deduplicate by text (keep highest confidence)
+    # Deduplicate by text (keep highest confidence; prefer better casing when tied)
     seen: Dict[str, Dict[str, Any]] = {}
     for req in requirements:
         req_text = req["text"].lower()
-        if req_text not in seen or req["confidence"] > seen[req_text]["confidence"]:
+        if req_text not in seen:
             seen[req_text] = req
+        elif req["confidence"] > seen[req_text]["confidence"]:
+            # Higher confidence: always replace
+            seen[req_text] = req
+        elif req["confidence"] == seen[req_text]["confidence"]:
+            # Tied confidence: prefer better casing (more capitals)
+            seen[req_text] = _apply_casing_preference(seen[req_text], req)
 
     doc._.requirements = list(seen.values())
     return doc
