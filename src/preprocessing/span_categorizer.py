@@ -4,7 +4,7 @@ Implements Phase 8b span extraction using token adjacency and POS tags.
 Converts Phase 8a requirements to spaCy Span objects with boundary detection.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from spacy.language import Language
 from spacy.tokens import Doc, Span
@@ -14,7 +14,7 @@ if not Doc.has_extension("requirement_spans"):
     Doc.set_extension("requirement_spans", default=None)
 
 
-def _get_span_type_and_conjunct_count(tokens: List[int], doc: Doc) -> tuple[str, int]:
+def _get_span_type_and_conjunct_count(tokens: list[int], doc: Doc) -> tuple[str, int]:
     """Determine span type (atomic/compound) and conjunct count.
 
     Args:
@@ -237,10 +237,10 @@ def _expand_span(
 
 def _create_requirement_span_dict(
     span: Span,
-    requirement: Dict[str, Any],
+    requirement: dict[str, Any],
     span_type: str,
     conjunct_count: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create enriched requirement span dictionary.
 
     Args:
@@ -280,7 +280,7 @@ def span_categorizer(doc: Doc) -> Doc:
     Returns:
         Doc with Doc._.requirement_spans attribute set
     """
-    requirement_spans: List[Dict[str, Any]] = []
+    requirement_spans: list[dict[str, Any]] = []
 
     # Skip if no requirements from Phase 8a
     if not doc._.requirements:

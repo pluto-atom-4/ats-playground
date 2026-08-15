@@ -2,7 +2,6 @@
 
 import re
 from difflib import SequenceMatcher
-from typing import Set
 
 
 def normalize_requirement(req: str) -> str:
@@ -68,7 +67,7 @@ def normalize_requirement(req: str) -> str:
     return req
 
 
-def deduplicate_requirements(requirements: Set[str], similarity_threshold: float = 0.65) -> Set[str]:
+def deduplicate_requirements(requirements: set[str], similarity_threshold: float = 0.65) -> set[str]:
     """Remove near-duplicate requirements, keeping shortest/best version."""
     reqs = sorted(requirements, key=lambda r: (len(r), r))
     deduplicated = []
@@ -113,7 +112,7 @@ def deduplicate_requirements(requirements: Set[str], similarity_threshold: float
     return set(deduplicated)
 
 
-def normalize_requirements(requirements: Set[str]) -> Set[str]:
+def normalize_requirements(requirements: set[str]) -> set[str]:
     """Normalize all requirements and deduplicate."""
     # Normalize each
     normalized = {normalize_requirement(req) for req in requirements}
@@ -127,7 +126,7 @@ def normalize_requirements(requirements: Set[str]) -> Set[str]:
     return deduplicated
 
 
-def normalize_skills(skills: Set[str]) -> Set[str]:
+def normalize_skills(skills: set[str]) -> set[str]:
     """Normalize skill names (preserve exact format from extraction)."""
     # Skills are already in correct format from extraction via keyphrases
     # Only add normalization if needed (fallback keywords)
@@ -239,7 +238,7 @@ def normalize_skills(skills: Set[str]) -> Set[str]:
     return normalized
 
 
-def normalize_technologies(technologies: Set[str]) -> Set[str]:
+def normalize_technologies(technologies: set[str]) -> set[str]:
     """Normalize technology names."""
     # Most tech names have specific capitalization; keep as-is
     return technologies

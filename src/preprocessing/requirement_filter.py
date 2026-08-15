@@ -6,7 +6,7 @@ from prose text. Adds Doc._.requirements custom attribute with structured metada
 
 import bisect
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from spacy.language import Language
 from spacy.tokens import Doc
@@ -14,7 +14,7 @@ from spacy.tokens import Doc
 # Pattern definitions from Issue #248, organized by confidence tier
 # Note: Patterns use [\w\s\-] to match word chars, spaces, and hyphens
 # Case-insensitive matching via re.IGNORECASE flag
-TIER_1_PATTERNS: List[Dict[str, Any]] = [
+TIER_1_PATTERNS: list[dict[str, Any]] = [
     {
         "trigger_word": "required",
         "regex": r"(required[\w\s\-]*)",
@@ -57,7 +57,7 @@ TIER_1_PATTERNS: List[Dict[str, Any]] = [
     },
 ]
 
-TIER_2_PATTERNS: List[Dict[str, Any]] = [
+TIER_2_PATTERNS: list[dict[str, Any]] = [
     {
         "trigger_word": "should",
         "regex": r"(should\s+(?:have\s+)?[\w\s\-]+)",
@@ -80,7 +80,7 @@ TIER_2_PATTERNS: List[Dict[str, Any]] = [
     },
 ]
 
-TIER_3_PATTERNS: List[Dict[str, Any]] = [
+TIER_3_PATTERNS: list[dict[str, Any]] = [
     {
         "trigger_word": "nice to have",
         "regex": r"(nice\s+to\s+have\s+[\w\s\-]+)",
@@ -98,10 +98,10 @@ TIER_3_PATTERNS: List[Dict[str, Any]] = [
     },
 ]
 
-ALL_PATTERNS: List[Dict[str, Any]] = TIER_1_PATTERNS + TIER_2_PATTERNS + TIER_3_PATTERNS
+ALL_PATTERNS: list[dict[str, Any]] = TIER_1_PATTERNS + TIER_2_PATTERNS + TIER_3_PATTERNS
 
 
-def _build_sentence_char_ranges(doc: Doc) -> List[tuple[int, int]]:
+def _build_sentence_char_ranges(doc: Doc) -> list[tuple[int, int]]:
     """Build list of (start_char, end_char) ranges for each sentence.
 
     Args:
@@ -113,7 +113,7 @@ def _build_sentence_char_ranges(doc: Doc) -> List[tuple[int, int]]:
     return [(sent.start_char, sent.end_char) for sent in doc.sents]
 
 
-def _find_sentence_for_offset(char_offset: int, sent_ranges: List[tuple[int, int]]) -> tuple[int, int] | None:
+def _find_sentence_for_offset(char_offset: int, sent_ranges: list[tuple[int, int]]) -> tuple[int, int] | None:
     """Find sentence (start_char, end_char) containing char_offset using bisect.
 
     Args:
@@ -132,7 +132,7 @@ def _find_sentence_for_offset(char_offset: int, sent_ranges: List[tuple[int, int
     return None
 
 
-def _apply_casing_preference(req1: Dict[str, Any], req2: Dict[str, Any]) -> Dict[str, Any]:
+def _apply_casing_preference(req1: dict[str, Any], req2: dict[str, Any]) -> dict[str, Any]:
     """Prefer requirement with better casing (more capitals) when confidence tied.
 
     Args:
@@ -246,7 +246,7 @@ def requirement_filter(doc: Doc) -> Doc:
     Returns:
         Doc with Doc._.requirements attribute set
     """
-    requirements: List[Dict[str, Any]] = []
+    requirements: list[dict[str, Any]] = []
     text = doc.text
 
     # Precompute sentence boundaries for O(log n) lookup (Flaw #3 fix)
@@ -279,7 +279,7 @@ def requirement_filter(doc: Doc) -> Doc:
             token_cnt = _token_count(matched_text)
 
             # Create requirement entry
-            requirement: Dict[str, Any] = {
+            requirement: dict[str, Any] = {
                 "text": matched_text,
                 "span": (span_start, span_end),
                 "trigger_word": trigger_word,
@@ -290,7 +290,7 @@ def requirement_filter(doc: Doc) -> Doc:
             requirements.append(requirement)
 
     # Deduplicate by text (keep highest confidence; prefer better casing when tied)
-    seen: Dict[str, Dict[str, Any]] = {}
+    seen: dict[str, dict[str, Any]] = {}
     for req in requirements:
         req_text = req["text"].lower()
         if req_text not in seen:
