@@ -80,7 +80,7 @@ def _extract_span_boundaries(
     doc: Doc,
     char_start: int,
     char_end: int,
-) -> tuple[int, int]:
+) -> tuple[int | None, int | None]:
     """Extract token indices for character span.
 
     Args:
@@ -91,6 +91,14 @@ def _extract_span_boundaries(
     Returns:
         Tuple of (start_token_idx, end_token_idx) or (None, None) if invalid
     """
+    # Validate input offsets
+    if char_start < 0 or char_end < 0:
+        return (None, None)
+    if char_start >= char_end:
+        return (None, None)
+    if char_start >= len(doc.text):
+        return (None, None)
+
     # Find token indices corresponding to character offsets
     start_token_idx = None
     end_token_idx = None
@@ -104,12 +112,9 @@ def _extract_span_boundaries(
             end_token_idx = token.i
             break
 
-    # If end not found, use last token
-    if end_token_idx is None:
-        end_token_idx = len(doc) - 1
-
-    if start_token_idx is None:
-        start_token_idx = 0
+    # Return None if boundaries not found (don't default to edge indices)
+    if start_token_idx is None or end_token_idx is None:
+        return (None, None)
 
     return start_token_idx, end_token_idx
 
