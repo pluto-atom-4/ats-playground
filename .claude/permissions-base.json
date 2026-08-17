@@ -141,6 +141,6 @@
     "roles": "Defined in AGENTS.md; override via .claude/agents/<role>.json per configuration",
     "filePermissions": "W=write, R=read, DENY=forbidden"
   },
-  "lastUpdated": "2026-08-09",
+  "lastUpdated": "2026-08-16",
   "version": "1.0"
 }

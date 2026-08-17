@@ -88,6 +88,10 @@
   "autoCompactWindow": 150000,
   "autoCompactEnabled": true,
   "fileCheckpointingEnabled": true,
+  "env": {
+    "CLAUDE_CODE_EFFORT_LEVEL": "adaptive",
+    "MAX_THINKING_TOKENS": "16000"
+  },
   "pathScopingReference": ".claude/copilot-routing.json",
   "mcpServers": {
     "playwright": {

@@ -28,6 +28,7 @@ BUDGETS = {
     "CLAUDE.md": 1500,
     "DESIGN.md": 3000,
     "AGENTS.md": 1000,
+    "SKILLS.md": 500,
     ".github/copilot-instructions.md": 1000,
     # Shared patterns file (referenced by all phases)
     ".claude/rules/_common.md": 1500,
@@ -119,6 +120,7 @@ def collect_files(root_path: Path) -> list[Path]:
         root_path / "CLAUDE.md",
         root_path / "DESIGN.md",
         root_path / "AGENTS.md",
+        root_path / "SKILLS.md",
         root_path / ".github" / "copilot-instructions.md",
     ]
     rules_dir = root_path / ".claude" / "rules"

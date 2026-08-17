@@ -9,6 +9,7 @@ Automated validation + manual checklist for Claude Code / Copilot CLI configurat
 This project maintains several config files for cross-tool compatibility:
 - **CLAUDE.md** – Claude Code project instructions
 - **AGENTS.md** – Multi-agent governance, role permissions
+- **SKILLS.md** – Custom skills catalog index
 - **.claude/settings.json** – Claude Code harness settings (hooks, permissions)
 - **.github/copilot-instructions.md** – GitHub Copilot Agent Mode guidance
 - **.claude/skills/*/SKILL.md** – Skill metadata (lazy-loading for both tools)
@@ -22,7 +23,8 @@ This project maintains several config files for cross-tool compatibility:
 ### Current Thresholds
 - **CLAUDE.md:** Max 250 lines (currently ~110, 44% used)
 - **AGENTS.md:** Max 200 lines (currently ~160, 80% used)
-- **.github/copilot-instructions.md:** Max 300 lines (currently ~110, 37% used)
+- **SKILLS.md:** Max 50 lines (currently ~30, 60% used)
+- **.github/copilot-instructions.md:** Max 300 lines (currently ~115, 38% used)
 
 ### Auto-Compact Trigger
 When total context approaches 50% budget:
@@ -31,6 +33,27 @@ When total context approaches 50% budget:
 3. Increase external references (link to `.claude/rules/` subdocs)
 
 Threshold: **80K tokens** used across CLAUDE.md + AGENTS.md + settings.json metadata.
+
+---
+
+## Local Overrides (.claude/settings.local.json)
+
+Developers may configure local, per-machine overrides for adaptive settings:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EFFORT_LEVEL": "high",
+    "MAX_THINKING_TOKENS": "24000"
+  }
+}
+```
+
+**Supported Variables:**
+- `CLAUDE_CODE_EFFORT_LEVEL`: `"adaptive"` (default) | `"low"` | `"high"` – Model complexity selection
+- `MAX_THINKING_TOKENS`: Integer (default `16000`) – Thinking budget for complex tasks
+
+These override project-wide settings in `.claude/settings.json` for development machines only (gitignored).
 
 ---
 
@@ -216,6 +239,6 @@ After crisis fix, run `config-validation.yml` to confirm recovery.
 
 ---
 
-**Last Updated:** 2026-07-25
+**Last Updated:** 2026-08-16 (Phase 1 complete: added SKILLS.md, local overrides docs)
 **Maintainer:** Architecture team
 **Frequency:** Monthly checklist, quarterly audit
