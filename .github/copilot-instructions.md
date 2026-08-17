@@ -12,6 +12,10 @@ Routes to [CLAUDE.md](../CLAUDE.md), [AGENTS.md](../AGENTS.md), and [Constraints
 
 **Workflow:** Architect (plan) → Coder (implement) → Reviewer (verify). Gate 1 + Gate 2 before merge.
 
+### WRAP Pattern
+
+**Write** clear requirements in issues. **Refine** with Architect before coding. **Atomic** tasks in Phase 1–4. **Pair** Coder + Reviewer at verification gates.
+
 ## Tool Constraints (sync with settings.json)
 
 **Denied (blocked):**

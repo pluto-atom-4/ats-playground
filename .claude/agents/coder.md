@@ -1,7 +1,7 @@
 ---
 name: coder
 description: Implement features, write tests, manage code changes, and flag design issues to Architect
-model: claude-haiku-4.5 # Use a strong coding model for synthesis
+model: haiku # Use a strong coding model for synthesis
 tools:
   - Read
   - Write

@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy this file to .claude/settings.local.json to set per-developer overrides for adaptive effort/thinking-budget knobs. Do NOT edit this .example file with real machine-specific values; edit your local copy instead. See docs/dev-note/ai-config-maintenance.md#local-overrides-claudesettingslocaljson for details on current tracked-vs-gitignored semantics.",
+  "env": {
+    "CLAUDE_CODE_EFFORT_LEVEL": "high",
+    "MAX_THINKING_TOKENS": "24000"
+  }
+}

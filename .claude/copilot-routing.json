@@ -20,6 +20,11 @@
       "phases": ["preprocess"],
       "roles": ["coder", "reviewer"]
     },
+    "src/preprocessing/**": {
+      "rules": [".claude/rules/preprocess.md"],
+      "phases": ["preprocess"],
+      "roles": ["coder", "reviewer"]
+    },
     "src/llm/**": {
       "rules": [".claude/rules/assess.md"],
       "phases": ["assess"],
@@ -50,6 +55,46 @@
       "phases": ["tui"],
       "roles": ["coder", "reviewer"]
     },
+    "src/id_generation/**": {
+      "rules": [".claude/rules/crawl.md"],
+      "phases": ["crawl"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/models/**": {
+      "rules": [".claude/rules/crawl.md", ".claude/rules/assess.md", ".claude/rules/storage.md"],
+      "phases": ["crawl", "assess", "storage"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/nlp/**": {
+      "rules": [".claude/rules/preprocess.md"],
+      "phases": ["preprocess"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/config/**": {
+      "rules": [".claude/rules/assess.md"],
+      "phases": ["assess"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/formatters/**": {
+      "rules": [".claude/rules/tui/index.md", ".claude/rules/tui/architecture.md", ".claude/rules/tui/widgets.md", ".claude/rules/tui/patterns.md"],
+      "phases": ["tui"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/integrity/**": {
+      "rules": [".claude/rules/storage.md"],
+      "phases": ["storage"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/verification/**": {
+      "rules": [".claude/rules/verify.md"],
+      "phases": ["verify"],
+      "roles": ["coder", "reviewer"]
+    },
+    "src/poc/**": {
+      "rules": [".claude/rules/preprocess.md", ".claude/rules/phase8/patterns.md"],
+      "phases": ["preprocess"],
+      "roles": ["coder", "reviewer"]
+    },
     "tasks.md": {
       "rules": [".claude/rules/multi-agent.md"],
       "phases": ["coordination"],
@@ -61,6 +106,6 @@
       "roles": ["architect"]
     }
   },
-  "lastUpdated": "2026-08-09",
+  "lastUpdated": "2026-08-16",
   "version": "1.0"
 }
