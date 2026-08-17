@@ -38,7 +38,15 @@ Threshold: **80K tokens** used across CLAUDE.md + AGENTS.md + settings.json meta
 
 ## Local Overrides (.claude/settings.local.json)
 
-Developers may configure local, per-machine overrides for adaptive settings:
+Developers may configure local, per-machine overrides for adaptive settings.
+
+**Copy-source template:** `.claude/settings.local.json.example` (tracked in git). To set up
+local overrides:
+
+```bash
+cp .claude/settings.local.json.example .claude/settings.local.json
+# Edit .claude/settings.local.json with your preferred values
+```
 
 ```json
 {
@@ -51,9 +59,18 @@ Developers may configure local, per-machine overrides for adaptive settings:
 
 **Supported Variables:**
 - `CLAUDE_CODE_EFFORT_LEVEL`: `"adaptive"` (default) | `"low"` | `"high"` – Model complexity selection
-- `MAX_THINKING_TOKENS`: Integer (default `16000`) – Thinking budget for complex tasks
+- `MAX_THINKING_TOKENS`: Integer (default `16000`, valid range 1000–200000) – Thinking budget for complex tasks
 
-These override project-wide settings in `.claude/settings.json` for development machines only (gitignored).
+These are intended to override project-wide settings in `.claude/settings.json` for development
+machines only. **Current status:** `.claude/settings.local.json` itself is *not* listed in this
+project's own `.gitignore` (only a per-developer/global gitignore may exclude it on some
+machines), and it is not currently tracked in this repository. In other words, the "gitignored"
+description above is not guaranteed by project configuration alone — it depends on each
+developer's local/global git ignore rules. **Separate issue: reconcile tracked-vs-gitignored
+semantics** for `.claude/settings.local.json` (tracked as a follow-up; out of scope for this
+change). Until resolved, always start from `.claude/settings.local.json.example` rather than an
+existing `.claude/settings.local.json` you find locally, and double-check `git status` before
+committing to avoid accidentally committing machine-specific overrides.
 
 ---
 

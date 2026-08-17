@@ -68,4 +68,6 @@ tail -f logs/app.log                             # Watch logs
 
 **Docs**: [Constraints](.claude/CONSTRAINTS.md) • [Architecture](DESIGN.md) • [Rules](.claude/rules/) • [CLI](.github/instructions/cli-usage.instructions.md) • [Agents](AGENTS.md)
 
-**Updated**: 2026-08-09 (Phase B)
+**Effort Tuning:** [Local Overrides](docs/dev-note/ai-config-maintenance.md#local-overrides-claudesettingslocaljson) – set `CLAUDE_CODE_EFFORT_LEVEL`, `MAX_THINKING_TOKENS` per session
+
+**Updated**: 2026-08-16 (Phase 2 residual gaps)
