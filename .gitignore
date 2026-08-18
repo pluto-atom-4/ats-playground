@@ -192,6 +192,9 @@ Thumbs.db
 config_test
 /.playwright-mcp/
 
+# IDE Run Configurations
+.run/
+
 # Dev temporary files
 pr-content*.json
 sub-issues-contents*.json
