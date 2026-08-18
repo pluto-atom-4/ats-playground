@@ -1,81 +1,437 @@
-import spacy
+"""Multi-line paragraph parsing and markdown section extraction.
 
-# Load the lightweight English model
-nlp = spacy.load("en_core_web_sm")
+This module provides utilities for parsing markdown text into structured sections,
+detecting section headers (H1-H3 and bold markers), and extracting rich metadata
+about each section. Uses spaCy for linguistic analysis and spaCy Doc extensions
+for integration with spaCy pipelines.
 
-original_markdown = """LaserWeeder
-combines computer vision, AI, robotics, and high-powered lasers to
-identify weeds and destroy them with sub-millimeter precision—no
-herbicides, hand labor, or soil disturbance required. Growers achieve
-weed control cost reductions of up to 80% and crop yield increases of
-5–50%, with payback in one to three years. The system is powered by
-Carbon AI’s Large Plant Model (LPM), trained on 150 million labeled
-plants, and can start weeding any crop or field in minutes.
+Classes:
+    MarkdownSpanRuler: Main class for parsing markdown and extracting sections
+    MarkdownSection: Dataclass representing a single markdown section with metadata
 
-The
-company's second product is Carbon Autonomy, the most dependable tractor
-autonomy solution. Carbon Autonomy includes a retrofit tractor autonomy
-kit for John Deere tractors, autonomy software, and remote supervision
-for real-time interventions if required.
+Functions:
+    extract_title: Extract title text from a header line
+    get_header_level: Determine the header level (1-3) or bold (-1)
+    count_words: Count non-empty words in text
+    detect_has_list: Detect presence of bullet points in content
+"""
 
-As a
-**Performance Quality Technician** at**Carbon Robotics,**
-you will be responsible for identifying, diagnosing, and resolving
-systemic issues across our dataset of high-resolution imagery. You'll
-address performance issues and conduct field experiments and data
-analysis to diagnose root causes. Working directly with farmers is a key
-part of this role,\u00a0 you'll build relationships with growers, listen
-to their feedback, conduct field studies, and translate what you learn
-into systemic improvements, serving as a bridge between our customers
-and our engineering teams. You'll also respond to high-priority field
-issues; when customers hit critical problems, you'll move quickly to
-investigate, diagnose root causes, and coordinate with support, Deep
-Learning, engineering, and field teams to drive fast, effective
-resolutions that keep our customers running.
+import json
+import re
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
-**Drug Free Workplace:**
+from spacy.language import Language
 
-Boeing is a Drug Free Workplace (DFW) where post-offer applicants and
-employees are subject to testing for marijuana, cocaine, opioids,
-amphetamines, PCP, and alcohol when criteria is met as outlined in our
-policies.
+# ============================================================================
+# Phase 1: Constants and Pattern Definitions
+# ============================================================================
 
-**CodeVue Coding Challenge:**
+# Header patterns from span_sections_markdown.py lines 5-36
+HEADER_PATTERN = r"^#{1,3}"
+"""Regex pattern for H1, H2, H3 headers (e.g., #, ##, ###)."""
 
-To be considered for this position you will be required to complete a
-technical assessment as part of the selection process.  Failure to
-complete the assessment will remove you from consideration.
+HEADER_BOLD_PATTERN = r"^## \*\*"
+"""Regex pattern for ## ** (bold after H2 marker)."""
 
-**Pay & Benefits:**
+BOLD_PATTERN = r"^\*\*.+\*\*\s*$"
+"""Regex pattern for standalone bold title (entire line is bold)."""
 
-At Boeing, we strive to deliver a Total Rewards package that will
-attract, engage and retain the top talent.  Elements of the Total
-Rewards package include competitive base pay and variable compensation
-opportunities."""
+COMBINED_PATTERN = f"({HEADER_PATTERN})|({HEADER_BOLD_PATTERN})|({BOLD_PATTERN})"
+"""Combined regex for all header marker types."""
 
-# Step 1: Split into distinct paragraphs
-paragraphs = original_markdown.split("\n\n")
-processed_paragraphs = []
+# Map pattern to header level
+PATTERN_TO_LEVEL = {
+    HEADER_PATTERN: "numeric",  # Will be extracted from actual text
+    HEADER_BOLD_PATTERN: 2,
+    BOLD_PATTERN: -1,  # Bold marker (non-numbered)
+}
 
-for _i, para in enumerate(paragraphs):
-    # The expected output leaves paragraph 3 (index 2) exactly as it is
-    # if _i == 2:
-    #     processed_paragraphs.append(para)
-    #     continue
+# List markers for detection
+LIST_MARKERS = {"*", "-", "•", "+"}
+"""Set of bullet point markers to detect lists."""
 
-    # Step 2: Process the paragraph text through spaCy
-    doc = nlp(para)
-    cleaned_sentences = []
 
-    for sent in doc.sents:
-        # Remove erratic newlines inside the sentence and fix spacing
-        cleaned_sent = " ".join(sent.text.split())
-        cleaned_sentences.append(cleaned_sent)
+# ============================================================================
+# Phase 1: Data Structures
+# ============================================================================
 
-    # Reconstruct the paragraph with single spacing between sentences
-    processed_paragraphs.append(" ".join(cleaned_sentences))
 
-# Step 3: Join paragraphs back together with double newlines
-expected_markdown = "\n\n".join(processed_paragraphs)
+@dataclass
+class MarkdownSection:
+    """Represents a single section in markdown text.
 
-print(expected_markdown)
+    Attributes:
+        title: Optional title extracted from the header line (None if no title found)
+        content: Raw content of the section (preserves original formatting)
+        level: Header level (1, 2, 3 for #/##/###; -1 for bold marker; -2 for unlabeled)
+        start_line: Zero-based line index where this section starts
+        end_line: Zero-based line index where this section ends (inclusive)
+        word_count: Number of non-empty words in content
+        line_count: Number of non-empty lines in content
+        has_list: True if content contains bullet points
+        metadata: Dictionary for extensible metadata storage
+    """
+
+    title: Optional[str]
+    content: str
+    level: int
+    start_line: int
+    end_line: int
+    word_count: int
+    line_count: int
+    has_list: bool
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert section to dictionary representation.
+
+        Returns:
+            Dictionary with all section fields, suitable for JSON serialization.
+        """
+        return asdict(self)
+
+
+# ============================================================================
+# Phase 1: Helper Functions
+# ============================================================================
+
+
+def extract_title(line: str, level: int) -> Optional[str]:
+    """Extract title text from a header line.
+
+    Removes header markers (# ## ###) and bold markers (* **) from the line,
+    returning clean title text. Returns None if line has no extractable title.
+
+    Args:
+        line: A single line of text that may contain header markers
+        level: Header level (1, 2, 3, -1, etc.)
+
+    Returns:
+        Cleaned title text without markers, or None if empty after cleaning
+
+    Example:
+        >>> extract_title("## **Qualifications**", 2)
+        'Qualifications'
+        >>> extract_title("# Requirements", 1)
+        'Requirements'
+        >>> extract_title("**Bold Text**", -1)
+        'Bold Text'
+    """
+    cleaned = line.strip()
+
+    # Remove heading markers (#, ##, ###)
+    if level in [1, 2, 3]:
+        cleaned = re.sub(r"^#{1,3}\s*", "", cleaned)
+
+    # Remove bold markers (** at start and end)
+    if level == -1 or "**" in cleaned:
+        cleaned = re.sub(r"^\*\*", "", cleaned)
+        cleaned = re.sub(r"\*\*\s*$", "", cleaned)
+
+    cleaned = cleaned.strip()
+    return cleaned if cleaned else None
+
+
+def get_header_level(line: str) -> int:
+    """Determine header level from a line.
+
+    Checks line against markdown header patterns and returns:
+    - 1, 2, or 3 for #, ##, ###
+    - -1 for bold markers (** **)
+    - -2 for regular content with no marker
+
+    Args:
+        line: A single line of text
+
+    Returns:
+        Header level as integer, or -2 if no header marker found
+
+    Example:
+        >>> get_header_level("## **Section**")
+        2
+        >>> get_header_level("**Bold Title**")
+        -1
+        >>> get_header_level("Regular text")
+        -2
+    """
+    stripped = line.strip()
+
+    # Check for # markers (H1, H2, H3)
+    match = re.match(r"^(#{1,3})", stripped)
+    if match:
+        return len(match.group(1))
+
+    # Check for bold markers
+    if re.match(BOLD_PATTERN, stripped):
+        return -1
+
+    # Check for ## ** pattern
+    if re.match(HEADER_BOLD_PATTERN, stripped):
+        return 2
+
+    # No marker found
+    return -2
+
+
+def count_words(text: str) -> int:
+    """Count non-empty words in text.
+
+    Splits text on whitespace and counts non-empty tokens.
+
+    Args:
+        text: Text to count words in
+
+    Returns:
+        Number of words
+
+    Example:
+        >>> count_words("  hello   world  ")
+        2
+    """
+    return len([w for w in text.split() if w])
+
+
+def detect_has_list(content: str) -> bool:
+    """Detect presence of bullet points in content.
+
+    Checks each non-empty line for bullet point markers (*, -, •, +).
+
+    Args:
+        content: Text content to check
+
+    Returns:
+        True if any line starts with a bullet point marker
+
+    Example:
+        >>> detect_has_list("* Item 1\\n* Item 2")
+        True
+        >>> detect_has_list("Regular text\\nMore text")
+        False
+    """
+    for line in content.split("\n"):
+        stripped = line.strip()
+        if stripped and stripped[0] in LIST_MARKERS:
+            return True
+    return False
+
+
+def map_line_to_token_position(text: str, line_idx: int) -> tuple:
+    """Map a line index to character and token positions in text.
+
+    Args:
+        text: Full text
+        line_idx: Zero-based line number
+
+    Returns:
+        Tuple of (char_start, char_end) positions, or (None, None) if invalid
+    """
+    lines = text.split("\n")
+    if line_idx >= len(lines):
+        return (None, None)
+
+    char_pos = 0
+    for i, line in enumerate(lines):
+        if i == line_idx:
+            return (char_pos, char_pos + len(line))
+        char_pos += len(line) + 1  # +1 for newline
+
+    return (None, None)
+
+
+# ============================================================================
+# Phase 2: MarkdownSpanRuler Class
+# ============================================================================
+
+
+class MarkdownSpanRuler:
+    """Parse markdown text into structured sections with metadata.
+
+    Uses regex patterns to detect section headers and extract rich metadata
+    including title, content, header level, line boundaries, word count,
+    line count, and list detection.
+
+    Attributes:
+        nlp: spaCy Language model instance
+        doc_sections: Most recently parsed sections list
+
+    Example:
+        >>> nlp = spacy.load("en_core_web_sm")
+        >>> ruler = MarkdownSpanRuler(nlp)
+        >>> sections = ruler.parse("# Title\\n\\nContent here")
+        >>> for sec in sections:
+        ...     print(f"{sec.title}: {sec.word_count} words")
+    """
+
+    def __init__(self, nlp: Language) -> None:
+        """Initialize MarkdownSpanRuler.
+
+        Registers spaCy Doc extension for sections if not already registered.
+
+        Args:
+            nlp: Loaded spaCy Language model (e.g., en_core_web_sm)
+        """
+        self.nlp = nlp
+        self.doc_sections: List[MarkdownSection] = []
+
+        # Register Doc extension for storing parsed sections
+        from spacy.tokens import Doc
+
+        if not Doc.has_extension("sections"):
+            Doc.set_extension("sections", default=[])
+
+    def parse(self, text: str) -> List[MarkdownSection]:
+        """Parse markdown text into sections.
+
+        Splits text on newlines, identifies section headers (# ## ### and bold),
+        extracts content between headers, and calculates metadata for each section.
+        Preserves original formatting and content exactly.
+
+        Args:
+            text: Raw markdown text to parse
+
+        Returns:
+            List of MarkdownSection objects, one per detected section
+
+        Example:
+            >>> sections = ruler.parse("# Title\\n\\nContent\\n\\n## Section 2\\nMore content")
+            >>> len(sections)
+            2
+            >>> sections[0].title
+            'Title'
+        """
+        lines = text.split("\n")
+        sections: List[MarkdownSection] = []
+
+        # Find all section boundary lines (headers)
+        boundaries = self._find_boundaries(lines)
+
+        # Extract sections between boundaries
+        for i, boundary_idx in enumerate(boundaries):
+            # End of current section is one line before next boundary
+            if i + 1 < len(boundaries):
+                current_end = boundaries[i + 1] - 1
+            else:
+                # Last section goes to end of text
+                current_end = len(lines) - 1
+
+            # Extract section starting at boundary
+            section = self._extract_section(lines, boundary_idx, current_end)
+            if section:
+                sections.append(section)
+
+        # Add any trailing content after last header (if no headers at all)
+        if not boundaries and lines:
+            content = "\n".join(lines).strip()
+            if content:
+                section = MarkdownSection(
+                    title=None,
+                    content=content,
+                    level=-2,
+                    start_line=0,
+                    end_line=len(lines) - 1,
+                    word_count=count_words(content),
+                    line_count=len([line for line in lines if line.strip()]),
+                    has_list=detect_has_list(content),
+                )
+                sections.append(section)
+
+        # Store in instance and attach to doc
+        self.doc_sections = sections
+        doc = self.nlp(text)
+        doc._.sections = sections
+
+        return sections
+
+    def _find_boundaries(self, lines: List[str]) -> List[int]:
+        """Find line indices where sections start (header markers).
+
+        Identifies lines matching header patterns (#, ##, ###, bold).
+
+        Args:
+            lines: List of text lines from split('\n')
+
+        Returns:
+            List of zero-based line indices where headers are found
+        """
+        boundaries = []
+        for i, line in enumerate(lines):
+            if re.match(COMBINED_PATTERN, line.strip()):
+                boundaries.append(i)
+        return boundaries
+
+    def _extract_section(self, lines: List[str], start: int, end: int) -> Optional[MarkdownSection]:
+        """Extract a single section from start to end line index.
+
+        Constructs content between start and end, determines header level
+        from start line, extracts title, and calculates metadata.
+
+        Args:
+            lines: All lines of text
+            start: Zero-based starting line index (header line)
+            end: Zero-based ending line index (inclusive)
+
+        Returns:
+            MarkdownSection object, or None if section is invalid
+        """
+        if start >= len(lines):
+            return None
+
+        # Get header line and determine level
+        header_line = lines[start]
+        level = get_header_level(header_line)
+
+        # Extract title from header
+        title = extract_title(header_line, level)
+
+        # Build content from start to end (include all lines)
+        content_lines = lines[start : end + 1]
+        content = "\n".join(content_lines)
+
+        # Calculate metadata
+        word_count = count_words(content)
+        non_empty_lines = [line for line in content_lines if line.strip()]
+        line_count = len(non_empty_lines)
+        has_list = detect_has_list(content)
+
+        return MarkdownSection(
+            title=title,
+            content=content.strip(),
+            level=level,
+            start_line=start,
+            end_line=end,
+            word_count=word_count,
+            line_count=line_count,
+            has_list=has_list,
+        )
+
+    def to_dict(self, sections: Optional[List[MarkdownSection]] = None) -> Dict[str, Any]:
+        """Export sections to dictionary format.
+
+        If sections not provided, uses most recently parsed sections.
+
+        Args:
+            sections: Optional list of MarkdownSection objects. If None, uses self.doc_sections
+
+        Returns:
+            Dictionary with 'sections' key containing list of section dicts
+        """
+        if sections is None:
+            sections = self.doc_sections
+
+        return {"sections": [section.to_dict() for section in sections]}
+
+    def to_json(self, sections: Optional[List[MarkdownSection]] = None, indent: int = 2) -> str:
+        """Export sections to JSON string.
+
+        If sections not provided, uses most recently parsed sections.
+
+        Args:
+            sections: Optional list of MarkdownSection objects. If None, uses self.doc_sections
+            indent: JSON indentation level (default: 2)
+
+        Returns:
+            JSON string representation of sections
+        """
+        data = self.to_dict(sections)
+        return json.dumps(data, indent=indent, ensure_ascii=False)
