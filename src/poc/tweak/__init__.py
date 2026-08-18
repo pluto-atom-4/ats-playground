@@ -17,4 +17,26 @@ format_paragraph_from_json : JSON-driven paragraph formatting
 multi_line_paragraph : Multi-line paragraph handling
     Utilities for managing paragraphs that span multiple lines, including
     boundary detection, line joining, and preserving semantic structure.
+
+    Key exports:
+    - MarkdownSpanRuler: Parse markdown into structured sections with metadata
+    - MarkdownSection: Dataclass representing a markdown section
 """
+
+from src.poc.tweak.multi_line_paragraph import (
+    MarkdownSection,
+    MarkdownSpanRuler,
+    count_words,
+    detect_has_list,
+    extract_title,
+    get_header_level,
+)
+
+__all__ = [
+    "MarkdownSpanRuler",
+    "MarkdownSection",
+    "extract_title",
+    "get_header_level",
+    "count_words",
+    "detect_has_list",
+]
