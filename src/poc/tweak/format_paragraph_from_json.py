@@ -16,12 +16,12 @@ def clean_and_convert(html_input):
     for text_node in soup.find_all(string=True):
         text_node.replace_with(text_node.replace("\xa0", " "))
 
-    # --- 2. Convert to Markdown ---
-    md_converter = MarkItDown()
     with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tf:
         tf.write(str(soup))
         temp_path = tf.name
 
+    # --- 2. Convert to Markdown ---
+    md_converter = MarkItDown()
     try:
         result = md_converter.convert(temp_path)
         md = result.text_content
