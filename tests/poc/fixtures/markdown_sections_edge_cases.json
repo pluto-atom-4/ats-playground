@@ -1,0 +1,92 @@
+{
+  "sections": [
+    {
+      "title": "Empty Section",
+      "content": "# Empty Section",
+      "level": 1,
+      "start_line": 0,
+      "end_line": 0,
+      "word_count": 2,
+      "line_count": 1,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Unicode Header",
+      "content": "## Français - 中文 - 日本語\n\nSupports international characters:",
+      "level": 2,
+      "start_line": 1,
+      "end_line": 3,
+      "word_count": 5,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Special Characters",
+      "content": "### Special Chars: @#$%^&*()\n\nSymbols: <> [] {} | \\ / ~ `",
+      "level": 3,
+      "start_line": 4,
+      "end_line": 6,
+      "word_count": 8,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Code Block",
+      "content": "## Code Block\n\n```python\ndef hello():\n    print('world')\n```",
+      "level": 2,
+      "start_line": 7,
+      "end_line": 13,
+      "word_count": 6,
+      "line_count": 7,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Mixed Lists",
+      "content": "## Mixed Lists\n\n* Asterisk item\n- Dash item\n• Bullet item\n+ Plus item",
+      "level": 2,
+      "start_line": 14,
+      "end_line": 19,
+      "word_count": 7,
+      "line_count": 5,
+      "has_list": true,
+      "metadata": {}
+    },
+    {
+      "title": "Multiline Text",
+      "content": "## Multiline\n\nThis is a very long paragraph that\nspans multiple lines but is\nstill considered a single\nparagraph in markdown format.",
+      "level": 2,
+      "start_line": 20,
+      "end_line": 24,
+      "word_count": 22,
+      "line_count": 5,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Bold Header",
+      "content": "**Important Notice**\n\nThis section starts with bold.",
+      "level": -1,
+      "start_line": 25,
+      "end_line": 27,
+      "word_count": 6,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Emphasis",
+      "content": "### Emphasis\n\n*italic text* and **bold text** and ***bold italic***",
+      "level": 3,
+      "start_line": 28,
+      "end_line": 30,
+      "word_count": 8,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    }
+  ]
+}

@@ -205,3 +205,4 @@ chore-idea.md
 issue-content*.json
 updates.json
 docs/dev-note/
+tests/poc/fixtures/raw_html_description-*.json

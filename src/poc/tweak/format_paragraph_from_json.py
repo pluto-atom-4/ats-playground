@@ -1,67 +1,73 @@
+"""HTML to Markdown conversion with clean formatting.
+
+This module provides a legacy interface to HTML→Markdown conversion, refactored
+to use modular pipeline components (HTMLPreprocessor, HTMLMarkdownConverter,
+MarkdownPolisher) for maintainability and testability.
+
+The public API remains unchanged:
+- clean_and_convert(html_input: str) -> str: Convert HTML to formatted Markdown
+- main(): CLI entry point (unchanged)
+
+New Architecture (Phase 5):
+- HTMLPreprocessor: Remove non-breaking spaces, normalize HTML
+- HTMLMarkdownConverter: Convert HTML to Markdown via MarkItDown
+- MarkdownPolisher: Apply 5 formatting rules for clean rendering
+
+The refactored implementation chains these components together internally,
+maintaining 100% backward compatibility with the original implementation.
+"""
+
 import argparse
 import json
 import os
-import re
-import tempfile
 
-from bs4 import BeautifulSoup
-from markitdown import MarkItDown
+from src.poc.tweak.spacy_pipeline import (
+    HTMLMarkdownConverter,
+    HTMLPreprocessor,
+    MarkdownPolisher,
+)
 
 
 def clean_and_convert(html_input):
-    # --- 1. Pre-process HTML ---
-    soup = BeautifulSoup(html_input, "html.parser")
+    """Convert HTML to formatted Markdown using modular pipeline components.
 
-    # Replace non-breaking spaces
-    for text_node in soup.find_all(string=True):
-        text_node.replace_with(text_node.replace("\xa0", " "))
+    Legacy interface that maintains 100% backward compatibility with the original
+    implementation. Internally chains three composable pipeline components:
 
-    # --- 2. Convert to Markdown ---
-    md_converter = MarkItDown()
-    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as tf:
-        tf.write(str(soup))
-        temp_path = tf.name
+    1. HTMLPreprocessor: Removes non-breaking spaces, normalizes HTML
+    2. HTMLMarkdownConverter: Converts HTML to Markdown via MarkItDown
+    3. MarkdownPolisher: Applies 5 formatting rules for clean rendering
 
-    try:
-        result = md_converter.convert(temp_path)
-        md = result.text_content
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    The output is identical to the original implementation, but the code is now
+    more modular, testable, and maintainable.
 
-    # --- 3. The "Clean Rendering" Polisher ---
+    Args:
+        html_input: Raw HTML string to convert
 
-    # Step A: Standardize line endings and strip trailing/leading whitespace from every line
-    # This prevents hidden spaces from breaking the regex patterns.
-    lines = [line.strip() for line in md.splitlines()]
-    md = "\n".join(lines)
+    Returns:
+        Formatted Markdown string (stripped of leading/trailing whitespace)
 
-    # Step B: Tighten Lists
-    # Look for a line starting with a bullet (*), followed by a blank line,
-    # and then another bullet. Remove the blank line.
-    # We repeat this to catch multiple items.
-    md = re.sub(r"(\n\* .+?)\n\n(?=\* )", r"\1\n", md)
+    Example:
+        >>> html = "<div><p>Hello <strong>World</strong></p></div>"
+        >>> markdown = clean_and_convert(html)
+        >>> "Hello **World**" in markdown
+        True
+    """
+    # Initialize pipeline components
+    preprocessor = HTMLPreprocessor()
+    converter = HTMLMarkdownConverter(fallback_mode="html")
+    polisher = MarkdownPolisher()
 
-    # Step C: Header Formatting
-    # Ensure bold text on its own line (headers) has exactly one blank line above and below.
-    # Pattern: Look for bold tags that make up a whole line.
-    md = re.sub(r"(?<=.)\n(\*\*.*?\*\*)", r"\n\n\1", md)  # Space before
-    md = re.sub(r"(\*\*.*?\*\*)\n(?=.)", r"\1\n\n", md)  # Space after
+    # Stage 1: Preprocess HTML (remove non-breaking spaces, normalize)
+    html_clean = preprocessor.process(html_input)
 
-    # Step D: List Block Separation
-    # Ensure a blank line before the first item of a list if there isn't one.
-    # Only add blank line if preceding line is NOT already a list item.
-    # Pattern: line starting with non-* char, ending with non-whitespace, followed by list item
-    md = re.sub(r"(^[^*\n][^\n]*[^\n\s])\n(\* )", r"\1\n\n\2", md, flags=re.MULTILINE)
+    # Stage 2: Convert HTML to Markdown
+    markdown = converter.process(html_clean)
 
-    # Ensure a blank line after the last item of a list.
-    md = re.sub(r"(\n\* [^\n]+)\n([^\n\*])", r"\1\n\n\2", md)
+    # Stage 3: Polish Markdown (apply formatting rules)
+    markdown_final = polisher.process(markdown)
 
-    # Step E: Global Cleanup
-    # Collapse any accidentally created triple newlines into double newlines.
-    md = re.sub(r"\n{3,}", "\n\n", md)
-
-    return md.strip()
+    return markdown_final.strip()
 
 
 def main():
