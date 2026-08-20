@@ -1,0 +1,37 @@
+{
+  "sections": [
+    {
+      "title": "Introduction",
+      "content": "# Introduction\n\nThis is the introduction section.",
+      "level": 1,
+      "start_line": 0,
+      "end_line": 2,
+      "word_count": 5,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Requirements",
+      "content": "## Requirements\n\n* Item 1\n* Item 2\n* Item 3",
+      "level": 2,
+      "start_line": 3,
+      "end_line": 7,
+      "word_count": 6,
+      "line_count": 4,
+      "has_list": true,
+      "metadata": {}
+    },
+    {
+      "title": "Details",
+      "content": "### Details\n\nSome details here.",
+      "level": 3,
+      "start_line": 8,
+      "end_line": 10,
+      "word_count": 4,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    }
+  ]
+}

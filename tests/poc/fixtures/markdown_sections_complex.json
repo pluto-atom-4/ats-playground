@@ -1,0 +1,70 @@
+{
+  "sections": [
+    {
+      "title": "Senior Python Developer",
+      "content": "# Senior Python Developer\n\nJoin our team building innovative solutions.",
+      "level": 1,
+      "start_line": 0,
+      "end_line": 2,
+      "word_count": 9,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "About Us",
+      "content": "## About Us\n\nWe are a fast-growing company focused on AI solutions.",
+      "level": 2,
+      "start_line": 3,
+      "end_line": 5,
+      "word_count": 12,
+      "line_count": 3,
+      "has_list": false,
+      "metadata": {}
+    },
+    {
+      "title": "Qualifications",
+      "content": "## Qualifications\n\n* 5+ years Python experience\n* Experience with Django and FastAPI\n* Strong communication skills\n- Knowledge of AWS or GCP\n• Understanding of microservices",
+      "level": 2,
+      "start_line": 6,
+      "end_line": 11,
+      "word_count": 18,
+      "line_count": 5,
+      "has_list": true,
+      "metadata": {}
+    },
+    {
+      "title": "Preferred Skills",
+      "content": "## Preferred Skills\n\n- Docker & Kubernetes experience\n- Machine learning fundamentals\n* GraphQL knowledge",
+      "level": 2,
+      "start_line": 12,
+      "end_line": 15,
+      "word_count": 8,
+      "line_count": 3,
+      "has_list": true,
+      "metadata": {}
+    },
+    {
+      "title": "Benefits",
+      "content": "**Benefits**\n\n• Competitive salary ($150k-$200k)\n• Health, dental, vision coverage\n• Remote work options\n• Professional development budget",
+      "level": -1,
+      "start_line": 16,
+      "end_line": 20,
+      "word_count": 15,
+      "line_count": 4,
+      "has_list": true,
+      "metadata": {}
+    },
+    {
+      "title": "How to Apply",
+      "content": "## How to Apply\n\nSend your resume to careers@company.com\n\nInclude:\n- GitHub profile link\n- Portfolio or recent projects\n- Cover letter (optional)",
+      "level": 2,
+      "start_line": 21,
+      "end_line": 28,
+      "word_count": 18,
+      "line_count": 7,
+      "has_list": true,
+      "metadata": {}
+    }
+  ]
+}
