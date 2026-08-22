@@ -29,15 +29,21 @@ Multi-agent coordination framework for ATS Playground. Defines role boundaries a
 
 ---
 
-## Claude Tier Configuration
+## Claude Model Configuration
 
-| Role | Model |
-|------|-------|
-| **Architect** | claude-sonnet-5 |
-| **Coder** | claude-haiku-4.5 |
-| **Reviewer** | claude-haiku-4.5 |
+**Source of Truth:** `.claude/agents/{role}.md` frontmatter (overrides global default)
+**Global Default:** `.claude/settings.json` → `claude-haiku-4-5-20251001`
 
-Haiku for reviewers reduces costs ~60% while maintaining sufficient capability.
+| Role | Model | Budget | Source |
+|------|-------|--------|--------|
+| **Architect** | claude-sonnet-5 | Deep planning | `.claude/agents/architect.md` |
+| **Coder** | claude-haiku-4-5 | Synthesis | `.claude/agents/coder.md` |
+| **Reviewer** | claude-haiku-4-5 | Code review | `.claude/agents/reviewer.md` |
+| *Default* | haiku-4-5 | (all others) | `.claude/settings.json` |
+
+**Precedence:** Agent `.md` frontmatter > Global settings.json
+
+Haiku reduces costs ~60% vs Sonnet while maintaining sufficient capability for code review + synthesis.
 
 
 ---
@@ -106,5 +112,5 @@ Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loadi
 
 ---
 
-**Last Updated:** 2026-08-06
-**Status:** Enhanced with model selection clarity and permission boundaries; Issue #235 addressed
+**Last Updated:** 2026-08-22
+**Status:** P2 complete (Issue #288): Consolidated 3 model sources → single source of truth; deleted invalid profiles.json; tightened permission deny lists
