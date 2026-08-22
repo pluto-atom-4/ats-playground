@@ -40,7 +40,15 @@ BUDGETS = {
     ".claude/rules/storage.md": 1500,
     ".claude/rules/cli.md": 1000,
     ".claude/rules/multi-agent.md": 2000,
-    ".claude/rules/tui.md": 3000,
+    # TUI subdirectory files (split from monolithic tui.md)
+    ".claude/rules/tui/index.md": 500,
+    ".claude/rules/tui/architecture.md": 1200,
+    ".claude/rules/tui/widgets.md": 800,
+    ".claude/rules/tui/patterns.md": 900,
+    # Phase 8 subdirectory files (design specs)
+    ".claude/rules/phase8/patterns.md": 2500,
+    ".claude/rules/phase8/span_algorithm.md": 3000,
+    ".claude/rules/phase8/performance.md": 1000,
 }
 
 
@@ -115,7 +123,7 @@ def audit_file(file_path: Path, root_path: Path) -> Optional[FileMetrics]:
 
 
 def collect_files(root_path: Path) -> list[Path]:
-    """Collect core and rules .md files."""
+    """Collect core and rules .md files (including subdirectories)."""
     core_files = [
         root_path / "CLAUDE.md",
         root_path / "DESIGN.md",
@@ -125,7 +133,8 @@ def collect_files(root_path: Path) -> list[Path]:
     ]
     rules_dir = root_path / ".claude" / "rules"
     if rules_dir.exists():
-        core_files.extend(sorted(rules_dir.glob("*.md")))
+        # Use rglob to recursively include all .md files in subdirectories
+        core_files.extend(sorted(rules_dir.rglob("*.md")))
     return core_files
 
 

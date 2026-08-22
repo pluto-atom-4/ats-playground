@@ -166,7 +166,7 @@ Expected benefit: v2.0 produces ~30% fewer tokens vs v1.0 (boilerplate removed).
 
 **CLI:** `--extract-requirements` (default), `--no-extract-requirements`, `--export-requirements-json <file>`
 
-**Trigger Patterns:** 18 patterns (Tier 1-3, confidence 0.40-0.95). See `.claude/rules/phase8/patterns.md` for details.
+**Trigger Patterns:** 18 patterns (Tier 1-3, confidence 0.40-0.95). See `docs/dev-note/phase8/patterns.md` for details.
 
 **Database:** Nullable `requirements` column (JSON array). <50ms overhead per job, <5% token increase.
 
@@ -182,7 +182,7 @@ Expected benefit: v2.0 produces ~30% fewer tokens vs v1.0 (boilerplate removed).
 
 **Database:** `requirement_spans` JSONB column (array of span dicts with text, token boundaries, type, conjunct_count).
 
-See `.claude/rules/phase8/span_algorithm.md` for algorithm pseudocode, boundary rules, edge cases.
+See `docs/dev-note/phase8/span_algorithm.md` for algorithm pseudocode, boundary rules, edge cases.
 
 ## Verification Commands
 
