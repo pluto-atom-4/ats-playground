@@ -10,20 +10,24 @@ cd "$REPO_ROOT"
 
 echo "🔐 Gate 1: Plan Approval Check"
 
-# Check if we're in a commit/push context (by checking git hooks)
-# This hook runs as PostToolUse on Edit(CLAUDE.md|AGENTS.md|.claude/settings.json)
+# Get recently modified files from git status
+MODIFIED_FILES=$(git status --short 2>/dev/null || echo "")
 
-# Get the file being edited from stdin or environment
-FILE="${1:-.}"
-
-# Determine which file is being edited
-if [[ "$FILE" == *"CLAUDE.md"* ]]; then
-    FILE_TYPE="CLAUDE.md"
-elif [[ "$FILE" == *"AGENTS.md"* ]]; then
-    FILE_TYPE="AGENTS.md"
-elif [[ "$FILE" == *"settings.json"* ]]; then
-    FILE_TYPE=".claude/settings.json"
+# Check if any gate-1 files were modified
+FILE_TYPE=""
+if echo "$MODIFIED_FILES" | grep -E "(CLAUDE\.md|AGENTS\.md|\.claude/settings\.json)" > /dev/null; then
+    # Extract the specific file(s) modified
+    if echo "$MODIFIED_FILES" | grep -q "CLAUDE\.md"; then
+        FILE_TYPE="CLAUDE.md"
+    elif echo "$MODIFIED_FILES" | grep -q "AGENTS\.md"; then
+        FILE_TYPE="AGENTS.md"
+    elif echo "$MODIFIED_FILES" | grep -q "\.claude/settings\.json"; then
+        FILE_TYPE=".claude/settings.json"
+    else
+        exit 0
+    fi
 else
+    # No gate-1 files modified, skip check
     exit 0
 fi
 
