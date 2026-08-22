@@ -71,24 +71,9 @@ New jobs (v2.0): `clean_text` cleaned with 7 boilerplate categories removed (leg
 
 ## Database Access Pattern
 
-**Always use JobStore for queries:**
+<!-- @include ../.claude/rules/_common.md#database-access-pattern -->
 
-```python
-from src.storage.db import JobStore
-
-store = JobStore("data/ats_playground.db")
-
-# Query by keyword
-results = store.query_by_keyword("python", min_score=75)
-
-# Get assessment for job
-assessment = store.get_assessment(job_id)
-
-# Update job status
-store.update_job_status(job_id, "confirmed")
-```
-
-**Never write raw SQL.** Use JobStore methods.
+See [_common.md](_common.md#database-access-pattern) for detailed pattern.
 
 ## Markdown Export
 
