@@ -1,3 +1,7 @@
+---
+applyTo: 'src/**/*.py'
+---
+
 # Code Patterns & Conventions
 
 Code patterns and architectural conventions for ATS Playground. Use when writing production code.

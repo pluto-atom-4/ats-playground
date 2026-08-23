@@ -95,7 +95,6 @@
     "CLAUDE_CODE_EFFORT_LEVEL": "adaptive",
     "MAX_THINKING_TOKENS": "16000"
   },
-  "pathScopingReference": ".claude/copilot-routing.json",
   "mcpServers": {
     "playwright": {
       "type": "local",

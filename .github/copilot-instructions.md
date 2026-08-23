@@ -6,9 +6,14 @@ context: minimal
 
 # Copilot Instructions
 
-Routes to [CLAUDE.md](../CLAUDE.md), [AGENTS.md](../AGENTS.md), and [Constraints](.claude/CONSTRAINTS.md). Path-scoped rules in [.claude/copilot-routing.json](.claude/copilot-routing.json).
+Global rules for GitHub Copilot IDE completions. Path-scoped rules in [.github/instructions/](instructions/).
 
-**Key Rules:** See [CONSTRAINTS.md](.claude/CONSTRAINTS.md) • Phase rules: [.claude/rules/](.claude/rules/)
+**Key References:**
+- [CLAUDE.md](../CLAUDE.md) – Project setup, commands, git workflow
+- [AGENTS.md](../AGENTS.md) – Agent roles, permissions, model configuration
+- [CONSTRAINTS.md](.claude/CONSTRAINTS.md) – Core constraints (NEVER/ALWAYS rules)
+- [.claude/rules/](.claude/rules/) – Phase-specific guidance (crawl, preprocess, assess, etc.)
+- [.github/instructions/](instructions/) – Instruction files (CLI, code patterns, issue workflow)
 
 **Workflow:** Architect (plan) → Coder (implement) → Reviewer (verify). Gate 1 + Gate 2 before merge.
 
