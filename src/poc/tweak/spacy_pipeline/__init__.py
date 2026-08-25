@@ -1,18 +1,19 @@
-"""spaCy pipeline components for HTML→Markdown conversion.
+"""spaCy pipeline components for HTML→Markdown conversion and section classification.
 
-Provides composable, chainable components for HTML processing:
+Provides composable, chainable components for HTML processing and markdown analysis:
 1. HTMLPreprocessor: Clean HTML, normalize structure, remove non-breaking spaces
 2. HTMLMarkdownConverter: Convert HTML to Markdown using MarkItDown
 3. MarkdownPolisher: Apply formatting rules for polished output
+4. SectionClassifierComponent: Classify markdown sections into semantic types (Phase C)
 
-All components inherit from PipelineComponent abstract base and follow the same interface:
-- process(text: str) -> str: Transform text through the component
-- name property: Component identifier for logging and registration
-- __call__() operator: Functional calling syntax (alias for process)
+All components except SectionClassifierComponent inherit from PipelineComponent abstract
+base and follow the text-in/text-out interface. SectionClassifierComponent operates on
+spaCy Doc extensions (doc._.sections → doc._.classified_sections) and uses the standard
+spaCy pipe interface (__call__(doc) -> doc).
 
 Components are composable and can be chained independently or via spaCy factory pattern.
 
-Quick Start - Direct Instantiation:
+Quick Start - Direct Instantiation (PipelineComponent-based):
     >>> from src.poc.tweak.spacy_pipeline import HTMLPreprocessor, HTMLMarkdownConverter, MarkdownPolisher
     >>>
     >>> preprocessor = HTMLPreprocessor()
@@ -38,8 +39,9 @@ Quick Start - spaCy Factory Pattern:
     >>> preprocessor = nlp.create_pipe("html_preprocessor")
     >>> converter = nlp.create_pipe("html_markdown_converter")
     >>> polisher = nlp.create_pipe("markdown_polisher")
+    >>> classifier = nlp.create_pipe("section_classifier")  # Phase C component
     >>>
-    >>> # Process
+    >>> # Process through full pipeline
     >>> markdown = polisher.process(converter.process(preprocessor.process(raw_html)))
 
 Advanced - Custom Configuration:
@@ -95,6 +97,20 @@ MarkdownPolisher:
         >>> polished = polisher.process(markdown)
         >>> print(polished)  # Formatted with proper spacing
 
+SectionClassifierComponent (Phase C):
+    Classifies markdown sections into semantic types (skills, qualifications, etc.).
+    - Reads doc._.sections (populated by MarkdownSpanRuler)
+    - Produces doc._.classified_sections with classification results
+    - Uses SectionClassifier for keyword-based classification
+    - Integrates with spaCy pipeline via factory pattern
+
+    Example:
+        >>> classifier = nlp.create_pipe("section_classifier")
+        >>> doc = nlp("## Technical Skills\\nPython, Java")
+        >>> doc = classifier(doc)
+        >>> for section, classification in doc._.classified_sections:
+        ...     print(f"{section.title}: {classification.section_type}")
+
 Usage Patterns:
 
 1. Pipeline class (recommended for repeated use):
@@ -121,6 +137,7 @@ Performance Notes:
 - HTMLPreprocessor: <1ms (string manipulation)
 - HTMLMarkdownConverter: ~50ms (MarkItDown I/O)
 - MarkdownPolisher: <1ms (pre-compiled regex)
+- SectionClassifierComponent: <1ms per section (keyword matching)
 - Total: ~50ms per document
 
 See docs/spacy_pipeline.md for comprehensive documentation, configuration options,
@@ -131,6 +148,7 @@ Module Contents:
 - HTMLPreprocessor: Stage 1 - HTML cleanup
 - HTMLMarkdownConverter: Stage 2 - HTML to Markdown conversion
 - MarkdownPolisher: Stage 3 - Markdown formatting
+- SectionClassifierComponent: Phase C - Section classification
 - registry: spaCy factory registrations
 """
 
@@ -142,11 +160,13 @@ from .base import PipelineComponent
 from .html_markdown_converter import HTMLMarkdownConverter
 from .html_preprocessor import HTMLPreprocessor
 from .markdown_polisher import MarkdownPolisher
+from .section_classifier import SectionClassifierComponent
 
 __all__ = [
     "PipelineComponent",
     "HTMLPreprocessor",
     "HTMLMarkdownConverter",
     "MarkdownPolisher",
+    "SectionClassifierComponent",
     "registry",
 ]

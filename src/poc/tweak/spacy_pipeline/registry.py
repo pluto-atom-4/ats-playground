@@ -1,8 +1,9 @@
 """spaCy component factory registration for HTML→Markdown pipeline.
 
-Registers HTMLPreprocessor, HTMLMarkdownConverter, and MarkdownPolisher as
-spaCy components using the @Language.factory() decorator. This allows
-components to be instantiated via nlp.create_pipe() or added to a pipeline.
+Registers HTMLPreprocessor, HTMLMarkdownConverter, MarkdownPolisher, and
+SectionClassifierComponent as spaCy components using the @Language.factory()
+decorator. This allows components to be instantiated via nlp.create_pipe()
+or added to a pipeline.
 
 The registrations are automatically triggered on module import via the
 __init__.py import statement:
@@ -19,6 +20,7 @@ Usage:
     >>> preprocessor = nlp.create_pipe("html_preprocessor")
     >>> converter = nlp.create_pipe("html_markdown_converter")
     >>> polisher = nlp.create_pipe("markdown_polisher")
+    >>> classifier = nlp.create_pipe("section_classifier")
     >>>
     >>> # Process through pipeline
     >>> result = polisher.process(converter.process(preprocessor.process(html)))
@@ -43,6 +45,7 @@ Example - Using Components with spaCy:
     >>> preprocessor = nlp.create_pipe("html_preprocessor")
     >>> converter = nlp.create_pipe("html_markdown_converter")
     >>> polisher = nlp.create_pipe("markdown_polisher")
+    >>> classifier = nlp.create_pipe("section_classifier")
     >>>
     >>> # Process text
     >>> html = "<div><p>Hello</p></div>"
@@ -52,7 +55,8 @@ Example - Custom Configuration (direct instantiation):
     >>> from src.poc.tweak.spacy_pipeline import (
     ...     HTMLPreprocessor,
     ...     HTMLMarkdownConverter,
-    ...     MarkdownPolisher
+    ...     MarkdownPolisher,
+    ...     SectionClassifierComponent
     ... )
     >>>
     >>> # Use custom fallback mode for converter
@@ -66,6 +70,9 @@ Example - Custom Configuration (direct instantiation):
 
 from spacy.language import Language
 
+# Import section_classifier to trigger @Language.factory() decorator registration
+# (the factory is defined in section_classifier.py)
+from . import section_classifier  # noqa: F401
 from .html_markdown_converter import HTMLMarkdownConverter
 from .html_preprocessor import HTMLPreprocessor
 from .markdown_polisher import MarkdownPolisher
