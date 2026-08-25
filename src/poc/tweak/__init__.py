@@ -21,8 +21,25 @@ multi_line_paragraph : Multi-line paragraph handling
     Key exports:
     - MarkdownSpanRuler: Parse markdown into structured sections with metadata
     - MarkdownSection: Dataclass representing a markdown section
+
+markdown_section_classifier : Markdown section classification
+    Classifies markdown sections into semantic types (SKILLS, QUALIFICATIONS,
+    RESPONSIBILITIES, KNOWLEDGE, DESCRIPTION, SKIP, OTHER, UNLABELED) using
+    keyword matching and confidence scoring.
+
+    Key exports:
+    - SectionType: Enum of section types
+    - SectionClassification: Result of classifying a markdown section
+    - SectionClassifier: Main classifier with keyword-based logic
+    - classify_section: Module-level convenience wrapper
 """
 
+from src.poc.tweak.markdown_section_classifier import (
+    SectionClassification,
+    SectionClassifier,
+    SectionType,
+    classify_section,
+)
 from src.poc.tweak.multi_line_paragraph import (
     MarkdownSection,
     MarkdownSpanRuler,
@@ -39,4 +56,8 @@ __all__ = [
     "get_header_level",
     "count_words",
     "detect_has_list",
+    "SectionType",
+    "SectionClassification",
+    "SectionClassifier",
+    "classify_section",
 ]
