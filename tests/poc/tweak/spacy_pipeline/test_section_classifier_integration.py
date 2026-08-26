@@ -242,7 +242,7 @@ class TestSectionClassifierDocExtensions:
         assert len(doc._.classified_sections) == 1
         classified_section, classification = doc._.classified_sections[0]
         assert classified_section.title == "Requirements"
-        assert classification.section_type == SectionType.QUALIFICATIONS
+        assert classification.all_types[0].section_type == SectionType.QUALIFICATIONS
 
     def test_doc_classified_sections_empty_when_no_sections(self, nlp) -> None:
         """Verify doc._.classified_sections is empty when no sections."""
@@ -287,15 +287,15 @@ class TestSectionClassifierWithFixtures:
 
         # First section: "Introduction" -> DESCRIPTION
         _, clf1 = doc._.classified_sections[0]
-        assert clf1.section_type == SectionType.DESCRIPTION
+        assert clf1.all_types[0].section_type == SectionType.DESCRIPTION
 
         # Second section: "Requirements" -> QUALIFICATIONS
         _, clf2 = doc._.classified_sections[1]
-        assert clf2.section_type == SectionType.QUALIFICATIONS
+        assert clf2.all_types[0].section_type == SectionType.QUALIFICATIONS
 
         # Third section: "Details" -> OTHER (no keyword match)
         _, clf3 = doc._.classified_sections[2]
-        assert clf3.section_type == SectionType.OTHER
+        assert clf3.all_types[0].section_type == SectionType.OTHER
 
     def test_classify_complex_fixture_sections(self, nlp, complex_sections) -> None:
         """Verify classification of complex fixture sections."""
@@ -311,22 +311,22 @@ class TestSectionClassifierWithFixtures:
         classifications = {section.title: clf for section, clf in doc._.classified_sections}
 
         # "Senior Python Developer" -> OTHER (no keywords matched in title)
-        assert classifications["Senior Python Developer"].section_type == SectionType.OTHER
+        assert classifications["Senior Python Developer"].all_types[0].section_type == SectionType.OTHER
 
-        # "About Us" -> SKIP (contains "about" in skip sections)
-        assert classifications["About Us"].section_type == SectionType.SKIP
+        # "About Us" -> DESCRIPTION (company information/description, not job requirements)
+        assert classifications["About Us"].all_types[0].section_type == SectionType.DESCRIPTION
 
         # "Qualifications" -> QUALIFICATIONS
-        assert classifications["Qualifications"].section_type == SectionType.QUALIFICATIONS
+        assert classifications["Qualifications"].all_types[0].section_type == SectionType.QUALIFICATIONS
 
         # "Preferred Skills" -> SKILLS
-        assert classifications["Preferred Skills"].section_type == SectionType.SKILLS
+        assert classifications["Preferred Skills"].all_types[0].section_type == SectionType.SKILLS
 
         # "Benefits" -> SKIP
-        assert classifications["Benefits"].section_type == SectionType.SKIP
+        assert classifications["Benefits"].all_types[0].section_type == SectionType.SKIP
 
         # "How to Apply" -> SKIP (contains "apply" in skip keywords)
-        assert classifications["How to Apply"].section_type == SectionType.SKIP
+        assert classifications["How to Apply"].all_types[0].section_type == SectionType.SKIP
 
     def test_classify_edge_case_fixture_sections(self, nlp, edge_case_sections) -> None:
         """Verify classification of edge case fixture sections."""
@@ -404,8 +404,8 @@ class TestSectionClassifierPipelineIntegration:
         assert len(result1) == len(result2)
         for (s1, c1), (s2, c2) in zip(result1, result2, strict=False):
             assert s1.title == s2.title
-            assert c1.section_type == c2.section_type
-            assert c1.confidence == c2.confidence
+            assert c1.all_types[0].section_type == c2.all_types[0].section_type
+            assert c1.all_types[0].confidence == c2.all_types[0].confidence
 
 
 # ============================================================================
@@ -444,9 +444,9 @@ class TestSectionClassifierEndToEnd:
         section_out, classification = doc._.classified_sections[0]
 
         assert section_out.title == "Requirements"
-        assert classification.section_type == SectionType.QUALIFICATIONS
-        assert "requirement" in classification.matched_keywords
-        assert classification.confidence > 0.5
+        assert classification.all_types[0].section_type == SectionType.QUALIFICATIONS
+        assert "requirement" in classification.all_types[0].matched_keywords
+        assert classification.all_types[0].confidence > 0.5
         assert classification.is_skip is False
 
     def test_full_workflow_multiple_sections(self, nlp) -> None:
@@ -493,7 +493,7 @@ class TestSectionClassifierEndToEnd:
 
         assert len(doc._.classified_sections) == 3
 
-        types = [clf.section_type for _, clf in doc._.classified_sections]
+        types = [clf.all_types[0].section_type for _, clf in doc._.classified_sections]
         assert types[0] == SectionType.SKILLS
         assert types[1] == SectionType.RESPONSIBILITIES
         assert types[2] == SectionType.SKIP
@@ -653,7 +653,9 @@ class TestSectionClassifierConsistency:
             doc._.sections = [section]
             doc = classifier(doc)
             _, clf = doc._.classified_sections[0]
-            results.append((clf.section_type, clf.confidence, clf.matched_keywords))
+            results.append(
+                (clf.all_types[0].section_type, clf.all_types[0].confidence, clf.all_types[0].matched_keywords)
+            )
 
         # All results should be identical
         assert results[0] == results[1] == results[2]
