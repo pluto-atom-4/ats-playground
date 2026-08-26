@@ -14,13 +14,14 @@ Supports multi-type classification: a single section can match multiple semantic
 Classes:
     SectionType: Enum of section types
     TypeClassification: Single section type with confidence
-    KeywordMatch: Metadata for keyword occurrence (stub for future full integration)
+    KeywordMatch: Metadata for keyword occurrence with position information
     SectionClassification: Classification result with type, matched keywords, confidence
     SectionClassifier: Main classifier with keyword-based logic
 
 Functions:
     calculate_confidence: Calculate confidence score for a matched classification
     fallback_confidence: Generate fallback classification when no keywords match
+    calculate_position: Calculate character position of keyword in source text
     classify_section: Module-level convenience wrapper for classifying a single section
 
 Example (multi-type classification):
@@ -119,48 +120,40 @@ class TypeClassification:
 
 @dataclass(frozen=True)
 class KeywordMatch:
-    """Metadata for keyword occurrence (stub for future full integration).
+    """Metadata for keyword occurrence with position information.
 
-    This is a stub dataclass designed for future integration with full keyword
-    matching capabilities. It captures metadata about each keyword match found
-    during section classification, including which keyword matched, what section
-    type it indicates, and where in the content it was found.
-
-    The `position` field is intentionally set to -1 as a sentinel value, indicating
-    that the position has not yet been computed. In a follow-up issue, the
-    `_classify_from_title()` and `_classify_from_content()` methods will be enhanced
-    to populate KeywordMatch instances with actual position data and to populate
-    the `SectionClassification.keyword_matches` list (currently empty).
+    Captures metadata about each keyword match found during section classification,
+    including which keyword matched, what section type it indicates, where in the
+    content it was found, and the character position of the first occurrence.
 
     Attributes:
         keyword: The keyword string that matched during classification
         section_type: The SectionType that this keyword indicates (from keyword definitions)
         source: Where the keyword was found ("title" or "content")
-        position: Character position of keyword in source text (-1 = not yet computed)
+        position: Character position of first occurrence of keyword in source text
 
     Example:
-        Create a keyword match stub (position not computed):
+        Create a keyword match with position information:
         >>> km = KeywordMatch(
         ...     keyword="requirement",
         ...     section_type=SectionType.QUALIFICATIONS,
         ...     source="title",
-        ...     position=-1
+        ...     position=5
         ... )
         >>> km.keyword
         'requirement'
         >>> km.position
-        -1
+        5
 
     Note:
-        Position computation will be added in a follow-up issue when full keyword
-        matching integration is complete. See SectionClassification.keyword_matches
-        for how this will be used to track all matched keywords in a classification.
+        Position is computed during classification using calculate_position()
+        and represents the first occurrence of the keyword in the source text.
     """
 
     keyword: str
     section_type: SectionType
     source: Literal["title", "content"]
-    position: int = -1
+    position: int
 
 
 # ============================================================================
@@ -295,9 +288,57 @@ def fallback_confidence(source: Literal["title", "content"], has_content_text: b
             return (SectionType.UNLABELED, 0.0)
 
 
+def calculate_position(keyword: str, source_text: str) -> int:
+    """Calculate character position of first occurrence of keyword in source text.
+
+    Finds the character index (0-based) of the first occurrence of the given keyword
+    in the source text. The search is case-sensitive on the already-normalized
+    (lowercase) text.
+
+    Returns -1 if the keyword is not found in source_text, which should not occur
+    in normal usage since this function is only called for keywords known to be
+    present. This return value serves as a sentinel for edge cases.
+
+    Args:
+        keyword: The keyword string to search for (should be lowercase)
+        source_text: The text to search in (should be normalized to lowercase)
+
+    Returns:
+        Character position (0-based) of first occurrence, or -1 if not found
+
+    Example:
+        Keyword at start of text:
+        >>> calculate_position("skill", "skill and expertise")
+        0
+
+        Keyword in middle of text:
+        >>> calculate_position("skill", "technical skill and expertise")
+        10
+
+        Keyword not found (edge case):
+        >>> calculate_position("missing", "skill and expertise")
+        -1
+
+        First occurrence only (multi-occurrence):
+        >>> calculate_position("the", "the quick the brown the fox")
+        0
+
+        Unicode characters:
+        >>> calculate_position("café", "expertise in café management")
+        14
+
+    Note:
+        This function performs case-sensitive matching on normalized (lowercase)
+        text. Call with both keyword and source_text already lowercased for
+        consistent results.
+    """
+    position = source_text.find(keyword)
+    return position
+
+
 @dataclass(frozen=True)
 class SectionClassification:
-    """Multi-type classification result with convenience labels field.
+    """Multi-type classification result with keyword match tracking.
 
     Represents the classification of a markdown section supporting multiple section
     types per section (e.g., a title like "Skills and Responsibilities" can have
@@ -312,28 +353,46 @@ class SectionClassification:
                iterating through all_types.
         is_skip: Boolean flag indicating whether this section should be excluded
                 from processing (True if any type is SKIP, or explicitly marked).
+        keyword_matches: Tuple of KeywordMatch instances capturing all matched
+                        keywords with their positions and sources. Empty tuple
+                        if no keywords were matched.
 
     Example (single-type classification):
         >>> classifications = [
         ...     TypeClassification(SectionType.SKILLS, 0.85, ("skill",)),
         ... ]
-        >>> result = SectionClassification.from_type_classifications(classifications)
+        >>> keyword_matches = (
+        ...     KeywordMatch("skill", SectionType.SKILLS, "title", 10),
+        ... )
+        >>> result = SectionClassification.from_type_classifications(
+        ...     classifications,
+        ...     keyword_matches=keyword_matches
+        ... )
         >>> result.all_types[0].section_type
         <SectionType.SKILLS: 'skills'>
         >>> result.labels
         frozenset({SectionType.SKILLS})
         >>> result.is_skip
         False
+        >>> len(result.keyword_matches)
+        1
 
         Multi-type classification (e.g., "Skills and Responsibilities" title):
         >>> classifications = [
         ...     TypeClassification(SectionType.SKILLS, 0.85, ("skill",)),
         ...     TypeClassification(SectionType.RESPONSIBILITIES, 0.75, ("responsibility",)),
         ... ]
-        >>> result = SectionClassification.from_type_classifications(classifications)
+        >>> keyword_matches = (
+        ...     KeywordMatch("skill", SectionType.SKILLS, "title", 0),
+        ...     KeywordMatch("responsibility", SectionType.RESPONSIBILITIES, "title", 10),
+        ... )
+        >>> result = SectionClassification.from_type_classifications(
+        ...     classifications,
+        ...     keyword_matches=keyword_matches
+        ... )
         >>> len(result.all_types)
         2
-        >>> result.all_types[0].confidence  # Sorted by confidence descending
+        >>> result.all_types[0].confidence
         0.85
         >>> result.labels
         frozenset({SectionType.SKILLS, SectionType.RESPONSIBILITIES})
@@ -341,27 +400,32 @@ class SectionClassification:
     Note:
         Breaking Change (POC Phase): Old fields (section_type, matched_keywords,
         confidence) removed. Use all_types[0] to access primary type/confidence,
-        or labels for all matched types. is_skip field remains.
+        or labels for all matched types. is_skip field remains. keyword_matches
+        provides detailed position and source information for matched keywords.
     """
 
     all_types: Tuple[TypeClassification, ...] = ()
     labels: FrozenSet[SectionType] = field(default_factory=frozenset)
     is_skip: bool = False
+    keyword_matches: Tuple[KeywordMatch, ...] = ()
 
     @classmethod
     def from_type_classifications(
         cls,
         type_classifications: List[TypeClassification],
         is_skip: bool = False,
+        keyword_matches: Tuple[KeywordMatch, ...] = (),
     ) -> "SectionClassification":
         """Build SectionClassification from TypeClassification list.
 
         Sorts type_classifications by confidence descending.
         Derives labels (FrozenSet) from all section types.
+        Stores keyword_matches for detailed match tracking.
 
         Args:
             type_classifications: List of TypeClassification instances to combine
             is_skip: Whether this section should be marked as SKIP category
+            keyword_matches: Tuple of KeywordMatch instances with position data
 
         Returns:
             New SectionClassification with sorted all_types and computed labels
@@ -371,15 +435,24 @@ class SectionClassification:
             ...     TypeClassification(SectionType.SKILLS, 0.85, ("skill",)),
             ...     TypeClassification(SectionType.RESPONSIBILITIES, 0.75, ("responsibility",)),
             ... ]
-            >>> result = SectionClassification.from_type_classifications(classifications)
+            >>> keyword_matches = (
+            ...     KeywordMatch("skill", SectionType.SKILLS, "title", 0),
+            ...     KeywordMatch("responsibility", SectionType.RESPONSIBILITIES, "title", 10),
+            ... )
+            >>> result = SectionClassification.from_type_classifications(
+            ...     classifications,
+            ...     keyword_matches=keyword_matches
+            ... )
             >>> result.all_types[0].section_type  # Highest confidence first
             <SectionType.SKILLS: 'skills'>
             >>> result.labels
             frozenset({SectionType.SKILLS, SectionType.RESPONSIBILITIES})
+            >>> len(result.keyword_matches)
+            2
         """
         sorted_types = tuple(sorted(type_classifications, key=lambda tc: tc.confidence, reverse=True))
         labels = frozenset(tc.section_type for tc in sorted_types)
-        return cls(all_types=sorted_types, labels=labels, is_skip=is_skip)
+        return cls(all_types=sorted_types, labels=labels, is_skip=is_skip, keyword_matches=keyword_matches)
 
 
 # ============================================================================
@@ -474,7 +547,8 @@ class SectionClassifier:
 
     Uses title and content keywords to determine section type with confidence scoring.
     Supports optional custom skip keywords. Handles edge cases like untitled sections
-    (level -2) by classifying from content.
+    (level -2) by classifying from content. Tracks keyword positions for detailed
+    match information.
 
     Attributes:
         skip_keywords: Frozen set of keywords indicating sections to skip/exclude
@@ -494,6 +568,8 @@ class SectionClassifier:
         >>> result = classifier.classify(section)
         >>> result.all_types[0].section_type
         <SectionType.SKILLS: 'skills'>
+        >>> len(result.keyword_matches)
+        1
     """
 
     def __init__(self, skip_keywords: Optional[FrozenSet[str]] = None) -> None:
@@ -511,6 +587,7 @@ class SectionClassifier:
         Returns SectionClassification with all matched types in all_types tuple,
         sorted by confidence descending. Supports multi-type classification: a single
         section can match multiple semantic types (e.g., 'Skills and Responsibilities').
+        Tracks keyword positions in keyword_matches for detailed match information.
 
         Classification logic (in precedence order):
         1. Check title if present (level 1-3 or -1)
@@ -518,6 +595,7 @@ class SectionClassifier:
         3. Collect ALL matching types (no short-circuit; no single-type precedence)
         4. Match keywords against SKIP, SKILLS, QUALIFICATIONS, RESPONSIBILITIES, KNOWLEDGE, DESCRIPTION
         5. Fall back to OTHER or UNLABELED based on content presence
+        6. Calculate keyword positions using calculate_position for each match
 
         SKIP Behavior:
         SKIP is classified same as other types (no precedence override yet).
@@ -532,6 +610,7 @@ class SectionClassifier:
             - all_types: Tuple of TypeClassification sorted by confidence descending
             - labels: FrozenSet of all matched SectionTypes
             - is_skip: True if any matched type is SKIP
+            - keyword_matches: Tuple of KeywordMatch with position information
 
         Raises:
             ValueError: If section is None
@@ -550,6 +629,8 @@ class SectionClassifier:
             >>> result = classifier.classify(section)
             >>> result.all_types[0].section_type
             <SectionType.SKILLS: 'skills'>
+            >>> len(result.keyword_matches)
+            1
 
             Multi-type (e.g., "Skills and Responsibilities" title):
             >>> section = MarkdownSection(
@@ -567,6 +648,8 @@ class SectionClassifier:
             2
             >>> result.labels
             frozenset({SectionType.SKILLS, SectionType.RESPONSIBILITIES})
+            >>> len(result.keyword_matches)
+            2
         """
         if section is None:
             raise ValueError("section cannot be None")
@@ -598,7 +681,8 @@ class SectionClassifier:
 
         Collects ALL matching types (no short-circuit), unlike previous single-type design.
         Uses confidence functions to score each matched type. Falls back to OTHER for
-        zero-match case. Returns via factory method.
+        zero-match case. Tracks keyword positions using calculate_position().
+        Returns via factory method.
 
         Args:
             title_text: Normalized (lowercase) title text
@@ -614,6 +698,8 @@ class SectionClassifier:
             1
             >>> result.all_types[0].section_type
             <SectionType.SKILLS: 'skills'>
+            >>> len(result.keyword_matches)
+            1
 
             Compound title ("Skills and Responsibilities"):
             >>> result = classifier._classify_from_title("skills and responsibilities", "...")
@@ -621,6 +707,8 @@ class SectionClassifier:
             2
             >>> {tc.section_type for tc in result.all_types}
             {<SectionType.SKILLS: 'skills'>, <SectionType.RESPONSIBILITIES: 'responsibilities'>}
+            >>> len(result.keyword_matches)
+            2
         """
         # Initialize container for all matches
         all_matches: dict[SectionType, Tuple[str, ...]] = {}
@@ -656,30 +744,42 @@ class SectionClassifier:
         if desc_matches:
             all_matches[SectionType.DESCRIPTION] = desc_matches
 
-        # Build TypeClassification for each matched type
+        # Build TypeClassification for each matched type and KeywordMatch list
         type_classifications: List[TypeClassification] = []
+        keyword_match_list: List[KeywordMatch] = []
+
         for section_type, matched_kws in all_matches.items():
             confidence = calculate_confidence(match_count=len(matched_kws), source="title", section_type=section_type)
             tc = TypeClassification(section_type=section_type, confidence=confidence, matched_keywords=matched_kws)
             type_classifications.append(tc)
 
+            # Create KeywordMatch for each matched keyword with position
+            for kw in matched_kws:
+                pos = calculate_position(kw, title_text)
+                km = KeywordMatch(keyword=kw, section_type=section_type, source="title", position=pos)
+                keyword_match_list.append(km)
+
         # Handle zero-match case: use fallback
         if not type_classifications:
             fallback_type, fallback_conf = fallback_confidence("title", bool(content_text.strip()))
             type_classifications.append(TypeClassification(fallback_type, fallback_conf, ()))
+            # No keyword matches for fallback case
 
         # Compute is_skip: True if SKIP is in matched types
         is_skip = SectionType.SKIP in {tc.section_type for tc in type_classifications}
 
         # Build and return via factory
-        return SectionClassification.from_type_classifications(type_classifications, is_skip=is_skip)
+        return SectionClassification.from_type_classifications(
+            type_classifications, is_skip=is_skip, keyword_matches=tuple(keyword_match_list)
+        )
 
     def _classify_from_content(self, content_text: str) -> SectionClassification:
         """Classify section based on its content when no title is available.
 
         Collects ALL matching types (no short-circuit) using first N words of content
         as pseudo-title for keyword matching. Falls back to DESCRIPTION, OTHER, or
-        UNLABELED based on content presence.
+        UNLABELED based on content presence. Tracks keyword positions using
+        calculate_position().
 
         If content is empty, returns UNLABELED classification with 0.0 confidence.
 
@@ -694,6 +794,8 @@ class SectionClassifier:
             >>> result = classifier._classify_from_content("requires 5+ years python")
             >>> result.all_types[0].section_type
             <SectionType.QUALIFICATIONS: 'qualifications'>
+            >>> len(result.keyword_matches)
+            1
 
             Empty content (no title, no content):
             >>> result = classifier._classify_from_content("")
@@ -701,6 +803,8 @@ class SectionClassifier:
             <SectionType.UNLABELED: 'unlabeled'>
             >>> result.all_types[0].confidence
             0.0
+            >>> len(result.keyword_matches)
+            0
         """
         # Initialize container for all matches
         all_matches: dict[SectionType, Tuple[str, ...]] = {}
@@ -709,7 +813,9 @@ class SectionClassifier:
         if not content_text:
             fallback_type, fallback_conf = fallback_confidence("content", False)
             type_classifications = [TypeClassification(fallback_type, fallback_conf, ())]
-            return SectionClassification.from_type_classifications(type_classifications, is_skip=False)
+            return SectionClassification.from_type_classifications(
+                type_classifications, is_skip=False, keyword_matches=()
+            )
 
         # Use first ~50 words as pseudo-title for matching
         first_words = " ".join(content_text.split()[:50])
@@ -745,23 +851,34 @@ class SectionClassifier:
         if desc_matches:
             all_matches[SectionType.DESCRIPTION] = desc_matches
 
-        # Build TypeClassification for each matched type
+        # Build TypeClassification for each matched type and KeywordMatch list
         result_classifications: List[TypeClassification] = []
+        keyword_match_list: List[KeywordMatch] = []
+
         for section_type, matched_kws in all_matches.items():
             confidence = calculate_confidence(match_count=len(matched_kws), source="content", section_type=section_type)
             tc = TypeClassification(section_type=section_type, confidence=confidence, matched_keywords=matched_kws)
             result_classifications.append(tc)
 
+            # Create KeywordMatch for each matched keyword with position
+            for kw in matched_kws:
+                pos = calculate_position(kw, first_words)
+                km = KeywordMatch(keyword=kw, section_type=section_type, source="content", position=pos)
+                keyword_match_list.append(km)
+
         # Handle zero-match case: use fallback
         if not result_classifications:
             fallback_type, fallback_conf = fallback_confidence("content", bool(content_text.strip()))
             result_classifications.append(TypeClassification(fallback_type, fallback_conf, ()))
+            # No keyword matches for fallback case
 
         # Compute is_skip: True if SKIP is in matched types
         is_skip = SectionType.SKIP in {tc.section_type for tc in result_classifications}
 
         # Build and return via factory
-        return SectionClassification.from_type_classifications(result_classifications, is_skip=is_skip)
+        return SectionClassification.from_type_classifications(
+            result_classifications, is_skip=is_skip, keyword_matches=tuple(keyword_match_list)
+        )
 
 
 # ============================================================================
@@ -780,7 +897,8 @@ def classify_section(section: MarkdownSection, classifier: Optional[SectionClass
         classifier: Optional SectionClassifier instance. If None, uses default.
 
     Returns:
-        SectionClassification with type, matched keywords, confidence, and is_skip
+        SectionClassification with type, matched keywords, confidence, is_skip,
+        and keyword_matches with position data
 
     Raises:
         ValueError: If section is None
@@ -799,6 +917,8 @@ def classify_section(section: MarkdownSection, classifier: Optional[SectionClass
         >>> result = classify_section(section)
         >>> result.all_types[0].section_type
         <SectionType.QUALIFICATIONS: 'qualifications'>
+        >>> len(result.keyword_matches)
+        1
     """
     if section is None:
         raise ValueError("section cannot be None")
