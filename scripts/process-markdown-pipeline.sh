@@ -205,22 +205,41 @@ print(f'  - Sections classified: {len(classified_sections)}')
 print(f'  - Total keyword matches: {len(all_keyword_matches)}')
 print()
 
-# Display Stage 4 results
+# Display Stage 4 results with enhanced formatting
 print('SECTION CLASSIFICATION RESULTS')
 print('-' * 70)
 for i, (section, classification) in enumerate(classified_sections, 1):
     section_title = section.title if section.title else '(untitled)'
-    print(f'\\nSection {i}: {section_title}')
-    print(f'  Level: {section.level}, Words: {section.word_count}, Lines: {section.line_count}')
-    print(f'  All Types:')
-    for type_class in classification.all_types:
-        print(f'    - {type_class.section_type.value}: confidence={type_class.confidence:.2f}, keywords={type_class.matched_keywords}')
-    print(f'  Labels: {{{', '.join(t.value for t in classification.labels)}}}')
-    print(f'  Is Skip: {classification.is_skip}')
+
+    # Extract first 180 characters of content
+    content = section.content if section.content else ''
+    if content:
+        content_preview = content[:180]
+        if len(content) > 180:
+            content_preview += '...'
+    else:
+        content_preview = '(empty)'
+
+    # Build section header with title and primary classification
+    if classification.labels:
+        primary_type = list(classification.labels)[0].value
+        section_header = f'{section_title} ({primary_type})'
+    elif classification.is_skip:
+        section_header = f'{section_title} (SKIP)'
+    else:
+        section_header = section_title
+
+    print(f'\\nSection {i}: \"{section_header}\"')
+    print(f'Content preview: \"{content_preview}\"')
+
+    print(f'  - all_types: {[(t.section_type.value, round(t.confidence, 2)) for t in classification.all_types]}')
+    print(f'  - labels: {{{', '.join(t.value for t in classification.labels)}}}')
+
     if classification.keyword_matches:
-        print(f'  Keyword Matches:')
-        for km in classification.keyword_matches:
-            print(f'    - \"{km.keyword}\" ({km.section_type.value}) from {km.source} at position {km.position}')
+        matched_keywords = tuple(km.keyword for km in classification.keyword_matches)
+        print(f'  - matched_keywords: {matched_keywords}')
+
+    print(f'  - is_skip: {classification.is_skip}')
 
 print()
 
