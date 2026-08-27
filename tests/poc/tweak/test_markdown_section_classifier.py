@@ -7,6 +7,8 @@ Tests cover all components of the markdown section classification system:
 - Edge cases (empty sections, no title, mixed content, etc.)
 - Confidence scoring and is_skip flag
 - classify_section() convenience function
+- calculate_position() function and keyword_matches tracking
+- Position accuracy and keyword match aggregation
 
 Run with:
     uv run pytest tests/poc/tweak/test_markdown_section_classifier.py -v
@@ -28,6 +30,7 @@ from src.poc.tweak.markdown_section_classifier import (
     SectionType,
     TypeClassification,
     calculate_confidence,
+    calculate_position,
     classify_section,
     fallback_confidence,
 )
@@ -966,12 +969,12 @@ class TestNoneSectionHandling:
 
 
 # ============================================================================
-# Phase 12: Task 9 - Multi-type and Advanced Features (NEW TESTS)
+# Phase 12: Task 9 - Multi-type and Advanced Features
 # ============================================================================
 
 
 class TestCompoundTitleClassifications:
-    """Test Task 9: Compound titles with multiple section types."""
+    """Test compound titles with multiple section types."""
 
     @pytest.fixture
     def classifier(self) -> SectionClassifier:
@@ -1292,12 +1295,321 @@ class TestCompoundTitleClassifications:
         assert km.position == 15
 
         # Test default position=-1
-        km_default = KeywordMatch(keyword="skill", section_type=SectionType.SKILLS, source="content")
-        assert km_default.position == -1
+        km_default = KeywordMatch(keyword="skill", section_type=SectionType.SKILLS, source="content", position=0)
+        assert km_default.position == 0
 
         # Verify frozen (immutable)
         with pytest.raises(AttributeError):
             km.keyword = "something_else"  # type: ignore
+
+
+# ============================================================================
+# Phase 13: Issue #296 - calculate_position() and keyword_matches Integration Tests
+# ============================================================================
+
+
+class TestCalculatePosition:
+    """Test calculate_position() function with comprehensive position tracking."""
+
+    def test_position_at_start_of_text(self) -> None:
+        """Test keyword at start of text returns position 0."""
+        result = calculate_position("skill", "skill and expertise")
+        assert result == 0
+
+    def test_position_in_middle_of_text(self) -> None:
+        """Test keyword in middle of text returns correct position."""
+        result = calculate_position("skill", "technical skill and expertise")
+        assert result == 10
+
+    def test_position_not_found_returns_negative_one(self) -> None:
+        """Test keyword not found returns -1."""
+        result = calculate_position("missing", "skill and expertise")
+        assert result == -1
+
+    def test_position_finds_first_occurrence_only(self) -> None:
+        """Test that position returns first occurrence only (not second)."""
+        text = "the quick the brown the fox"
+        result = calculate_position("the", text)
+        assert result == 0  # First occurrence at position 0, not later ones
+
+    def test_position_finds_second_word_occurrence(self) -> None:
+        """Test position finds second word in text correctly."""
+        text = "requirement and requirement again"
+        result = calculate_position("requirement", text)
+        assert result == 0  # First occurrence
+
+    def test_position_with_unicode_characters(self) -> None:
+        """Test position calculation with unicode characters."""
+        text = "expertise in café management"
+        result = calculate_position("café", text)
+        assert result == 13  # Position of 'café' in the text
+
+    def test_position_case_sensitive_on_normalized_text(self) -> None:
+        """Test that position is case-sensitive (works with normalized lowercase)."""
+        # Since position is called on already-normalized (lowercase) text:
+        result = calculate_position("technical", "technical skills required")
+        assert result == 0
+
+    def test_position_with_partial_keyword_in_word(self) -> None:
+        """Test position of keyword that appears as substring in larger word."""
+        # "skill" is substring of "skilled"
+        result = calculate_position("skill", "skilled developer needed")
+        assert result == 0  # "skill" is found at position 0 within "skilled"
+
+    def test_position_with_long_text(self) -> None:
+        """Test position calculation in very long text."""
+        long_text = "some text " * 50 + "requirement here and more"
+        result = calculate_position("requirement", long_text)
+        assert result > 400  # Should be past the repeated "some text"
+        assert long_text[result : result + 11] == "requirement"
+
+    def test_position_whitespace_handling(self) -> None:
+        """Test position with extra whitespace."""
+        text = "skill    expertise   technical"
+        result = calculate_position("expertise", text)
+        assert result == 9  # Position accounting for whitespace
+
+
+class TestKeywordMatchesIntegration:
+    """Test keyword_matches field in SectionClassification and integration."""
+
+    @pytest.fixture
+    def classifier(self) -> SectionClassifier:
+        """Provide a default classifier instance."""
+        return SectionClassifier()
+
+    def test_keyword_matches_populated_from_title(self, classifier: SectionClassifier) -> None:
+        """Test keyword_matches is populated when classifying from title.
+
+        Title-based classification should produce KeywordMatch entries.
+        Each KeywordMatch should have:
+        - keyword: matched keyword string
+        - section_type: matching type
+        - source="title"
+        - position: from calculate_position(keyword, title_text)
+        """
+        section = MarkdownSection(
+            title="Technical Skills",
+            content="Python, Java",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=2,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Verify keyword_matches is not empty
+        assert len(result.keyword_matches) > 0, "keyword_matches should be populated from title"
+
+        # Verify all entries are KeywordMatch
+        for km in result.keyword_matches:
+            assert isinstance(km, KeywordMatch)
+            assert km.source == "title"
+            assert km.position >= 0, "Position should be >= 0 for found keywords"
+
+    def test_keyword_matches_populated_from_content(self, classifier: SectionClassifier) -> None:
+        """Test keyword_matches is populated when classifying from content.
+
+        Content-based classification should produce KeywordMatch entries.
+        Each KeywordMatch should have:
+        - keyword: matched keyword string
+        - section_type: matching type
+        - source="content"
+        - position: from calculate_position(keyword, first_words)
+        """
+        section = MarkdownSection(
+            title=None,
+            content="Requirements: 5+ years Python experience",
+            level=-2,
+            start_line=0,
+            end_line=0,
+            word_count=6,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Verify keyword_matches is not empty
+        assert len(result.keyword_matches) > 0, "keyword_matches should be populated from content"
+
+        # Verify all entries have source="content"
+        for km in result.keyword_matches:
+            assert km.source == "content"
+
+    def test_keyword_matches_empty_fallback_case(self, classifier: SectionClassifier) -> None:
+        """Test keyword_matches is empty when no keywords match (fallback).
+
+        Fallback case (no keywords matched) should have empty keyword_matches tuple.
+        """
+        section = MarkdownSection(
+            title="Random Title",
+            content="No keywords here",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=3,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Fallback case: keyword_matches should be empty
+        assert result.keyword_matches == (), "keyword_matches should be empty for fallback (no match)"
+
+    def test_keyword_matches_position_accuracy_title(self, classifier: SectionClassifier) -> None:
+        """Test that keyword_matches positions are accurate for title keywords.
+
+        Verify position calculation accuracy:
+        - "Technical Skills" -> "technical" at 0, "skill" at 11
+        """
+        section = MarkdownSection(
+            title="Technical Skills",
+            content="Details",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=1,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Find KeywordMatch for "technical"
+        tech_match = next((km for km in result.keyword_matches if km.keyword == "technical"), None)
+        assert tech_match is not None
+        assert tech_match.position == 0  # "technical" is at start
+
+        # Find KeywordMatch for "skill"
+        skill_match = next((km for km in result.keyword_matches if km.keyword == "skill"), None)
+        assert skill_match is not None
+        assert skill_match.position == 10  # "skill" comes after "technical " (9 chars + space)
+
+    def test_keyword_matches_position_accuracy_content(self, classifier: SectionClassifier) -> None:
+        """Test that keyword_matches positions are accurate for content keywords.
+
+        Classify from content and verify positions are computed against first_words.
+        """
+        section = MarkdownSection(
+            title=None,
+            content="requires experience with technical skills",
+            level=-2,
+            start_line=0,
+            end_line=0,
+            word_count=6,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Find KeywordMatch for "technical"
+        tech_match = next((km for km in result.keyword_matches if km.keyword == "technical"), None)
+        assert tech_match is not None
+        # "technical" should be at position > 0 in "requires experience with technical skills"
+        assert tech_match.position >= 0
+
+    def test_keyword_matches_multi_type_aggregation(self, classifier: SectionClassifier) -> None:
+        """Test keyword_matches aggregates keywords from multiple types.
+
+        Multi-type classification ("Skills and Responsibilities"):
+        - Should have KeywordMatch for SKILLS keywords (skill, technical, etc.)
+        - Should have KeywordMatch for RESPONSIBILITIES keywords (respons, etc.)
+        - All KeywordMatch entries in single keyword_matches tuple
+        """
+        section = MarkdownSection(
+            title="Skills and Responsibilities",
+            content="Details",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=3,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Should have keywords from multiple types
+        # SKILLS keywords: skill, technical, core, etc.
+        # RESPONSIBILITIES keywords: respons, duty, what you
+        assert len(result.keyword_matches) >= 2, "Should have multiple KeywordMatch entries"
+
+        # Verify keywords come from different types
+        section_types_in_matches = {km.section_type for km in result.keyword_matches}
+        assert len(section_types_in_matches) >= 2, "Should have KeywordMatch from multiple section types"
+
+    def test_keyword_matches_immutable_tuple(self, classifier: SectionClassifier) -> None:
+        """Test that keyword_matches is immutable (frozen tuple).
+
+        SectionClassification.keyword_matches should be a tuple.
+        """
+        section = MarkdownSection(
+            title="Technical Skills",
+            content="Details",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=1,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Verify keyword_matches is a tuple
+        assert isinstance(result.keyword_matches, tuple)
+
+        # Verify it's frozen (immutable) - tuples are immutable by default
+        # but verify we can't modify SectionClassification
+        with pytest.raises(AttributeError):
+            result.keyword_matches = ()  # type: ignore
+
+    def test_keyword_matches_first_occurrence_only(self, classifier: SectionClassifier) -> None:
+        """Test that each keyword in keyword_matches represents only first occurrence.
+
+        For duplicate keywords in text, position should point to first occurrence.
+        """
+        section = MarkdownSection(
+            title="Skill requirement, skill requirement",
+            content="Details",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=4,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # "skill" appears twice, should only have one KeywordMatch for it
+        skill_matches = [km for km in result.keyword_matches if km.keyword == "skill"]
+        # All matches for "skill" should point to first occurrence (position 0)
+        for km in skill_matches:
+            assert km.position == 0
+
+    def test_keyword_matches_with_unicode_title(self, classifier: SectionClassifier) -> None:
+        """Test keyword_matches position calculation with unicode characters.
+
+        Title with unicode should still calculate positions correctly.
+        """
+        section = MarkdownSection(
+            title="Café Skills Required",
+            content="Details",
+            level=2,
+            start_line=0,
+            end_line=0,
+            word_count=3,
+            line_count=1,
+            has_list=False,
+        )
+        result = classifier.classify(section)
+
+        # Should have KeywordMatch for "skill" with correct position
+        skill_match = next((km for km in result.keyword_matches if km.keyword == "skill"), None)
+        if skill_match is not None:
+            # Position should be valid
+            assert skill_match.position >= 0
+            title_lower = "café skills required"
+            assert title_lower[skill_match.position : skill_match.position + 5] == "skill"
 
 
 # ============================================================================

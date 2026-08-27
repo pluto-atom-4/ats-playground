@@ -26,17 +26,18 @@ markdown_section_classifier : Markdown section classification
     Classifies markdown sections into semantic types (SKILLS, QUALIFICATIONS,
     RESPONSIBILITIES, KNOWLEDGE, DESCRIPTION, SKIP, OTHER, UNLABELED) using
     keyword matching and confidence scoring. Supports multi-type classification
-    with atomic and compound requirement spans.
+    with keyword position tracking and atomic/compound requirement spans.
 
     Key exports:
     - SectionType: Enum of section types
     - SectionClassification: Result of classifying a markdown section with multi-type support
     - TypeClassification: Individual type classification result with confidence and keyword matches
-    - KeywordMatch: Information about a matched keyword in classification
+    - KeywordMatch: Information about a matched keyword in classification with position
     - SectionClassifier: Main classifier with keyword-based logic
     - classify_section: Module-level convenience wrapper
     - calculate_confidence: Compute confidence score for a classification
     - fallback_confidence: Compute confidence using fallback heuristics when keywords not found
+    - calculate_position: Calculate character position of keyword in source text
 """
 
 from src.poc.tweak.markdown_section_classifier import (
@@ -46,6 +47,7 @@ from src.poc.tweak.markdown_section_classifier import (
     SectionType,
     TypeClassification,
     calculate_confidence,
+    calculate_position,
     classify_section,
     fallback_confidence,
 )
@@ -73,4 +75,5 @@ __all__ = [
     "classify_section",
     "calculate_confidence",
     "fallback_confidence",
+    "calculate_position",
 ]
