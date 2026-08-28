@@ -5,18 +5,51 @@ and label mappings. Patterns are duplicated from src/poc/patterns.py to avoid ci
 dependencies and support independent POC development.
 
 Contains:
+- SectionType: Enum of section types (moved from markdown_section_classifier.py)
 - SECTION_RULER_PATTERNS: SpanRuler patterns (token-based + regex-based)
 - CONFIDENCE_ADJUSTMENT_BY_SECTION: Section-specific confidence boosts/penalties
 - SECTION_DISPLAY_NAMES: Human-readable section labels
 - RULER_LABEL_TO_SECTION_TYPE: Mapping from ruler labels to SectionType enum values
 - RULER_BASE_CONFIDENCE: Base confidence for ruler-matched patterns
+- KEYWORD CLASSIFICATION CONSTANTS: Semantic section keywords (Issue #303)
 
 Issue #301: Enhance classify() with Section Ruler Pattern matching
+Issue #303: Extract keyword classification constants to centralize configuration
 """
 
-from typing import Any, Dict, List
+from enum import Enum
+from typing import Any, Dict, FrozenSet, List, Tuple
 
-from src.poc.tweak.markdown_section_classifier import SectionType
+# =============================================================================
+# SECTION TYPE ENUM (Moved from markdown_section_classifier.py)
+# =============================================================================
+# Moved here to avoid circular dependency when markdown_section_classifier imports
+# from patterns.py and patterns.py needs SectionType for type hints.
+
+
+class SectionType(Enum):
+    """Semantic classification of a markdown section.
+
+    Enum Values:
+        SKILLS: Technical skills, abilities, competencies (e.g., "Skills", "Technical")
+        QUALIFICATIONS: Required or desired qualifications (e.g., "Requirements", "Qualifications")
+        RESPONSIBILITIES: Job duties and responsibilities (e.g., "Responsibilities", "Duties")
+        KNOWLEDGE: Knowledge and experience (e.g., "Knowledge", "Experience")
+        DESCRIPTION: General job or role description (e.g., "Description", "Summary")
+        SKIP: Boilerplate sections to exclude (e.g., "Benefits", "Company Info", "Legal")
+        OTHER: Sections that don't fit primary categories
+        UNLABELED: Sections with no title and unclassifiable content
+    """
+
+    SKILLS = "skills"
+    QUALIFICATIONS = "qualifications"
+    RESPONSIBILITIES = "responsibilities"
+    KNOWLEDGE = "knowledge"
+    DESCRIPTION = "description"
+    SKIP = "skip"
+    OTHER = "other"
+    UNLABELED = "unlabeled"
+
 
 # =============================================================================
 # SECTION RULER PATTERNS (SpanRuler)
@@ -216,3 +249,85 @@ RULER_LABEL_TO_SECTION_TYPE: Dict[str, SectionType] = {
 # Q1: RULER_BASE_CONFIDENCE = 0.70 (approved)
 
 RULER_BASE_CONFIDENCE: float = 0.70
+
+
+# =============================================================================
+# KEYWORD CLASSIFICATION CONSTANTS (Issue #303)
+# =============================================================================
+# Keywords used for semantic section classification in SectionClassifier.
+# Extracted from markdown_section_classifier.py to centralize configuration.
+# Source: lines 490-562 of markdown_section_classifier.py
+
+SKIP_SECTIONS: FrozenSet[str] = frozenset(
+    {
+        "benefits",
+        "compensation",
+        "salary",
+        "pay range",
+        "401",
+        "retirement",
+        "insurance",
+        "health",
+        "dental",
+        "vision",
+        "pto",
+        "vacation",
+        "about",
+        "company",
+        "culture",
+        "commitment",
+        "team",
+        "our",
+        "equal opportunity",
+        "eoe",
+        "affirmative action",
+        "disability",
+        "background check",
+        "export control",
+        "security clearance",
+        "visa",
+        "apply",
+        "posting date",
+        "posted",
+        "application close",
+        "codevue",
+        "shift",
+        "location",
+        "work location",
+        "travel",
+        "working condition",
+        "fte",
+        "temporary",
+        "education:",
+        "hiring practice",
+        "bargaining",
+        "conflict of interest",
+        "drug free",
+        "e-verify",
+        "right to work",
+        "safety sensitive",
+        "technical assessment",
+        "total rewards",
+        "union",
+        "contingent upon award",
+    }
+)
+
+# Keywords indicating skills sections
+# Source: src/tokenization/preprocessor.py:1557 & _classify_section_from_header (L1156)
+SKILLS_KEYWORDS: Tuple[str, ...] = ("skill", "technical", "core", "competency", "ability", "expertise", "proficiency")
+
+# Keywords indicating qualifications/requirements sections
+# Source: _classify_section_from_header (L1154)
+QUALIFICATIONS_KEYWORDS: Tuple[str, ...] = ("requirement", "qualif", "essential")
+
+# Keywords indicating responsibilities sections
+# Source: _classify_section_from_header (L1160)
+RESPONSIBILITIES_KEYWORDS: Tuple[str, ...] = ("respons", "duty", "what you")
+
+# Keywords indicating knowledge/experience sections
+# Source: _classify_section_from_header (L1158)
+KNOWLEDGE_KEYWORDS: Tuple[str, ...] = ("knowledge", "experience")
+
+# Keywords indicating description/overview sections
+DESCRIPTION_KEYWORDS: Tuple[str, ...] = ("description", "overview", "summary", "about", "intro")
