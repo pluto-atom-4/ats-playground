@@ -17,7 +17,6 @@ Supports multi-type classification: a single section can match multiple semantic
 Issue #301: Enhance classify() with Section Ruler Pattern matching
 
 Classes:
-    SectionType: Enum of section types
     TypeClassification: Single section type with confidence and optional pattern label
     KeywordMatch: Metadata for keyword occurrence with position information
     SectionClassification: Classification result with type, matched keywords, confidence
@@ -39,41 +38,21 @@ Example (multi-type classification with ruler):
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import TYPE_CHECKING, FrozenSet, List, Literal, Optional, Tuple
 
 from src.poc.tweak.multi_line_paragraph import MarkdownSection
+from src.poc.tweak.patterns import (
+    DESCRIPTION_KEYWORDS,
+    KNOWLEDGE_KEYWORDS,
+    QUALIFICATIONS_KEYWORDS,
+    RESPONSIBILITIES_KEYWORDS,
+    SKILLS_KEYWORDS,
+    SKIP_SECTIONS,
+    SectionType,
+)
 
 if TYPE_CHECKING:
     from spacy.language import Language
-
-# ============================================================================
-# Phase 1: Enums and Data Structures
-# ============================================================================
-
-
-class SectionType(Enum):
-    """Semantic classification of a markdown section.
-
-    Enum Values:
-        SKILLS: Technical skills, abilities, competencies (e.g., "Skills", "Technical")
-        QUALIFICATIONS: Required or desired qualifications (e.g., "Requirements", "Qualifications")
-        RESPONSIBILITIES: Job duties and responsibilities (e.g., "Responsibilities", "Duties")
-        KNOWLEDGE: Knowledge and experience (e.g., "Knowledge", "Experience")
-        DESCRIPTION: General job or role description (e.g., "Description", "Summary")
-        SKIP: Boilerplate sections to exclude (e.g., "Benefits", "Company Info", "Legal")
-        OTHER: Sections that don't fit primary categories
-        UNLABELED: Sections with no title and unclassifiable content
-    """
-
-    SKILLS = "skills"
-    QUALIFICATIONS = "qualifications"
-    RESPONSIBILITIES = "responsibilities"
-    KNOWLEDGE = "knowledge"
-    DESCRIPTION = "description"
-    SKIP = "skip"
-    OTHER = "other"
-    UNLABELED = "unlabeled"
 
 
 @dataclass(frozen=True)
@@ -349,7 +328,7 @@ def calculate_position(keyword: str, source_text: str) -> int:
         0
 
         Unicode characters:
-        >>> calculate_position("café", "expertise in café management")
+        >>> calculate_position("cafe", "expertise in cafe management")
         14
 
     Note:
@@ -481,89 +460,7 @@ class SectionClassification:
 
 
 # ============================================================================
-# Phase 3: Keyword Definitions (copied from Preprocessor)
-# ============================================================================
-
-
-# Skip sections: benefits, legal/compliance, company info, hiring logistics
-# Source: src/tokenization/preprocessor.py:29-80
-SKIP_SECTIONS: FrozenSet[str] = frozenset(
-    {
-        "benefits",
-        "compensation",
-        "salary",
-        "pay range",
-        "401",
-        "retirement",
-        "insurance",
-        "health",
-        "dental",
-        "vision",
-        "pto",
-        "vacation",
-        "about",
-        "company",
-        "culture",
-        "commitment",
-        "team",
-        "our",
-        "equal opportunity",
-        "eoe",
-        "affirmative action",
-        "disability",
-        "background check",
-        "export control",
-        "security clearance",
-        "visa",
-        "apply",
-        "posting date",
-        "posted",
-        "application close",
-        "codevue",
-        "shift",
-        "location",
-        "work location",
-        "travel",
-        "working condition",
-        "fte",
-        "temporary",
-        "education:",
-        "hiring practice",
-        "bargaining",
-        "conflict of interest",
-        "drug free",
-        "e-verify",
-        "right to work",
-        "safety sensitive",
-        "technical assessment",
-        "total rewards",
-        "union",
-        "contingent upon award",
-    }
-)
-
-# Keywords indicating skills sections
-# Source: src/tokenization/preprocessor.py:1557 & _classify_section_from_header (L1156)
-SKILLS_KEYWORDS: Tuple[str, ...] = ("skill", "technical", "core", "competency", "ability", "expertise", "proficiency")
-
-# Keywords indicating qualifications/requirements sections
-# Source: _classify_section_from_header (L1154) - qualifications branch
-QUALIFICATIONS_KEYWORDS: Tuple[str, ...] = ("requirement", "qualif", "essential")
-
-# Keywords indicating responsibilities sections
-# Source: _classify_section_from_header (L1160) - responsibilities branch
-RESPONSIBILITIES_KEYWORDS: Tuple[str, ...] = ("respons", "duty", "what you")
-
-# Keywords indicating knowledge/experience sections
-# Source: _classify_section_from_header (L1158) - knowledge branch
-KNOWLEDGE_KEYWORDS: Tuple[str, ...] = ("knowledge", "experience")
-
-# Keywords indicating description/overview sections
-DESCRIPTION_KEYWORDS: Tuple[str, ...] = ("description", "overview", "summary", "about", "intro")
-
-
-# ============================================================================
-# Phase 4: SectionClassifier Class with Ruler Support (Issue #301)
+# Phase 3: SectionClassifier Class with Ruler Support (Issue #301)
 # ============================================================================
 
 
@@ -599,7 +496,7 @@ class SectionClassifier:
     1. spaCy SpanRuler pattern matching (labeled patterns like SECTION_REQUIREMENTS)
     2. Keyword matching on title and content (fallback/complement)
 
-    Q5: Optional nlp with lazy-load (Option C) — when nlp is None, lazily load
+    Q5: Optional nlp with lazy-load (Option C) -- when nlp is None, lazily load
     en_core_web_md on first classify() call.
 
     Supports optional custom skip keywords. Handles edge cases like untitled sections
@@ -1077,7 +974,7 @@ class SectionClassifier:
             source: Source context ("title" or "content") for logging
 
         Returns:
-            Dict mapping SectionType → pattern label for all matched patterns.
+            Dict mapping SectionType -> pattern label for all matched patterns.
             Implements longest-span-wins filtering (no overlapping spans).
             Empty dict if no patterns match or spaCy unavailable.
 
@@ -1138,7 +1035,7 @@ class SectionClassifier:
 
 
 # ============================================================================
-# Phase 5: Module-Level Convenience Function
+# Phase 4: Module-Level Convenience Function
 # ============================================================================
 
 
