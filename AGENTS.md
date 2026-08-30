@@ -82,6 +82,41 @@ ARCHITECT → CODER → REVIEWER → HUMAN (merge)
 
 ---
 
+## Directory Scoping Map
+
+| Path | Owner | Purpose | Example |
+|------|-------|---------|---------|
+| `.claude/rules/*.md` | Claude Code | Phase-specific guidance (crawl, preprocess, assess, storage) | `crawl.md`: Playwright patterns + rate limiting |
+| `.github/copilot/rules/` | GitHub Copilot | IDE context, real-time completions, coding conventions | (future: language-specific rules) |
+| `.claude/skills/<name>/` | Custom skills | Lazy-loaded specialized workflows, project-specific automation | `pre-commit-enforce/`: Feature branch protection |
+| `.claude/agents/*.md` | Agent config | Model + tool overrides per role (Architect, Coder, Reviewer) | `architect.md`: sonnet-5 model override |
+| `.github/instructions/` | Documentation | CLI usage, issue workflows, GitHub-specific patterns | `cli-usage.instructions.md`: Command reference |
+
+**Rule Priority**: Agent `.md` frontmatter > `.claude/settings.json` > GitHub defaults
+
+---
+
+## Claude ↔ Copilot Handoff
+
+**When to use Copilot (IDE):**
+- Single-file edits or completions
+- Quick fixes, refactoring within module boundaries
+- Real-time inline suggestions
+- Exploratory coding
+
+**When to escalate to Claude Code:**
+- Multi-file refactors (scope >3 files)
+- Cross-module API changes
+- Complex planning or architecture decisions
+- Cost-sensitive operations (use haiku model)
+- Verification + testing workflows
+
+**Escalation Rule**: If scope exceeds 3 files OR touches `.claude/`, `AGENTS.md`, `CLAUDE.md`, switch to Claude Code.
+
+**Return to Copilot**: After Claude Code planning approved, Coder can implement single-phase tasks in IDE (non-blocking).
+
+---
+
 ## Skill Discovery
 
 Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loading. See `.claude/skills/<skill>/SKILL.md` for examples.
