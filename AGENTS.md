@@ -61,13 +61,7 @@ Before implementing cross-file changes:
 Triggered by: module interface changes, config files, CLI changes, schema migrations.
 
 ### Gate 2: Evidence-Based Verification
-After implementation, Reviewer verifies with **local tools** (not predictions):
-- **Tests:** All tests pass (pytest)
-- **Linter:** ruff/black pass
-- **Type check:** mypy passes
-- **Build:** Full build succeeds
-
-Verify with actual tool output, not predictions.
+Reviewer verifies with local tools (not predictions): pytest ✅, ruff/black ✅, mypy ✅, build ✅
 
 ---
 
@@ -84,13 +78,13 @@ ARCHITECT → CODER → REVIEWER → HUMAN (merge)
 
 ## Directory Scoping Map
 
-| Path | Owner | Purpose | Example |
-|------|-------|---------|---------|
-| `.claude/rules/*.md` | Claude Code | Phase-specific guidance (crawl, preprocess, assess, storage) | `crawl.md`: Playwright patterns + rate limiting |
-| `.github/copilot/rules/` | GitHub Copilot | IDE context, real-time completions, coding conventions | (future: language-specific rules) |
-| `.claude/skills/<name>/` | Custom skills | Lazy-loaded specialized workflows, project-specific automation | `pre-commit-enforce/`: Feature branch protection |
-| `.claude/agents/*.md` | Agent config | Model + tool overrides per role (Architect, Coder, Reviewer) | `architect.md`: sonnet-5 model override |
-| `.github/instructions/` | Documentation | CLI usage, issue workflows, GitHub-specific patterns | `cli-usage.instructions.md`: Command reference |
+| Path | Owner | Purpose |
+|------|-------|---------|
+| `.claude/rules/*.md` | Claude Code | Phase-specific guidance (crawl, preprocess, assess) |
+| `.claude/skills/<name>/` | Custom skills | Lazy-loaded project workflows |
+| `.claude/agents/*.md` | Agent config | Model + tool overrides per role |
+| `.github/copilot/rules/` | GitHub Copilot | IDE completions, conventions |
+| `.github/instructions/` | Documentation | CLI usage, issue workflows |
 
 **Rule Priority**: Agent `.md` frontmatter > `.claude/settings.json` > GitHub defaults
 
@@ -98,22 +92,11 @@ ARCHITECT → CODER → REVIEWER → HUMAN (merge)
 
 ## Claude ↔ Copilot Handoff
 
-**When to use Copilot (IDE):**
-- Single-file edits or completions
-- Quick fixes, refactoring within module boundaries
-- Real-time inline suggestions
-- Exploratory coding
+**Copilot (IDE)**: Single-file edits, quick fixes, real-time suggestions
 
-**When to escalate to Claude Code:**
-- Multi-file refactors (scope >3 files)
-- Cross-module API changes
-- Complex planning or architecture decisions
-- Cost-sensitive operations (use haiku model)
-- Verification + testing workflows
+**Claude Code**: Multi-file refactors (>3 files), cross-module changes, complex planning, verification
 
-**Escalation Rule**: If scope exceeds 3 files OR touches `.claude/`, `AGENTS.md`, `CLAUDE.md`, switch to Claude Code.
-
-**Return to Copilot**: After Claude Code planning approved, Coder can implement single-phase tasks in IDE (non-blocking).
+**Escalation Rule**: If scope exceeds 3 files OR touches `.claude/`, `AGENTS.md`, `CLAUDE.md`, use Claude Code.
 
 ---
 
@@ -135,17 +118,8 @@ Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loadi
 
 **W** = write, **R** = read, **❌** = denied. Configuration in `.claude/agents/` overrides this matrix.
 
-
 ---
 
-## Related
+**Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [.claude/rules/multi-agent.md](.claude/rules/multi-agent.md)
 
-- **Agent Tool Configuration:** `.claude/agents/` files define tool permissions and models per role (source-of-truth for tool access)
-- **Phase Coordination:** See `.claude/rules/multi-agent.md` for phase-specific handoffs
-- **CLAUDE.md:** Project setup, commands, git workflow
-- **DESIGN.md:** Architecture decisions
-
----
-
-**Last Updated:** 2026-08-22
-**Status:** P2 complete (Issue #288): Consolidated 3 model sources → single source of truth; deleted invalid profiles.json; tightened permission deny lists
+**Last Updated:** 2026-08-30 (Issue #305: Scoping map + handoff rules)
