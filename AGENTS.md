@@ -61,13 +61,7 @@ Before implementing cross-file changes:
 Triggered by: module interface changes, config files, CLI changes, schema migrations.
 
 ### Gate 2: Evidence-Based Verification
-After implementation, Reviewer verifies with **local tools** (not predictions):
-- **Tests:** All tests pass (pytest)
-- **Linter:** ruff/black pass
-- **Type check:** mypy passes
-- **Build:** Full build succeeds
-
-Verify with actual tool output, not predictions.
+Reviewer verifies with local tools (not predictions): pytest ✅, ruff/black ✅, mypy ✅, build ✅
 
 ---
 
@@ -79,6 +73,30 @@ ARCHITECT → CODER → REVIEWER → HUMAN (merge)
 
 **Approval gates:** Gate 1 (plan) before code → Gate 2 (verification) before merge
 
+
+---
+
+## Directory Scoping Map
+
+| Path | Owner | Purpose |
+|------|-------|---------|
+| `.claude/rules/*.md` | Claude Code | Phase-specific guidance (crawl, preprocess, assess) |
+| `.claude/skills/<name>/` | Custom skills | Lazy-loaded project workflows |
+| `.claude/agents/*.md` | Agent config | Model + tool overrides per role |
+| `.github/copilot/rules/` | GitHub Copilot | IDE completions, conventions |
+| `.github/instructions/` | Documentation | CLI usage, issue workflows |
+
+**Rule Priority**: Agent `.md` frontmatter > `.claude/settings.json` > GitHub defaults
+
+---
+
+## Claude ↔ Copilot Handoff
+
+**Copilot (IDE)**: Single-file edits, quick fixes, real-time suggestions
+
+**Claude Code**: Multi-file refactors (>3 files), cross-module changes, complex planning, verification
+
+**Escalation Rule**: If scope exceeds 3 files OR touches `.claude/`, `AGENTS.md`, `CLAUDE.md`, use Claude Code.
 
 ---
 
@@ -100,17 +118,8 @@ Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loadi
 
 **W** = write, **R** = read, **❌** = denied. Configuration in `.claude/agents/` overrides this matrix.
 
-
 ---
 
-## Related
+**Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [.claude/rules/multi-agent.md](.claude/rules/multi-agent.md)
 
-- **Agent Tool Configuration:** `.claude/agents/` files define tool permissions and models per role (source-of-truth for tool access)
-- **Phase Coordination:** See `.claude/rules/multi-agent.md` for phase-specific handoffs
-- **CLAUDE.md:** Project setup, commands, git workflow
-- **DESIGN.md:** Architecture decisions
-
----
-
-**Last Updated:** 2026-08-22
-**Status:** P2 complete (Issue #288): Consolidated 3 model sources → single source of truth; deleted invalid profiles.json; tightened permission deny lists
+**Last Updated:** 2026-08-30 (Issue #305: Scoping map + handoff rules)

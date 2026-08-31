@@ -95,6 +95,20 @@
     "CLAUDE_CODE_EFFORT_LEVEL": "adaptive",
     "MAX_THINKING_TOKENS": "16000"
   },
+  "cache": {
+    "enabled": true,
+    "tier": "standard",
+    "minCacheAge": 300,
+    "cacheTTL": 3600
+  },
+  "modelFallback": [
+    "claude-haiku-4-5-20251001",
+    "claude-haiku-3-5-20250114"
+  ],
+  "costControls": {
+    "dailyTokenLimit": 2000000,
+    "autoFailover": true
+  },
   "mcpServers": {
     "playwright": {
       "type": "local",
