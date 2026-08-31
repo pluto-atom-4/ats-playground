@@ -601,10 +601,12 @@ class TestDetailedPerformanceMetrics:
             total_ms = nlp_ms + chunk_ms
             phase_times["total"].append(total_ms)
 
-        # Use percentile-based robustness instead of per-sample hard assert
-        # At least 9/10 jobs should be under 300ms (allows 1 outlier from CI variance)
+        # Use rank-based robustness checks instead of extrapolating quantiles
+        # statistics.quantiles(N=10, n=20, method="exclusive") extrapolates beyond max(data)
+        # at interpolation position 10.45, creating phantom p95=404ms not in actual data.
+        # Instead, use rank-based check: "at least 9/10 jobs under 300ms" is valid for any N.
         median_total = statistics.median(phase_times["total"])
-        p95_total = statistics.quantiles(phase_times["total"], n=20)[18]  # 95th percentile
+        max_total = max(phase_times["total"])
         jobs_under_300ms = sum(1 for t in phase_times["total"] if t < 300)
 
         # Log phase breakdown
@@ -617,23 +619,24 @@ class TestDetailedPerformanceMetrics:
         chunk_min = min(phase_times["chunking"])
         chunk_max = max(phase_times["chunking"])
         total_min = min(phase_times["total"])
-        total_max = max(phase_times["total"])
 
         logging.info(
             f"Performance Summary (10 jobs):\n"
             f"  NLP Pipeline: {avg_nlp:.1f}ms avg (range: {nlp_min:.1f}-{nlp_max:.1f}ms)\n"
             f"  Chunking: {avg_chunk:.1f}ms avg (range: {chunk_min:.1f}-{chunk_max:.1f}ms)\n"
-            f"  Total: {avg_total:.1f}ms avg (median: {median_total:.1f}ms, p95: {p95_total:.1f}ms, "
-            f"range: {total_min:.1f}-{total_max:.1f}ms)\n"
+            f"  Total: {avg_total:.1f}ms avg (median: {median_total:.1f}ms, "
+            f"range: {total_min:.1f}-{max_total:.1f}ms)\n"
             f"  Jobs <300ms: {jobs_under_300ms}/10"
         )
 
-        # Percentile check: 95th percentile should be under 300ms
-        assert p95_total < 300, (
-            f"95th percentile time {p95_total:.1f}ms exceeds 300ms target ({jobs_under_300ms}/10 jobs under 300ms)"
+        # Rank-based check: at least 9/10 jobs should be under 300ms (allows 1 outlier)
+        # NOTE: A literal 95th percentile is not well-defined for N=10 samples.
+        # statistics.quantiles() default method="exclusive" extrapolates above max(data).
+        assert jobs_under_300ms >= 9, (
+            f"Only {jobs_under_300ms}/10 jobs under 300ms target (median={median_total:.1f}ms, max={max_total:.1f}ms)"
         )
 
-        # Overall average should be <200ms (sanity check for performance regression)
+        # Overall average should be <200ms (sanity check for regression)
         assert avg_total < 200, f"Average time per job {avg_total:.1f}ms exceeds 200ms target"
 
     def test_scaling_with_job_count(
