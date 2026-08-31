@@ -134,6 +134,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "asyncio: marks tests as async",
+    "perf: marks tests as performance tests (deselect with '-m \"not perf\"')",
 ]
 norecursedirs = [".git", ".venv", "venv", "build", "dist", ".tox", "__pycache__", "*.egg-info"]
 
