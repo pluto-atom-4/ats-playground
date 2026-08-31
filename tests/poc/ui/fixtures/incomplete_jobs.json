@@ -1,0 +1,13 @@
+[
+  {
+    "id": "job-incomplete-001",
+    "title": "Some Job",
+    "company": "Some Company"
+  },
+  {
+    "id": "job-incomplete-002",
+    "title": "Another Job",
+    "location": "Remote",
+    "status": "pending_review"
+  }
+]
