@@ -32,7 +32,9 @@ def strip_ansi(text: str) -> str:
 
 
 @pytest.fixture
-def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, None]:
+def sample_jobs_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Generator[tuple[Path, list[dict[str, Any]]], None, None]:
     """Create sample jobs in data/extracted_jobs/ for testing.
 
     Writes test jobs to data/extracted_jobs/test_jobs.json during test,
@@ -111,8 +113,9 @@ def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, Non
         },
     ]
 
-    extracted_dir = Path("data/extracted_jobs")
+    extracted_dir = tmp_path / "data" / "extracted_jobs"
     extracted_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.chdir(tmp_path)
 
     job_file = extracted_dir / "test_jobs.json"
     with open(job_file, "w") as f:
@@ -121,8 +124,7 @@ def sample_jobs_file() -> Generator[tuple[Path, list[dict[str, Any]]], None, Non
     try:
         yield job_file, sample_jobs
     finally:
-        if job_file.exists():
-            job_file.unlink()
+        pass  # tmp_path cleanup handled by pytest
 
 
 class TestPreprocessCLIRequirementExtraction:

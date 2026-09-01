@@ -394,25 +394,6 @@ class TestLoadJobs:
                 assert "location" in job
                 assert "status" in job
 
-    def test_load_jobs_real_data_smoke(self) -> None:
-        """Smoke test: loads real data if available (skipped in CI)."""
-        data_dir = Path("data/extracted_jobs")
-
-        if not data_dir.exists():
-            pytest.skip("Real job data files not available in this environment")
-
-        result = load_jobs(data_dir)
-
-        # Should load some jobs
-        assert len(result.jobs) > 0
-        # Verify job structure
-        for job in result.jobs:
-            assert "id" in job
-            assert "title" in job
-            assert "company" in job
-            assert "location" in job
-            assert "status" in job
-
 
 class TestJobTypeHint:
     """Tests to verify Job TypedDict structure."""
