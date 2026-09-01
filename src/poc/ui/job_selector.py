@@ -120,8 +120,6 @@ class JobSelectorApp(App):
         self.all_jobs = jobs or []
         self.all_warnings = warnings or []
         self.filter_text = ""
-        self.selected_ids: set[str] = set()
-        self._job_id_to_index: dict[str, int] = {}
 
     def compose(self) -> ComposeResult:
         """Compose the UI widgets."""
@@ -158,17 +156,14 @@ class JobSelectorApp(App):
         """Populate job list based on current filter."""
         job_list = self.query_one("#job_list", SelectionList)
         job_list.clear_options()
-        self._job_id_to_index.clear()
 
         # Filter jobs
         filtered_jobs = self._get_filtered_jobs()
 
         # Add formatted job options
-        for idx, job in enumerate(filtered_jobs):
+        for job in filtered_jobs:
             row_text = format_job_row(job)
             job_id = job["id"]
-            # Store mapping from job ID to current index
-            self._job_id_to_index[job_id] = idx
             # Add option with job ID as value
             job_list.add_option((row_text, job_id))
 
@@ -186,11 +181,13 @@ class JobSelectorApp(App):
 
     def _update_status_bar(self) -> None:
         """Update status bar with selection count."""
+        job_list = self.query_one("#job_list", SelectionList)
         filtered = self._get_filtered_jobs()
+        # Count selected items (values in the SelectionList)
+        total_selected = len(job_list.selected)
         status_bar = self.query_one("#status_bar", Static)
-        selected_count = len([j for j in filtered if j["id"] in self.selected_ids])
         status_bar.update(
-            f"Jobs: {len(filtered)} of {len(self.all_jobs)} | Selected: {selected_count} | "
+            f"Jobs: {len(filtered)} of {len(self.all_jobs)} | Selected: {total_selected} | "
             f"[a] Select All | [c] Clear | [e] Export | [q] Quit"
         )
 
@@ -200,35 +197,82 @@ class JobSelectorApp(App):
         self._update_job_list()
         self._update_status_bar()
 
+    def on_selection_list_selected_changed(self, event: SelectionList.SelectedChanged) -> None:
+        """Handle Space bar selection changes in SelectionList.
+
+        This event fires when the user presses Space to toggle selection.
+
+        Args:
+            event: Selection change event from SelectionList.
+        """
+        # Update status bar to reflect the new selection state
+        self._update_status_bar()
+
     def action_select_all(self) -> None:
         """Select all visible jobs."""
+        job_list = self.query_one("#job_list", SelectionList)
         filtered = self._get_filtered_jobs()
-        self.selected_ids.update(job["id"] for job in filtered)
+
+        # Build set of job IDs in filtered view
+        filtered_ids = {job["id"] for job in filtered}
+
+        # Select all job IDs for jobs in the current filtered list
+        for idx in range(job_list.option_count):
+            # Get the job ID from the option value
+            option = job_list.get_option_at_index(idx)
+            job_id = option.value
+            if job_id in filtered_ids:
+                # Select if not already selected
+                if job_id not in job_list.selected:
+                    job_list.select(job_id)
 
         self._update_status_bar()
 
     def action_clear_selection(self) -> None:
         """Clear all selections."""
-        self.selected_ids.clear()
+        job_list = self.query_one("#job_list", SelectionList)
+
+        # Collect selected values (job IDs) to avoid modification during iteration
+        selected_values = list(job_list.selected)
+
+        # Deselect all
+        for value in selected_values:
+            job_list.deselect(value)
 
         self._update_status_bar()
 
     def action_export_selected(self) -> None:
-        """Export selected jobs to JSON file."""
-        if not self.selected_ids:
+        """Export selected jobs to JSON file.
+
+        Reads selection state from the SelectionList widget (source of truth).
+        """
+        job_list = self.query_one("#job_list", SelectionList)
+
+        # Get selected job IDs directly from widget
+        # job_list.selected returns list of job_id values
+        selected_job_ids = set(job_list.selected)
+
+        # Filter to selected jobs
+        selected_jobs = [j for j in self.all_jobs if j["id"] in selected_job_ids]
+
+        if not selected_jobs:
             self.notify("No jobs selected to export.", title="Export", timeout=3)
             return
 
-        # Filter to selected jobs
-        selected_jobs = [j for j in self.all_jobs if j["id"] in self.selected_ids]
-
         # Export
-        export_jobs(selected_jobs, self.output_path)
-        self.notify(
-            f"Exported {len(selected_jobs)} jobs to {self.output_path}",
-            title="Export Complete",
-            timeout=5,
-        )
+        try:
+            export_jobs(selected_jobs, self.output_path)
+            self.notify(
+                f"Exported {len(selected_jobs)} jobs to {self.output_path}",
+                title="Export Complete",
+                timeout=5,
+            )
+        except Exception as e:
+            self.notify(
+                f"Export failed: {e}",
+                title="Export Error",
+                timeout=5,
+            )
 
 
 def main() -> None:
