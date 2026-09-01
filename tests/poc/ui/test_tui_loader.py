@@ -348,22 +348,70 @@ class TestLoadJobs:
             assert len(result.jobs) == 1
             assert len(result.warnings) > 0
 
-    def test_load_jobs_real_data(self) -> None:
-        """Load from real data directory (smoke test)."""
-        data_dir = Path("data/extracted_jobs")
+    def test_load_jobs_with_fixture_files(self) -> None:
+        """Load jobs from fixture files in temp directory (no git dependency)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
 
-        if data_dir.exists():
-            result = load_jobs(data_dir)
+            # Create fixture file with valid jobs
+            fixture_file = tmppath / "test_jobs.json"
+            fixture_file.write_text(
+                json.dumps(
+                    [
+                        {
+                            "id": "fixture_1",
+                            "title": "Senior Python Developer",
+                            "company": "TechCorp",
+                            "location": "Remote",
+                            "status": "confirmed",
+                            "description": "Seeking experienced Python developer",
+                        },
+                        {
+                            "id": "fixture_2",
+                            "title": "Java Engineer",
+                            "company": "DataCorp",
+                            "location": "New York",
+                            "status": "pending_review",
+                        },
+                    ]
+                )
+            )
 
-            # Should load some jobs
-            assert len(result.jobs) > 0
-            # Verify job structure
+            # Load from temp directory
+            result = load_jobs(base_dir=tmppath)
+
+            # Verify
+            assert len(result.jobs) == 2
+            assert result.jobs[0]["id"] == "fixture_1"
+            assert result.jobs[1]["id"] == "fixture_2"
+            assert len(result.warnings) == 0
+
+            # Verify all required fields present
             for job in result.jobs:
                 assert "id" in job
                 assert "title" in job
                 assert "company" in job
                 assert "location" in job
                 assert "status" in job
+
+    def test_load_jobs_real_data_smoke(self) -> None:
+        """Smoke test: loads real data if available (skipped in CI)."""
+        data_dir = Path("data/extracted_jobs")
+
+        if not data_dir.exists():
+            pytest.skip("Real job data files not available in this environment")
+
+        result = load_jobs(data_dir)
+
+        # Should load some jobs
+        assert len(result.jobs) > 0
+        # Verify job structure
+        for job in result.jobs:
+            assert "id" in job
+            assert "title" in job
+            assert "company" in job
+            assert "location" in job
+            assert "status" in job
 
 
 class TestJobTypeHint:
