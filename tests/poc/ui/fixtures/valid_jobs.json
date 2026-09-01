@@ -1,0 +1,36 @@
+[
+  {
+    "id": "test-job-001",
+    "title": "Senior Python Developer",
+    "company": "TechCorp Inc",
+    "location": "Seattle, WA",
+    "status": "pending_review",
+    "url": "https://example.com/job/001",
+    "description": "We are looking for a senior Python developer with 5+ years experience.",
+    "salary_min": 120000,
+    "salary_max": 160000,
+    "posted_date": "2026-08-20",
+    "crawled_at": "2026-08-25T10:30:00"
+  },
+  {
+    "id": "test-job-002",
+    "title": "DevOps Engineer",
+    "company": "CloudSys Ltd",
+    "location": "San Francisco, CA",
+    "status": "confirmed",
+    "url": "https://example.com/job/002",
+    "description": "Looking for DevOps engineer experienced in AWS and Kubernetes.",
+    "salary_min": 130000,
+    "salary_max": 170000,
+    "posted_date": "2026-08-22",
+    "crawled_at": "2026-08-25T11:45:00"
+  },
+  {
+    "id": "test-job-003",
+    "title": "Frontend Developer",
+    "company": "WebDesign Pro",
+    "location": "New York, NY",
+    "status": "pending_review",
+    "description": "React and Vue.js expertise required."
+  }
+]
