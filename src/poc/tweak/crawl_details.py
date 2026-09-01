@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from playwright.async_api import Browser, Page
+from playwright.async_api import Browser, Page, Playwright
 
 from src.poc.tweak.common import (
     GENERIC_FALLBACK_SELECTORS,
@@ -236,13 +236,15 @@ async def fetch_job_details(
     job_copy = job.copy()
     job_url = job.get("url")
     company_name = job.get("company", "")
+    job_id = job.get("id")
+    job_title = job.get("title", "")
 
     if not job_url:
-        logger.warning(f"Job has no URL: {job.get('title')}")
+        logger.warning(f"Job has no URL: {job_title}")
         return job_copy
 
     try:
-        logger.debug(f"Fetching details for {job.get('title')} ({company_name})")
+        logger.debug(f"Fetching details for {job_title} ({company_name})")
 
         detail_page = await browser.new_page()
         detail_page.set_default_timeout(timeout_ms)
@@ -277,9 +279,9 @@ async def fetch_job_details(
 
         if description:
             job_copy["description"] = description
-            logger.debug(f"Successfully extracted {len(description)} chars from {job.get('title')}")
+            logger.debug(f"Successfully extracted {len(description)} chars from {job_title}")
         else:
-            logger.warning(f"Failed to extract description for {job.get('title')}")
+            logger.warning(f"Failed to extract description for {job_title}")
             # Append original job unchanged
             if "description" not in job_copy or not job_copy["description"]:
                 job_copy["description"] = ""
@@ -289,6 +291,14 @@ async def fetch_job_details(
 
     except Exception as e:
         logger.error(f"Error fetching details for {job_url}: {e}")
+        logger.warning(
+            "Cleanup notice for job id=%s title=%r company=%r url=%s: %s",
+            job_id,
+            job_title,
+            company_name,
+            job_url,
+            str(e),
+        )
         # Return original job unchanged on error
         return job_copy
 
@@ -353,8 +363,10 @@ async def fetch_all_job_details(
         return 1
 
     # Initialize browser
+    playwright: Optional[Playwright] = None
+    browser: Optional[Browser] = None
     try:
-        browser = await init_browser(headless=headless)
+        playwright, browser = await init_browser(headless=headless)
     except RuntimeError as e:
         logger.error(f"Browser initialization failed: {e}")
         return 2
@@ -374,6 +386,14 @@ async def fetch_all_job_details(
                 logger.info(f"Processed {i}/{len(jobs)}: {job.get('title')[:50]}...")
             except Exception as e:
                 logger.error(f"Error processing job {i}: {e}")
+                logger.warning(
+                    "Cleanup notice for job id=%s title=%r company=%r url=%s: %s",
+                    job.get("id"),
+                    job.get("title"),
+                    job.get("company"),
+                    job.get("url"),
+                    str(e),
+                )
                 # Append original job on error
                 enriched_jobs.append(job)
 
@@ -392,7 +412,7 @@ async def fetch_all_job_details(
         return 0
 
     finally:
-        await close_browser(browser)
+        await close_browser(playwright, browser)
 
 
 # ============================================================================

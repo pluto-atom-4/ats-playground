@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urljoin
 
-from playwright.async_api import Browser, Page
+from playwright.async_api import Browser, Page, Playwright
 
 from src.poc.tweak.common import (
     GENERIC_FALLBACK_SELECTORS,
@@ -254,8 +254,10 @@ async def crawl_all_companies(
     logger.info(f"Crawling {len(companies_to_crawl)} companies")
 
     # Initialize browser
+    playwright: Optional[Playwright] = None
+    browser: Optional[Browser] = None
     try:
-        browser = await init_browser(headless=headless)
+        playwright, browser = await init_browser(headless=headless)
     except RuntimeError as e:
         logger.error(f"Browser initialization failed: {e}")
         return 2
@@ -288,7 +290,7 @@ async def crawl_all_companies(
         return 0
 
     finally:
-        await close_browser(browser)
+        await close_browser(playwright, browser)
 
 
 # ============================================================================
