@@ -25,7 +25,7 @@ def format_job_row(job: Job) -> str:
         Formatted string with pipe-separated fields, column-aligned.
     """
     # Use fixed column widths for alignment
-    title = job["title"][:40].ljust(40)
+    title = job["title"][:70].ljust(70)
     company = job["company"][:20].ljust(20)
     location = job["location"][:20].ljust(20)
     status = job["status"][:15].ljust(15)
