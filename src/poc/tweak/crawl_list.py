@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Crawler module to extract job listings from company career pages (Issue #309).
+"""Crawler module to extract job listings from company career pages (Issue #309, #315).
 
-Crawls job listing pages, extracts job titles/locations/links, writes per-company
-JSON files to data/work/ directory.
+Crawls job listing pages, extracts job titles/locations/links, generates unique job IDs,
+and outputs per-company JSON files with full 9-field schema (id, title, company, location,
+url, description, requirements, salary_min, salary_max, posted_date, crawled_at, status)
+per Issue #309 spec for compatibility with loader.py.
 
 Usage:
     python -m src.poc.tweak.crawl_list \\
@@ -17,12 +19,14 @@ import asyncio
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urljoin
 
 from playwright.async_api import Browser, Page, Playwright
 
+from src.id_generation.hash_generator import generate_job_id
 from src.poc.tweak.common import (
     GENERIC_FALLBACK_SELECTORS,
     close_browser,
@@ -78,7 +82,10 @@ async def extract_job_from_container(
     """
     Extract job details from a single job container element.
 
-    Returns dict with title, location, link, or None if extraction fails.
+    Returns dict with all 12 fields required for loader compatibility:
+    id, title, company, location, url, description, requirements,
+    salary_min, salary_max, posted_date, crawled_at, status.
+    Returns None if extraction fails or title is missing.
     """
     try:
         title = await extract_text(container, selectors.get("title"))
@@ -93,10 +100,30 @@ async def extract_job_from_container(
         if link and base_url:
             link = urljoin(base_url, link)
 
+        # Generate deterministic job ID
+        job_id = generate_job_id(
+            company=company_name,
+            title=title,
+            location=location or "",
+            url=link or None,
+        )
+
+        # Get current timestamp in UTC (matching production crawler format)
+        crawled_at = datetime.utcnow().isoformat()
+
         return {
+            "id": job_id,
             "title": title,
+            "company": company_name,
             "location": location or "",
             "url": link or "",
+            "description": None,
+            "requirements": None,
+            "salary_min": None,
+            "salary_max": None,
+            "posted_date": None,
+            "crawled_at": crawled_at,
+            "status": "pending_review",
         }
     except Exception as e:
         logger.debug(f"Error extracting job from container: {e}")
@@ -124,7 +151,9 @@ async def crawl_company_jobs(
         timeout_ms: Page navigation timeout in milliseconds
 
     Returns:
-        List of extracted job dicts {title, location, url}
+        List of extracted job dicts with 12 fields:
+        id, title, company, location, url, description, requirements,
+        salary_min, salary_max, posted_date, crawled_at, status.
     """
     if not company_config.get("enabled", True):
         logger.info(f"Skipping disabled company: {company_key}")
@@ -134,6 +163,9 @@ async def crawl_company_jobs(
     if not url:
         logger.warning(f"Company {company_key} has no URL configured")
         return []
+
+    # Get display name from config (e.g., "Carbon Robotics" instead of "CarbonRobotics")
+    company_display_name = company_config.get("name", company_key)
 
     crawler_config = company_config.get("crawler", {})
     selectors = company_config.get("selectors", {})
@@ -181,7 +213,7 @@ async def crawl_company_jobs(
                 break
 
             try:
-                job = await extract_job_from_container(page, container, company_key, selectors, url)
+                job = await extract_job_from_container(page, container, company_display_name, selectors, url)
                 if job:
                     jobs.append(job)
                     logger.debug(f"Extracted job {i}/{len(job_containers)}: {job['title'][:50]}...")

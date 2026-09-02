@@ -49,9 +49,11 @@ common : Shared utilities for crawler modules (Issue #309)
     - load_all_company_configs, resolve_company_selectors: Config management
     - setup_logging: Logging initialization
 
-crawl_list : CLI for extracting job listings (Issue #309)
-    Crawls company career pages, extracts job titles/locations/links.
-    Writes per-company JSON files to data/work/ directory.
+crawl_list : CLI for extracting job listings with full schema (Issue #309, #315)
+    Crawls company career pages, extracts job titles/locations/links, generates unique job IDs.
+    Outputs per-company JSON files with full 9-field schema (id, title, company, location,
+    url, description, requirements, salary_min, salary_max, posted_date, crawled_at, status)
+    for compatibility with loader.py. Writes to data/work/ directory.
     Run: python -m src.poc.tweak.crawl_list --config-dir config_test --output-dir data/work
 
 crawl_details : CLI for extracting job descriptions (Issue #309)
