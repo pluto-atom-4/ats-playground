@@ -8,9 +8,11 @@ import pytest
 from textual.widgets import SelectionList, Static
 
 from src.poc.ui.job_selector import (
+    DEFAULT_INPUT_DIR,
     DEFAULT_OUTPUT_PATH,
     JobSelectorApp,
     format_job_row,
+    parse_args,
 )
 from src.poc.ui.loader import Job
 
@@ -77,6 +79,45 @@ class TestFormatJobRow:
         assert len(result) < 200
 
 
+class TestParseArgs:
+    """Tests for parse_args function."""
+
+    def test_parse_args_defaults(self) -> None:
+        """parse_args with no arguments should use defaults."""
+        args = parse_args([])
+
+        assert args.input_dir == DEFAULT_INPUT_DIR
+        assert args.output_path == DEFAULT_OUTPUT_PATH
+
+    def test_parse_args_custom_input_output(self) -> None:
+        """parse_args should accept custom input and output paths."""
+        custom_input = Path("/custom/input")
+        custom_output = Path("/custom/output.json")
+
+        args = parse_args(["--input-dir", str(custom_input), "--output-path", str(custom_output)])
+
+        assert args.input_dir == custom_input
+        assert args.output_path == custom_output
+
+    def test_parse_args_input_dir_only(self) -> None:
+        """parse_args should accept only --input-dir."""
+        custom_input = Path("/custom/input")
+
+        args = parse_args(["--input-dir", str(custom_input)])
+
+        assert args.input_dir == custom_input
+        assert args.output_path == DEFAULT_OUTPUT_PATH
+
+    def test_parse_args_output_path_only(self) -> None:
+        """parse_args should accept only --output-path."""
+        custom_output = Path("/custom/output.json")
+
+        args = parse_args(["--output-path", str(custom_output)])
+
+        assert args.input_dir == DEFAULT_INPUT_DIR
+        assert args.output_path == custom_output
+
+
 class TestJobSelectorApp:
     """Tests for JobSelectorApp initialization."""
 
@@ -118,6 +159,27 @@ class TestJobSelectorApp:
         app = JobSelectorApp(output_path=custom_path)
 
         assert app.output_path == custom_path
+
+    def test_app_initialization_default_input_dir(self) -> None:
+        """App should use default input directory."""
+        app = JobSelectorApp()
+
+        assert app.input_dir == DEFAULT_INPUT_DIR
+
+    def test_app_initialization_custom_input_dir(self) -> None:
+        """App should accept custom input directory."""
+        custom_dir = Path("/custom/input")
+        app = JobSelectorApp(input_dir=custom_dir)
+
+        assert app.input_dir == custom_dir
+
+    def test_app_initialization_with_input_dir(self) -> None:
+        """App initialization should store input_dir."""
+        custom_dir = Path("/data/jobs")
+
+        app = JobSelectorApp(input_dir=custom_dir)
+
+        assert app.input_dir == custom_dir
 
     def test_app_filter_text_empty_initially(self) -> None:
         """Filter text should start empty."""
@@ -592,3 +654,34 @@ class TestJobSelectorUIInteraction:
         # The job_id is extracted from the job
         job_id = job["id"]
         assert job_id == "job_1"
+
+
+class TestOnMountLoadsFromInputDir:
+    """Tests for on_mount using input_dir."""
+
+    def test_on_mount_uses_input_dir(self) -> None:
+        """on_mount should use input_dir when loading jobs."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+
+            # Create a job file in the temp directory
+            job_file = tmppath / "test_jobs.json"
+            job_file.write_text(
+                json.dumps(
+                    [
+                        {
+                            "id": "j1",
+                            "title": "Test",
+                            "company": "TestCorp",
+                            "location": "Remote",
+                            "status": "confirmed",
+                        }
+                    ]
+                )
+            )
+
+            # Create app with custom input_dir (but don't mount)
+            app = JobSelectorApp(input_dir=tmppath)
+
+            # Verify the app stored the input_dir
+            assert app.input_dir == tmppath

@@ -949,6 +949,170 @@ uv run python -m src.cli export --min-score 85 --sort-by location
 
 ---
 
+## POC: Interactive Job Selector TUI
+
+Interactive Textual-based TUI for browsing and selecting extracted jobs before assessment.
+
+**Purpose**: Visual job review and selection with filtering, before assessment.
+
+### Quick Start
+
+```bash
+# Default: Load from data/extracted_jobs, save to data/work/selected.json
+python -m src.poc.ui.job_selector
+
+# Custom input directory
+python -m src.poc.ui.job_selector --input-dir /path/to/jobs --output-path /path/to/output.json
+
+# Validate input before launching TUI
+python -m src.poc.ui.job_selector --input-dir /does/not/exist
+# Output: Error: Input directory does not exist: /does/not/exist
+# Exit code: 1
+```
+
+### Command-Line Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--input-dir` | `data/extracted_jobs` | Directory containing extracted job JSON files |
+| `--output-path` | `data/work/selected.json` | Path where to save selected jobs JSON |
+
+### Features
+
+**Real-time Filtering:**
+- Type to filter jobs by title, company, or location
+- Case-insensitive search
+- Instant results as you type
+
+**Job Selection:**
+- Space bar to toggle individual job selection
+- `[a]` Select All visible jobs (in current filter)
+- `[c]` Clear All selections
+- `[e]` Export selected jobs to JSON
+- `[q]` Quit TUI
+
+**Status Bar:**
+- Shows count of visible jobs vs total
+- Shows number of selected jobs
+- Real-time updates as you filter and select
+
+**Warning Banner:**
+- Displays warnings from loading (missing files, validation errors)
+- Non-blocking (warnings don't prevent TUI from launching)
+
+### Usage Examples
+
+**Basic usage (defaults):**
+```bash
+python -m src.poc.ui.job_selector
+# Loads from: data/extracted_jobs/
+# Saves to: data/work/selected.json
+```
+
+**Custom input directory:**
+```bash
+python -m src.poc.ui.job_selector --input-dir data/my_jobs
+```
+
+**Custom output path:**
+```bash
+python -m src.poc.ui.job_selector --output-path data/my_selection.json
+```
+
+**Both custom:**
+```bash
+python -m src.poc.ui.job_selector \
+  --input-dir data/extracted_jobs \
+  --output-path results/selected.json
+```
+
+### Workflow Integration
+
+**Typical workflow:**
+
+```bash
+# Step 1: Crawl jobs
+uv run python -m src.cli crawl --config config/companies.json
+# Output: data/extracted_jobs/{company}_jobs.json
+
+# Step 2: Preprocess
+uv run python -m src.cli preprocess --show-estimates
+
+# Step 3: Visual selection (with TUI)
+python -m src.poc.ui.job_selector
+# Manually select jobs of interest
+
+# Step 4: Assess only selected jobs
+uv run python -m src.cli assess --cv data/cv.json \
+  --input-file results/selected.json
+
+# Step 5: Export report
+uv run python -m src.cli export --min-score 75
+```
+
+### Error Handling
+
+**Input directory doesn't exist:**
+```bash
+python -m src.poc.ui.job_selector --input-dir /does/not/exist
+# Error: Input directory does not exist: /does/not/exist
+# Exit code: 1
+```
+
+**Input path is not a directory:**
+```bash
+python -m src.poc.ui.job_selector --input-dir data/extracted_jobs/company_jobs.json
+# Error: Input path is not a directory: data/extracted_jobs/company_jobs.json
+# Exit code: 1
+```
+
+**Output path is a directory (warning, doesn't fail):**
+```bash
+python -m src.poc.ui.job_selector --output-path /existing/directory/
+# Warning: Output path is a directory, not a file: /existing/directory/
+# (TUI still launches - user can export)
+```
+
+**Empty input directory (warning shown in TUI):**
+```bash
+python -m src.poc.ui.job_selector --input-dir /empty/dir
+# TUI launches with warning:
+# ⚠ 1 warning(s): /empty/dir: Directory not found
+```
+
+### Keyboard Commands
+
+| Key | Action |
+|-----|--------|
+| Space | Toggle selection for current job |
+| `a` | Select all visible jobs |
+| `c` | Clear all selections |
+| `e` | Export selected jobs |
+| `q` | Quit TUI |
+| ↑/↓ | Navigate job list |
+| Type | Filter jobs (real-time) |
+
+### JSON Output Format
+
+Selected jobs are exported as JSON array:
+
+```json
+[
+  {
+    "id": "job_1",
+    "title": "Senior Python Developer",
+    "company": "TechCorp",
+    "location": "Remote",
+    "status": "confirmed",
+    "description": "5+ years Python...",
+    "url": "https://careers.techcorp.com/job/123"
+  },
+  ...
+]
+```
+
+---
+
 ## Issue #102: Pipeline Control & Visibility Features
 
 Advanced pipeline management with four phases: visibility, filtering, re-review, and timeline tracking.
@@ -1505,7 +1669,7 @@ uv run python -m src.cli integrity purge --type invalid_scores \
 
 ## Document Version
 
-- **Version:** 1.1
-- **Last Updated:** 2026-06-28
+- **Version:** 1.2
+- **Last Updated:** 2026-09-02
 - **Status:** Complete
-- **Coverage:** Phases 1-6 (crawl, preprocess, review, assess, export, integrity) with options, examples, workflows
+- **Coverage:** Phases 1-6 (crawl, preprocess, review, assess, export, integrity) + POC job selector with options, examples, workflows
