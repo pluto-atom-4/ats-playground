@@ -54,7 +54,7 @@ GENERIC_FALLBACK_SELECTORS = {
     "title": "h1, h2, h3, p.title, .job-title, [class*='title']",
     "location": "p, span, [class*='location'], [class*='place']",
     "link": "a[href]",
-    "description": "[class*='description'], [class*='details'], main, article, section",
+    "description_selector": "[class*='description'], [class*='details'], main, article, section",
 }
 
 

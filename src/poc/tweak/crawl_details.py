@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -144,6 +145,40 @@ async def fetch_iframe_content(
 
 
 # ============================================================================
+# SELECTOR PRESENCE WAITING
+# ============================================================================
+
+
+async def selector_present(page: Page, selector: Optional[str], timeout_ms: int) -> bool:
+    """
+    Actively wait for a selector to attach to the page DOM.
+
+    Waits for up to timeout_ms for the selector to be found via wait_for_selector.
+    Useful for slow-loading job description pages where selector exists but content
+    hasn't loaded yet.
+
+    Args:
+        page: Playwright page object
+        selector: CSS selector to wait for (None returns False)
+        timeout_ms: Maximum time to wait in milliseconds
+
+    Returns:
+        True if selector found within timeout, False otherwise or if selector is None
+    """
+    if not selector:
+        logger.debug("No selector provided to selector_present()")
+        return False
+
+    try:
+        await page.wait_for_selector(selector, timeout=timeout_ms)
+        logger.debug(f"Selector found: {selector}")
+        return True
+    except Exception as e:
+        logger.debug(f"Selector '{selector}' not found after {timeout_ms}ms: {e}")
+        return False
+
+
+# ============================================================================
 # DESCRIPTION EXTRACTION
 # ============================================================================
 
@@ -224,6 +259,9 @@ async def fetch_job_details(
     """
     Fetch and enrich a single job with description from detail page.
 
+    Uses adaptive retry logic with increasing timeouts (500ms → 1000ms → 2000ms)
+    for slow-loading job description pages.
+
     Args:
         browser: Playwright browser instance
         job: Job dict from selected.json with url, company, etc.
@@ -261,28 +299,49 @@ async def fetch_job_details(
             await detail_page.close()
             return job_copy
 
-        # Wait for page to settle
-        await detail_page.wait_for_timeout(1000)
+        # Adaptive retry loop for slow-loading description pages
+        description: Optional[str] = None
+        attempt_timeouts = [500, 1000, 2000]  # ms for attempts 1, 2, 3
 
-        # Resolve selectors for company
-        selectors = resolve_company_selectors(company_name, merged_config)
-        if not selectors:
-            selectors = GENERIC_FALLBACK_SELECTORS
+        for attempt in range(1, 4):
+            attempt_timeout = attempt_timeouts[attempt - 1]
+            logger.info(f"Extraction attempt {attempt}/3 for {job_title}")
+            start_time = time.time()
 
-        # Extract description
-        description = await extract_description_from_detail_page(
-            detail_page,
-            job_url,
-            selectors,
-            timeout_ms=timeout_ms,
-        )
+            # Resolve selectors for company
+            selectors = resolve_company_selectors(company_name, merged_config)
+            if not selectors:
+                selectors = GENERIC_FALLBACK_SELECTORS
 
-        if description:
-            job_copy["description"] = description
-            logger.debug(f"Successfully extracted {len(description)} chars from {job_title}")
-        else:
-            logger.warning(f"Failed to extract description for {job_title}")
-            # Append original job unchanged
+            # Check if description selector is present
+            desc_selector = selectors.get("description_selector")
+            selector_found = await selector_present(detail_page, desc_selector, attempt_timeout)
+
+            if selector_found:
+                # Attempt extraction
+                description = await extract_description_from_detail_page(
+                    detail_page,
+                    job_url,
+                    selectors,
+                    timeout_ms=timeout_ms,
+                )
+                if description:
+                    job_copy["description"] = description
+                    elapsed = time.time() - start_time
+                    logger.debug(
+                        f"Extraction succeeded on attempt {attempt} after {elapsed:.2f}s, "
+                        f"extracted {len(description)} chars"
+                    )
+                    break
+
+            elapsed = time.time() - start_time
+            logger.debug(
+                f"Attempt {attempt} failed or no content after {elapsed:.2f}s (selector_found={selector_found})"
+            )
+
+        # If extraction failed on all attempts
+        if not description:
+            logger.warning(f"Failed to extract description for {job_title} after 3 attempts")
             if "description" not in job_copy or not job_copy["description"]:
                 job_copy["description"] = ""
 
