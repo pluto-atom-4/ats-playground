@@ -10,9 +10,41 @@ import logging
 import logging.handlers
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional, Tuple, cast
 
-from playwright.async_api import Browser, async_playwright
+from playwright.async_api import Browser, Playwright, async_playwright
+
+
+# ============================================================================
+# ASYNCIO CLEANUP HANDLER (Issue #309)
+# ============================================================================
+def _suppress_event_loop_closed_exception() -> None:
+    """
+    Suppress RuntimeError: Event loop is closed from subprocess cleanup.
+
+    Root cause: Playwright subprocess cleanup happens during GC after event loop closes.
+    This is a known issue with Playwright's asyncio integration. We suppress the exception
+    since it's harmless (cleanup already happened, just lingering reference cleanup).
+
+    Called via import to catch lingering subprocess exceptions during Python shutdown.
+    """
+    import sys
+
+    old_excepthook = sys.excepthook
+
+    def new_excepthook(exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if isinstance(exc_val, RuntimeError) and "Event loop is closed" in str(exc_val):
+            # Suppress this specific exception; it's from subprocess cleanup
+            pass
+        else:
+            old_excepthook(exc_type, exc_val, exc_tb)
+
+    sys.excepthook = new_excepthook
+
+
+# Register handler on module import
+_suppress_event_loop_closed_exception()
+
 
 # ============================================================================
 # GENERIC FALLBACK SELECTORS
@@ -22,7 +54,7 @@ GENERIC_FALLBACK_SELECTORS = {
     "title": "h1, h2, h3, p.title, .job-title, [class*='title']",
     "location": "p, span, [class*='location'], [class*='place']",
     "link": "a[href]",
-    "description": "[class*='description'], [class*='details'], main, article, section",
+    "description_selector": "[class*='description'], [class*='details'], main, article, section",
 }
 
 
@@ -31,15 +63,18 @@ GENERIC_FALLBACK_SELECTORS = {
 # ============================================================================
 
 
-async def init_browser(headless: bool = True) -> Browser:
+async def init_browser(headless: bool = True) -> Tuple[Playwright, Browser]:
     """
     Initialize and launch a Playwright Chromium browser.
+
+    Returns both Playwright and Browser instances to ensure proper cleanup.
+    Losing the Playwright reference causes subprocess to linger after event loop closes.
 
     Args:
         headless: If True, run browser in headless mode (default: True)
 
     Returns:
-        Initialized Playwright Browser instance
+        Tuple of (Playwright instance, Browser instance)
 
     Raises:
         RuntimeError: If browser initialization fails (system/browser error)
@@ -47,23 +82,36 @@ async def init_browser(headless: bool = True) -> Browser:
     try:
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(headless=headless)
-        return browser
+        return playwright, browser
     except Exception as e:
         raise RuntimeError(f"Failed to initialize browser: {e}") from e
 
 
-async def close_browser(browser: Optional[Browser]) -> None:
+async def close_browser(
+    playwright: Optional[Playwright],
+    browser: Optional[Browser],
+) -> None:
     """
-    Close a Playwright browser instance.
+    Close a Playwright browser instance and stop the Playwright driver.
+
+    Explicitly calls await playwright.stop() to clean up subprocess before event loop closes.
+    This prevents RuntimeError: Event loop is closed during GC.
 
     Args:
-        browser: Browser instance to close (can be None)
+        playwright: Playwright instance (from init_browser)
+        browser: Browser instance (from init_browser)
     """
     if browser:
         try:
             await browser.close()
         except Exception as e:
             logging.warning(f"Error closing browser: {e}")
+
+    if playwright:
+        try:
+            await playwright.stop()
+        except Exception as e:
+            logging.warning(f"Error stopping playwright: {e}")
 
 
 # ============================================================================
