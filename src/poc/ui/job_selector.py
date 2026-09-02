@@ -1,5 +1,7 @@
 """TUI job selector application using Textual."""
 
+import argparse
+import sys
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -10,6 +12,7 @@ from src.poc.ui.exporter import export_jobs
 from src.poc.ui.loader import Job, load_jobs
 
 DEFAULT_OUTPUT_PATH = Path("data/work/selected.json")
+DEFAULT_INPUT_DIR = Path("data/extracted_jobs")
 
 
 def format_job_row(job: Job) -> str:
@@ -107,6 +110,7 @@ class JobSelectorApp(App):
         jobs: list[Job] | None = None,
         warnings: list[str] | None = None,
         output_path: Path = DEFAULT_OUTPUT_PATH,
+        input_dir: Path = DEFAULT_INPUT_DIR,
     ) -> None:
         """Initialize with jobs and output path.
 
@@ -114,9 +118,11 @@ class JobSelectorApp(App):
             jobs: Optional list of jobs (loaded from disk if not provided).
             warnings: Optional list of warnings from loading.
             output_path: Path where to save selected jobs.
+            input_dir: Directory to load jobs from.
         """
         super().__init__()
         self.output_path = output_path
+        self.input_dir = input_dir
         self.all_jobs = jobs or []
         self.all_warnings = warnings or []
         self.filter_text = ""
@@ -144,7 +150,7 @@ class JobSelectorApp(App):
         """Load jobs and populate selection list."""
         # Load jobs if not provided at init
         if not self.all_jobs:
-            result = load_jobs()
+            result = load_jobs(self.input_dir)
             self.all_jobs = result.jobs
             self.all_warnings = result.warnings
 
@@ -275,9 +281,49 @@ class JobSelectorApp(App):
             )
 
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments.
+
+    Args:
+        argv: Command-line arguments (defaults to sys.argv[1:] if None).
+
+    Returns:
+        Parsed arguments as Namespace.
+    """
+    parser = argparse.ArgumentParser(description="Interactive TUI job selector for extracted job listings.")
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=DEFAULT_INPUT_DIR,
+        help=f"Directory containing extracted job JSON files (default: {DEFAULT_INPUT_DIR})",
+    )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=DEFAULT_OUTPUT_PATH,
+        help=f"Output path for selected jobs JSON (default: {DEFAULT_OUTPUT_PATH})",
+    )
+    return parser.parse_args(argv)
+
+
 def main() -> None:
     """Run the job selector TUI."""
-    app = JobSelectorApp()
+    args = parse_args()
+
+    # Validate input directory exists and is a directory
+    if not args.input_dir.exists():
+        print(f"Error: Input directory does not exist: {args.input_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    if not args.input_dir.is_dir():
+        print(f"Error: Input path is not a directory: {args.input_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    # Warn if output path exists as directory (but don't fail)
+    if args.output_path.exists() and args.output_path.is_dir():
+        print(f"Warning: Output path is a directory, not a file: {args.output_path}", file=sys.stderr)
+
+    app = JobSelectorApp(input_dir=args.input_dir, output_path=args.output_path)
     app.run()
 
 

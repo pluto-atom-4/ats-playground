@@ -311,11 +311,33 @@ class TestLoadJobs:
         assert len(result.warnings) > 0
 
     def test_load_jobs_nonexistent_dir(self) -> None:
-        """Load from non-existent directory should return empty result."""
+        """Load from non-existent directory should return warning and empty result."""
         result = load_jobs(Path("/tmp/nonexistent_xyz123456"))
 
         assert result.jobs == []
-        assert result.warnings == []
+        assert len(result.warnings) > 0
+        assert any("Directory not found" in w for w in result.warnings)
+
+    def test_load_jobs_nonexistent_dir_emits_warning(self) -> None:
+        """Load from non-existent directory should emit directory not found warning."""
+        result = load_jobs(Path("/tmp/nonexistent_xyz_1234567"))
+
+        assert len(result.warnings) > 0
+        warning = result.warnings[0]
+        assert "Directory not found" in warning
+
+    def test_load_jobs_not_a_directory(self) -> None:
+        """Load from file path (not directory) should return warning."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+            file_path = tmppath / "file.txt"
+            file_path.write_text("not a directory")
+
+            result = load_jobs(file_path)
+
+            assert result.jobs == []
+            assert len(result.warnings) > 0
+            assert any("Not a directory" in w for w in result.warnings)
 
     def test_load_jobs_graceful_failure(self) -> None:
         """Load should gracefully handle a mix of valid and invalid files."""

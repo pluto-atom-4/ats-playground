@@ -147,16 +147,33 @@ def load_jobs(base_dir: Path = Path("data/extracted_jobs")) -> LoadResult:
     Gracefully handles missing files, malformed JSON, and validation errors.
     Continues loading other files even if some fail.
 
+    Warnings are generated for:
+    - Missing directory
+    - Path is not a directory (but file exists)
+
+    Note: Empty directories do NOT generate warnings (normal state).
+
     Args:
         base_dir: Directory containing job JSON files.
 
     Returns:
         LoadResult with all successfully loaded jobs and list of warnings.
     """
-    files = discover_source_files(base_dir)
+    all_jobs: list[Job] = []
+    warnings: list[str] = []
 
-    all_jobs = []
-    warnings = []
+    # Check if base_dir exists
+    if not base_dir.exists():
+        warnings.append(f"{base_dir}: Directory not found")
+        return LoadResult(all_jobs, warnings)
+
+    # Check if base_dir is a directory
+    if not base_dir.is_dir():
+        warnings.append(f"{base_dir}: Not a directory")
+        return LoadResult(all_jobs, warnings)
+
+    # Directory exists and is valid, discover and load files
+    files = discover_source_files(base_dir)
 
     for file_path in files:
         jobs, warning = _load_single_file(file_path)
