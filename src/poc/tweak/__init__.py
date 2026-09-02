@@ -38,6 +38,26 @@ markdown_section_classifier : Markdown section classification
     - calculate_confidence: Compute confidence score for a classification
     - fallback_confidence: Compute confidence using fallback heuristics when keywords not found
     - calculate_position: Calculate character position of keyword in source text
+
+common : Shared utilities for crawler modules (Issue #309)
+    Provides browser initialization, config loading, selector resolution, and logging setup.
+    Used by crawl_list.py and crawl_details.py for independent crawler operation.
+
+    Key exports:
+    - init_browser, close_browser: Browser lifecycle management
+    - retry_goto: Page navigation with exponential backoff retry
+    - load_all_company_configs, resolve_company_selectors: Config management
+    - setup_logging: Logging initialization
+
+crawl_list : CLI for extracting job listings (Issue #309)
+    Crawls company career pages, extracts job titles/locations/links.
+    Writes per-company JSON files to data/work/ directory.
+    Run: python -m src.poc.tweak.crawl_list --config-dir config_test --output-dir data/work
+
+crawl_details : CLI for extracting job descriptions (Issue #309)
+    Reads selected.json with job listings, fetches detail pages, extracts descriptions.
+    Handles iframe vs direct-DOM extraction, writes enriched JSON to output file.
+    Run: python -m src.poc.tweak.crawl_details --input data/work/selected.json --output data/work/details.json
 """
 
 from src.poc.tweak.markdown_section_classifier import (

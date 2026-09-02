@@ -1,0 +1,272 @@
+"""Shared utilities for enhanced crawler modules (Issue #309).
+
+Provides browser initialization, config loading, selector resolution, and logging setup.
+Used by crawl_list.py and crawl_details.py for independent crawler operation.
+"""
+
+import asyncio
+import json
+import logging
+import logging.handlers
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional, cast
+
+from playwright.async_api import Browser, async_playwright
+
+# ============================================================================
+# GENERIC FALLBACK SELECTORS
+# ============================================================================
+GENERIC_FALLBACK_SELECTORS = {
+    "job_container": "[class*='job'], [class*='posting'], tr",
+    "title": "h1, h2, h3, p.title, .job-title, [class*='title']",
+    "location": "p, span, [class*='location'], [class*='place']",
+    "link": "a[href]",
+    "description": "[class*='description'], [class*='details'], main, article, section",
+}
+
+
+# ============================================================================
+# BROWSER INITIALIZATION
+# ============================================================================
+
+
+async def init_browser(headless: bool = True) -> Browser:
+    """
+    Initialize and launch a Playwright Chromium browser.
+
+    Args:
+        headless: If True, run browser in headless mode (default: True)
+
+    Returns:
+        Initialized Playwright Browser instance
+
+    Raises:
+        RuntimeError: If browser initialization fails (system/browser error)
+    """
+    try:
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(headless=headless)
+        return browser
+    except Exception as e:
+        raise RuntimeError(f"Failed to initialize browser: {e}") from e
+
+
+async def close_browser(browser: Optional[Browser]) -> None:
+    """
+    Close a Playwright browser instance.
+
+    Args:
+        browser: Browser instance to close (can be None)
+    """
+    if browser:
+        try:
+            await browser.close()
+        except Exception as e:
+            logging.warning(f"Error closing browser: {e}")
+
+
+# ============================================================================
+# PAGE NAVIGATION WITH RETRY
+# ============================================================================
+
+
+async def retry_goto(
+    page: Any,
+    url: str,
+    max_attempts: int = 3,
+    timeout_ms: int = 30000,
+    logger: Optional[logging.Logger] = None,
+) -> bool:
+    """
+    Navigate to URL with exponential backoff retry logic.
+
+    Attempts navigation up to max_attempts times with backoff: 2s, 4s, 8s, etc.
+
+    Args:
+        page: Playwright page instance
+        url: URL to navigate to
+        max_attempts: Maximum number of retry attempts (default: 3)
+        timeout_ms: Page navigation timeout in milliseconds (default: 30000)
+        logger: Optional logger instance for debug output
+
+    Returns:
+        True if navigation succeeded, False otherwise
+
+    Side Effects:
+        Updates page timeout and navigates to URL on success.
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    page.set_default_timeout(timeout_ms)
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            logger.debug(f"Navigation attempt {attempt}/{max_attempts} to {url}")
+            await page.goto(url, wait_until="networkidle")
+            logger.debug(f"Successfully navigated to {url}")
+            return True
+        except Exception as e:
+            if attempt < max_attempts:
+                backoff_sec = 2 ** (attempt - 1)  # 2s, 4s, 8s, ...
+                logger.debug(f"Navigation attempt {attempt} failed: {e}. Retrying in {backoff_sec}s...")
+                await asyncio.sleep(backoff_sec)
+            else:
+                logger.warning(f"Navigation failed after {max_attempts} attempts: {e}")
+                return False
+
+    return False
+
+
+# ============================================================================
+# CONFIG LOADING & MERGING
+# ============================================================================
+
+
+def load_all_company_configs(config_dir: str = "config_test") -> Dict[str, Any]:
+    """
+    Load and merge all company configs from all JSON files in config_dir.
+
+    Reads all *.json files from config_dir, extracts "companies" key from each,
+    and merges into a single dict. Later files override earlier ones for conflicting keys.
+
+    Args:
+        config_dir: Directory containing config JSON files (default: "config_test")
+
+    Returns:
+        Merged dict of {company_key: company_config} from all files
+
+    Raises:
+        FileNotFoundError: If config_dir does not exist
+        ValueError: If no JSON files found or parsing fails
+    """
+    config_path = Path(config_dir)
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config directory not found: {config_dir}")
+
+    json_files = sorted(config_path.glob("*.json"))
+    if not json_files:
+        raise ValueError(f"No JSON files found in {config_dir}")
+
+    merged_companies: Dict[str, Any] = {}
+
+    for json_file in json_files:
+        try:
+            with open(json_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                companies = config.get("companies", {})
+                merged_companies.update(companies)
+                logging.debug(f"Loaded {len(companies)} companies from {json_file.name}")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in {json_file.name}: {e}") from e
+
+    logging.info(f"Merged {len(merged_companies)} companies from {len(json_files)} config files")
+    return merged_companies
+
+
+# ============================================================================
+# SELECTOR RESOLUTION
+# ============================================================================
+
+
+def resolve_company_selectors(job_company_name: str, merged_config: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Resolve CSS selectors for a company, matching on both key and name field.
+
+    Matches company_name case-insensitively against:
+    1. Dict keys in merged_config (e.g., "CarbonRobotics")
+    2. "name" field in company config (e.g., "Carbon Robotics")
+
+    Handles key/name mismatches (e.g., "CarbonRobotics" key vs "Carbon Robotics" name).
+    Returns selectors from matched config, or empty dict if not found.
+
+    Args:
+        job_company_name: Company name from job listing (e.g., "Carbon Robotics", "CarbonRobotics")
+        merged_config: Merged company configurations dict
+
+    Returns:
+        Dict of selectors for the company (defaults to GENERIC_FALLBACK_SELECTORS if not found)
+    """
+    job_name_lower = job_company_name.lower()
+
+    # Try matching against keys
+    for key, config in merged_config.items():
+        if key.lower() == job_name_lower:
+            selectors = config.get("selectors")
+            if selectors and isinstance(selectors, dict):
+                return cast(Dict[str, str], selectors)
+
+    # Try matching against "name" field
+    for _key, config in merged_config.items():
+        config_name = config.get("name", "").lower()
+        if config_name == job_name_lower:
+            selectors = config.get("selectors")
+            if selectors and isinstance(selectors, dict):
+                return cast(Dict[str, str], selectors)
+
+    # No match found, return empty dict (caller will use fallbacks)
+    logging.debug(f"No selector config found for company '{job_company_name}', using fallbacks")
+    return {}
+
+
+# ============================================================================
+# LOGGING SETUP
+# ============================================================================
+
+
+def setup_logging(
+    name: str,
+    level: str = "INFO",
+    log_file: str = "logs/crawl_modules.log",
+) -> logging.Logger:
+    """
+    Set up logging with both console and file handlers.
+
+    Creates logger with given name, adds console and file handlers.
+    Creates logs directory if it doesn't exist.
+
+    Args:
+        name: Logger name (typically __name__)
+        level: Logging level as string (default: "INFO")
+        log_file: Path to log file (default: "logs/crawl_modules.log")
+
+    Returns:
+        Configured logger instance
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+
+    # Create logs directory if needed
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(getattr(logging, level.upper(), logging.INFO))
+    console_format = logging.Formatter(
+        "[%(asctime)s] %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    console_handler.setFormatter(console_format)
+
+    # File handler (rotating, max 10MB per file, 5 backups)
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file,
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=5,
+    )
+    file_handler.setLevel(getattr(logging, level.upper(), logging.INFO))
+    file_format = logging.Formatter(
+        "[%(asctime)s] %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    file_handler.setFormatter(file_format)
+
+    # Add handlers to logger (avoid duplicates)
+    if not logger.handlers:
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
+
+    return logger
