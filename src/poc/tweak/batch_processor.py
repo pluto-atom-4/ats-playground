@@ -1,0 +1,391 @@
+"""POC Batch Processor for multi-job markdown pipeline.
+
+This module runs multiple job descriptions through the 4-stage spaCy markdown
+pipeline to validate and test the processing workflow.
+
+Stages:
+1. HTMLPreprocessor: Clean HTML, normalize structure
+2. HTMLMarkdownConverter: Convert HTML to Markdown using MarkItDown
+3. MarkdownPolisher: Apply formatting rules for polished output
+4. SectionClassifier: Classify markdown sections into semantic types
+   (Note: SectionClassifier used here differs from SectionClassifierComponent)
+
+Components are instantiated once and reused across all jobs for efficiency.
+Per-job errors are captured without aborting the batch.
+
+Usage:
+    >>> from src.poc.tweak.batch_processor import run_batch, print_summary
+    >>>
+    >>> results = run_batch("data/work/details_test.json")
+    >>> summary = print_summary(results)
+    >>> print(summary)
+
+CLI:
+    python -m src.poc.tweak.batch_processor --input-path data/work/details_test.json
+"""
+
+import argparse
+import json
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List
+
+from src.poc.tweak.markdown_section_classifier import SectionClassifier
+from src.poc.tweak.multi_line_paragraph import MarkdownSection
+from src.poc.tweak.spacy_pipeline import (
+    HTMLMarkdownConverter,
+    HTMLPreprocessor,
+    MarkdownPolisher,
+)
+
+
+@dataclass
+class JobResult:
+    """Result of processing a single job through the markdown pipeline.
+
+    Attributes:
+        job_id: Unique identifier for the job
+        title: Job title
+        company: Company name
+        sections_detected: Number of markdown sections detected
+        keyword_matches: Total number of keyword matches in classifications
+        confidence_min: Minimum confidence score across classifications
+        confidence_max: Maximum confidence score across classifications
+        confidence_avg: Average confidence score across classifications
+        errors: List of (stage_name, error_message) tuples for per-stage errors
+    """
+
+    job_id: str
+    title: str
+    company: str
+    sections_detected: int
+    keyword_matches: int
+    confidence_min: float
+    confidence_max: float
+    confidence_avg: float
+    errors: List[tuple] = field(default_factory=list)
+
+    def add_error(self, stage: str, error: str) -> None:
+        """Add a per-stage error to the result.
+
+        Args:
+            stage: Pipeline stage name (e.g., 'preprocessor', 'converter')
+            error: Error message
+        """
+        self.errors.append((stage, error))
+
+    def has_errors(self) -> bool:
+        """Check if this job had any processing errors."""
+        return len(self.errors) > 0
+
+
+def load_jobs(path: str) -> List[Dict[str, Any]]:
+    """Load and validate jobs from JSON file.
+
+    Validates that:
+    - Input is a JSON array
+    - Each record contains a 'description' field
+    - description field is non-empty
+
+    Args:
+        path: Path to JSON file containing job records
+
+    Returns:
+        List of job record dicts
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        ValueError: If JSON is not an array or records lack description field
+        json.JSONDecodeError: If JSON is malformed
+    """
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"Job file not found: {path}")
+
+    with open(file_path) as f:
+        data = json.load(f)
+
+    # Validate input is array
+    if not isinstance(data, list):
+        raise ValueError(
+            f"Expected JSON array at root, got {type(data).__name__}. Input must be an array of job records."
+        )
+
+    # Validate each record has description field
+    for i, job in enumerate(data):
+        if not isinstance(job, dict):
+            raise ValueError(f"Record {i} is not a dict (type: {type(job).__name__}). Each job must be an object.")
+        if "description" not in job:
+            raise ValueError(
+                f"Record {i} (ID: {job.get('id', 'unknown')}) missing 'description' field. "
+                "Each job must have a description."
+            )
+        if not job["description"]:
+            raise ValueError(
+                f"Record {i} (ID: {job.get('id', 'unknown')}) has empty description. Description cannot be empty."
+            )
+
+    return data
+
+
+def process_job(
+    job: Dict[str, Any],
+    *,
+    preprocessor: HTMLPreprocessor,
+    converter: HTMLMarkdownConverter,
+    polisher: MarkdownPolisher,
+    classifier: SectionClassifier,
+) -> JobResult:
+    """Process a single job through the markdown pipeline.
+
+    Runs job through 4 stages with per-stage error handling. Errors are captured
+    in JobResult.errors and do not abort processing.
+
+    Stages:
+    1. HTMLPreprocessor: Clean raw HTML
+    2. HTMLMarkdownConverter: Convert HTML to Markdown
+    3. MarkdownPolisher: Polish Markdown formatting
+    4. SectionClassifier: Classify sections via keyword-based matching
+
+    Args:
+        job: Job record dict (must have 'id', 'title', 'company', 'description')
+        preprocessor: HTMLPreprocessor instance
+        converter: HTMLMarkdownConverter instance
+        polisher: MarkdownPolisher instance
+        classifier: SectionClassifier instance
+
+    Returns:
+        JobResult with processing stats and any errors encountered
+
+    Note:
+        This function NEVER raises. All errors are captured in JobResult.errors.
+    """
+    job_id = job.get("id", "unknown")
+    title = job.get("title", "Unknown")
+    company = job.get("company", "Unknown")
+
+    # Initialize result
+    result = JobResult(
+        job_id=job_id,
+        title=title,
+        company=company,
+        sections_detected=0,
+        keyword_matches=0,
+        confidence_min=1.0,
+        confidence_max=0.0,
+        confidence_avg=0.0,
+    )
+
+    raw_html = job.get("description", "")
+
+    # Stage 1: Preprocess
+    try:
+        clean_html = preprocessor.process(raw_html)
+    except Exception as e:
+        result.add_error("preprocessor", str(e))
+        return result
+
+    # Stage 2: Convert to Markdown
+    try:
+        markdown = converter.process(clean_html)
+    except Exception as e:
+        result.add_error("converter", str(e))
+        return result
+
+    # Stage 3: Polish Markdown
+    try:
+        polished_markdown = polisher.process(markdown)
+    except Exception as e:
+        result.add_error("polisher", str(e))
+        return result
+
+    # Stage 4: Classify sections
+    try:
+        # Simple section detection: count lines starting with # or ##
+        sections = [line for line in polished_markdown.split("\n") if line.strip().startswith("#")]
+        result.sections_detected = len(sections)
+
+        # Run classifier on polished markdown to gather confidence stats
+        if sections:
+            # Create a simple section for classification
+            sample_section = MarkdownSection(
+                title=sections[0].lstrip("#").strip() if sections else "Unknown",
+                content=polished_markdown,
+                level=2,
+                start_line=0,
+                end_line=1,
+                word_count=len(polished_markdown.split()),
+                line_count=len(polished_markdown.split("\n")),
+                has_list="\n*" in polished_markdown or "\n-" in polished_markdown,
+            )
+
+            classification = classifier.classify(sample_section)
+
+            # Extract confidence stats from classification
+            if classification.all_types:
+                confidences = [tc.confidence for tc in classification.all_types]
+                result.confidence_min = min(confidences) if confidences else 0.0
+                result.confidence_max = max(confidences) if confidences else 0.0
+                result.confidence_avg = sum(confidences) / len(confidences) if confidences else 0.0
+
+                # Count total keyword matches
+                for type_class in classification.all_types:
+                    result.keyword_matches += len(type_class.matched_keywords)
+
+    except Exception as e:
+        result.add_error("classifier", str(e))
+        # Don't return early; we want to continue with partial results
+
+    return result
+
+
+def run_batch(input_path: str) -> List[JobResult]:
+    """Run batch processing on all jobs in input file.
+
+    Instantiates pipeline components once, then processes all jobs sequentially
+    through the pipeline.
+
+    Args:
+        input_path: Path to JSON file with job records
+
+    Returns:
+        List of JobResult objects (one per job)
+
+    Raises:
+        FileNotFoundError: If input file not found
+        ValueError: If input file is not valid JSON array
+    """
+    # Load jobs
+    jobs = load_jobs(input_path)
+
+    # Instantiate components once
+    preprocessor = HTMLPreprocessor()
+    converter = HTMLMarkdownConverter()
+    polisher = MarkdownPolisher()
+    classifier = SectionClassifier()
+
+    # Process all jobs
+    results = []
+    for job in jobs:
+        result = process_job(
+            job,
+            preprocessor=preprocessor,
+            converter=converter,
+            polisher=polisher,
+            classifier=classifier,
+        )
+        results.append(result)
+
+    return results
+
+
+def print_summary(results: List[JobResult]) -> str:
+    """Generate and print summary of batch processing results.
+
+    Outputs per-job statistics and aggregate stats.
+
+    Args:
+        results: List of JobResult objects from run_batch()
+
+    Returns:
+        Formatted summary string (also prints to stdout)
+    """
+    lines = []
+
+    # Header
+    lines.append("=" * 80)
+    lines.append("BATCH PROCESSING SUMMARY")
+    lines.append("=" * 80)
+    lines.append("")
+
+    # Per-job results
+    lines.append("PER-JOB RESULTS:")
+    lines.append("-" * 80)
+
+    for i, result in enumerate(results, 1):
+        lines.append(f"\n[Job {i}] {result.title}")
+        lines.append(f"  Job ID: {result.job_id}")
+        lines.append(f"  Company: {result.company}")
+        lines.append(f"  Sections Detected: {result.sections_detected}")
+        lines.append(f"  Keyword Matches: {result.keyword_matches}")
+        if result.sections_detected > 0:
+            lines.append(
+                f"  Confidence Scores: min={result.confidence_min:.3f}, "
+                f"max={result.confidence_max:.3f}, avg={result.confidence_avg:.3f}"
+            )
+        else:
+            lines.append("  Confidence Scores: N/A (no sections detected)")
+
+        if result.has_errors():
+            lines.append(f"  Errors ({len(result.errors)}):")
+            for stage, error in result.errors:
+                lines.append(f"    - {stage}: {error}")
+        else:
+            lines.append("  Status: SUCCESS")
+
+    # Aggregate statistics
+    lines.append("")
+    lines.append("-" * 80)
+    lines.append("AGGREGATE STATISTICS:")
+    lines.append("-" * 80)
+
+    total_jobs = len(results)
+    successful = sum(1 for r in results if not r.has_errors())
+    failed = total_jobs - successful
+    total_sections = sum(r.sections_detected for r in results)
+    total_keywords = sum(r.keyword_matches for r in results)
+
+    lines.append(f"Total Jobs Processed: {total_jobs}")
+    lines.append(f"Successful: {successful}")
+    lines.append(f"Failed: {failed}")
+    lines.append(f"Success Rate: {successful / total_jobs * 100:.1f}%")
+    lines.append(f"Total Sections Detected: {total_sections}")
+    lines.append(f"Total Keyword Matches: {total_keywords}")
+
+    # Confidence stats
+    confidences_with_values = [r.confidence_avg for r in results if r.sections_detected > 0 and r.confidence_avg > 0]
+    if confidences_with_values:
+        avg_confidence = sum(confidences_with_values) / len(confidences_with_values)
+        lines.append(f"Average Confidence (across all jobs): {avg_confidence:.3f}")
+
+    lines.append("")
+    lines.append("=" * 80)
+
+    summary = "\n".join(lines)
+    print(summary)
+    return summary
+
+
+def main() -> int:
+    """CLI entry point for batch processor.
+
+    Parses arguments, runs batch processing, prints summary.
+
+    Returns:
+        Exit code (0 on success, 1 on error)
+    """
+    parser = argparse.ArgumentParser(description="POC Batch Processor for multi-job markdown pipeline")
+    parser.add_argument(
+        "--input-path",
+        type=str,
+        default="data/work/details_test.json",
+        help="Path to JSON file with job records (default: data/work/details_test.json)",
+    )
+
+    args = parser.parse_args()
+
+    try:
+        results = run_batch(args.input_path)
+        print_summary(results)
+        return 0
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
