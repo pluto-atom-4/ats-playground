@@ -7,8 +7,8 @@ Stages:
 1. HTMLPreprocessor: Clean HTML, normalize structure
 2. HTMLMarkdownConverter: Convert HTML to Markdown using MarkItDown
 3. MarkdownPolisher: Apply formatting rules for polished output
-4. SectionClassifier: Classify markdown sections into semantic types
-   (Note: SectionClassifier used here differs from SectionClassifierComponent)
+4. MarkdownSpanRuler: Parse sections from markdown content
+5. SectionClassifier: Classify parsed sections into semantic types
 
 Components are instantiated once and reused across all jobs for efficiency.
 Per-job errors are captured without aborting the batch.
@@ -31,8 +31,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
+import spacy
+
 from src.poc.tweak.markdown_section_classifier import SectionClassifier
-from src.poc.tweak.multi_line_paragraph import MarkdownSection
+from src.poc.tweak.multi_line_paragraph import MarkdownSpanRuler
 from src.poc.tweak.spacy_pipeline import (
     HTMLMarkdownConverter,
     HTMLPreprocessor,
@@ -136,17 +138,19 @@ def process_job(
     converter: HTMLMarkdownConverter,
     polisher: MarkdownPolisher,
     classifier: SectionClassifier,
+    ruler: MarkdownSpanRuler,
 ) -> JobResult:
     """Process a single job through the markdown pipeline.
 
-    Runs job through 4 stages with per-stage error handling. Errors are captured
+    Runs job through 5 stages with per-stage error handling. Errors are captured
     in JobResult.errors and do not abort processing.
 
     Stages:
     1. HTMLPreprocessor: Clean raw HTML
     2. HTMLMarkdownConverter: Convert HTML to Markdown
     3. MarkdownPolisher: Polish Markdown formatting
-    4. SectionClassifier: Classify sections via keyword-based matching
+    4. MarkdownSpanRuler: Parse sections from markdown
+    5. SectionClassifier: Classify sections via keyword-based matching
 
     Args:
         job: Job record dict (must have 'id', 'title', 'company', 'description')
@@ -154,6 +158,7 @@ def process_job(
         converter: HTMLMarkdownConverter instance
         polisher: MarkdownPolisher instance
         classifier: SectionClassifier instance
+        ruler: MarkdownSpanRuler instance for parsing sections
 
     Returns:
         JobResult with processing stats and any errors encountered
@@ -200,42 +205,45 @@ def process_job(
         result.add_error("polisher", str(e))
         return result
 
-    # Stage 4: Classify sections
+    # Stage 4: Parse sections using MarkdownSpanRuler
     try:
-        # Simple section detection: count lines starting with # or ##
-        sections = [line for line in polished_markdown.split("\n") if line.strip().startswith("#")]
+        sections = ruler.parse(polished_markdown)
         result.sections_detected = len(sections)
 
-        # Run classifier on polished markdown to gather confidence stats
+        # Stage 5: Classify each section and aggregate confidence stats
         if sections:
-            # Create a simple section for classification
-            sample_section = MarkdownSection(
-                title=sections[0].lstrip("#").strip() if sections else "Unknown",
-                content=polished_markdown,
-                level=2,
-                start_line=0,
-                end_line=1,
-                word_count=len(polished_markdown.split()),
-                line_count=len(polished_markdown.split("\n")),
-                has_list="\n*" in polished_markdown or "\n-" in polished_markdown,
-            )
+            confidences = []
+            for section in sections:
+                try:
+                    classification = classifier.classify(section)
 
-            classification = classifier.classify(sample_section)
+                    # Extract confidence stats from classification
+                    if classification.all_types:
+                        for tc in classification.all_types:
+                            confidences.append(tc.confidence)
 
-            # Extract confidence stats from classification
-            if classification.all_types:
-                confidences = [tc.confidence for tc in classification.all_types]
-                result.confidence_min = min(confidences) if confidences else 0.0
-                result.confidence_max = max(confidences) if confidences else 0.0
-                result.confidence_avg = sum(confidences) / len(confidences) if confidences else 0.0
+                        # Count total keyword matches
+                        for type_class in classification.all_types:
+                            result.keyword_matches += len(type_class.matched_keywords)
+                except Exception as sec_err:
+                    result.add_error("section_classification", str(sec_err))
+                    # Continue processing other sections
 
-                # Count total keyword matches
-                for type_class in classification.all_types:
-                    result.keyword_matches += len(type_class.matched_keywords)
+            # Aggregate confidence stats across all sections
+            if confidences:
+                result.confidence_min = min(confidences)
+                result.confidence_max = max(confidences)
+                result.confidence_avg = sum(confidences) / len(confidences)
+            else:
+                # If all section classifications failed, reset to valid defaults
+                result.confidence_min = 0.0
+                result.confidence_max = 0.0
+                result.confidence_avg = 0.0
 
     except Exception as e:
-        result.add_error("classifier", str(e))
-        # Don't return early; we want to continue with partial results
+        result.add_error("section_parsing", str(e))
+        # Errors in section parsing/classification do not halt further processing;
+        # we report sections detected and partial confidence stats if any
 
     return result
 
@@ -243,8 +251,8 @@ def process_job(
 def run_batch(input_path: str) -> List[JobResult]:
     """Run batch processing on all jobs in input file.
 
-    Instantiates pipeline components once, then processes all jobs sequentially
-    through the pipeline.
+    Loads spaCy model, instantiates pipeline components once, then processes
+    all jobs sequentially through the pipeline.
 
     Args:
         input_path: Path to JSON file with job records
@@ -255,14 +263,24 @@ def run_batch(input_path: str) -> List[JobResult]:
     Raises:
         FileNotFoundError: If input file not found
         ValueError: If input file is not valid JSON array
+        OSError: If spaCy model cannot be loaded
     """
     # Load jobs
     jobs = load_jobs(input_path)
+
+    # Load spaCy model once
+    try:
+        nlp = spacy.load("en_core_web_md")
+    except OSError as e:
+        raise OSError(
+            f"Failed to load spaCy model 'en_core_web_md': {e}. Run: uv run python -m spacy download en_core_web_md"
+        ) from e
 
     # Instantiate components once
     preprocessor = HTMLPreprocessor()
     converter = HTMLMarkdownConverter()
     polisher = MarkdownPolisher()
+    ruler = MarkdownSpanRuler(nlp)
     classifier = SectionClassifier()
 
     # Process all jobs
@@ -274,6 +292,7 @@ def run_batch(input_path: str) -> List[JobResult]:
             converter=converter,
             polisher=polisher,
             classifier=classifier,
+            ruler=ruler,
         )
         results.append(result)
 
@@ -379,7 +398,7 @@ def main() -> int:
         results = run_batch(args.input_path)
         print_summary(results)
         return 0
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     except Exception as e:
