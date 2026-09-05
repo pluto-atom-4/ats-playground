@@ -2,7 +2,7 @@
 
 Implements pattern-based requirement detection with confidence scoring,
 negation detection, and context adjustments. Extracts requirements from
-"requirements" section type only (B2 decision - Issue #321).
+QUALIFICATIONS section type only (B2 decision - Issue #321).
 
 Processes spaCy Doc with classified sections (doc._.classified_sections)
 and extracts requirements into doc._.requirements extension.
@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Optional
 from spacy.language import Language
 from spacy.tokens import Doc
 
+from src.poc.tweak.patterns import SectionType
 from src.poc.tweak.spacy_pipeline.patterns import REQUIREMENT_PATTERNS
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,7 @@ class RequirementProcessor:
     """spaCy pipeline component for requirement extraction.
 
     Reads classified sections from doc._.classified_sections and extracts
-    requirements from sections classified as "requirements" type only.
+    requirements from sections classified as QUALIFICATIONS type only.
 
     Per-stage error handling ensures extraction errors do not halt processing.
 
@@ -155,7 +156,7 @@ class RequirementProcessor:
         """Process a spaCy Doc and extract requirements.
 
         Reads doc._.classified_sections and extracts requirements from
-        sections classified as "requirements" type only.
+        sections classified as QUALIFICATIONS type only.
 
         Returns dict list: [{"text": str, "confidence": float, "source": str}, ...]
 
@@ -181,8 +182,9 @@ class RequirementProcessor:
 
         for section, classification in classified_sections:
             try:
-                # Filter to "requirements" section type only (B2 decision)
-                if classification.section_type.value != "requirements":
+                # Filter to QUALIFICATIONS section type only (B2 decision)
+                # "requirements" section type maps to SectionType.QUALIFICATIONS
+                if SectionType.QUALIFICATIONS not in classification.labels:
                     continue
 
                 # Extract from section title

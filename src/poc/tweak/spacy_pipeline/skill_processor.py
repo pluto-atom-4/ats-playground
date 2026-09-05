@@ -1,7 +1,7 @@
 """Skill extraction processor for spaCy pipeline.
 
 Implements pattern-based skill detection using spaCy Matcher with action verb lemmas.
-Extracts skills from "skills" section type only (B2 decision - Issue #321).
+Extracts skills from SKILLS section type only (B2 decision - Issue #321).
 
 Processes spaCy Doc with classified sections (doc._.classified_sections) and
 extracts skills into doc._.skills extension.
@@ -32,6 +32,7 @@ from spacy.matcher import Matcher
 from spacy.tokens import Doc
 from spacy.util import filter_spans
 
+from src.poc.tweak.patterns import SectionType
 from src.poc.tweak.spacy_pipeline.patterns import SKILL_VERBS
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class SkillProcessor:
     """spaCy pipeline component for skill extraction.
 
     Reads classified sections from doc._.classified_sections and extracts
-    skills from sections classified as "skills" type only.
+    skills from sections classified as SKILLS type only.
 
     Uses spaCy Matcher with action verb lemmas to identify skill phrases.
 
@@ -96,7 +97,7 @@ class SkillProcessor:
         """Process a spaCy Doc and extract skills.
 
         Reads doc._.classified_sections and extracts skills from sections
-        classified as "skills" type only.
+        classified as SKILLS type only.
 
         Returns dict list: [{"skill": str, "confidence": 1.0}, ...]
 
@@ -123,8 +124,8 @@ class SkillProcessor:
 
         for section, classification in classified_sections:
             try:
-                # Filter to "skills" section type only (B2 decision)
-                if classification.section_type.value != "skills":
+                # Filter to SKILLS section type only (B2 decision)
+                if SectionType.SKILLS not in classification.labels:
                     continue
 
                 # Combine title and content for processing

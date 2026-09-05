@@ -1,8 +1,7 @@
 """Technology extraction processor for spaCy pipeline.
 
 Implements entity-based technology detection using spaCy's entity_ruler.
-Extracts technologies from "technologies" OR "tools" section types only
-(B2 decision - Issue #321).
+Extracts technologies from SKILLS or KNOWLEDGE section types (B2 decision - Issue #321).
 
 Processes spaCy Doc with classified sections (doc._.classified_sections) and
 entity ruler matches (doc.ents), extracting technologies into doc._.technologies
@@ -33,6 +32,7 @@ from typing import Any, Dict, List
 from spacy.language import Language
 from spacy.tokens import Doc
 
+from src.poc.tweak.patterns import SectionType
 from src.poc.tweak.spacy_pipeline.patterns import TECH_TERMS
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class TechnologyProcessor:
     """spaCy pipeline component for technology extraction.
 
     Reads classified sections from doc._.classified_sections and extracts
-    technologies from sections classified as "technologies" OR "tools" type only.
+    technologies from sections classified as SKILLS or KNOWLEDGE types.
 
     Uses pre-registered entity_ruler (D5 decision) to identify technology
     entities (doc.ents with label="TECH").
@@ -112,7 +112,7 @@ class TechnologyProcessor:
         """Process a spaCy Doc and extract technologies.
 
         Reads doc._.classified_sections and extracts technologies from sections
-        classified as "technologies" or "tools" type only.
+        classified as SKILLS or KNOWLEDGE types.
 
         Returns dict list: [{"tech": str, "confidence": 1.0}, ...]
 
@@ -139,9 +139,12 @@ class TechnologyProcessor:
 
         for section, classification in classified_sections:
             try:
-                # Filter to "technologies" OR "tools" section types only (B2 decision)
-                section_type = classification.section_type.value
-                if section_type not in ("technologies", "tools"):
+                # Filter to SKILLS or KNOWLEDGE section types (B2 decision)
+                # Technologies are typically listed in skills or knowledge sections
+                if (
+                    SectionType.SKILLS not in classification.labels
+                    and SectionType.KNOWLEDGE not in classification.labels
+                ):
                     continue
 
                 # Extract TECH entities from doc (already processed by entity_ruler in pipeline)
