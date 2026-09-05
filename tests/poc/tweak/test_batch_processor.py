@@ -123,3 +123,28 @@ class TestRunBatch:
                 assert result.confidence_max >= result.confidence_min, "Max confidence should be >= min confidence"
                 assert result.confidence_avg >= result.confidence_min, "Avg confidence should be >= min confidence"
                 assert result.confidence_avg <= result.confidence_max, "Avg confidence should be <= max confidence"
+
+    def test_batch_processor_extracts_technologies_regression(self):
+        """Verify technology extraction works (regression test for entity_ruler patterns).
+
+        Issue #321: entity_ruler patterns must be loaded for technology extraction.
+        """
+        # Arrange
+        fixture_path = Path(__file__).parent.parent / "fixtures" / "details_test_fixture.json"
+
+        # Act
+        results = run_batch(str(fixture_path))
+
+        # Assert - at least one job should extract technologies
+        tech_counts = [len(r.technologies) for r in results]
+        assert max(tech_counts) > 0, "No technologies extracted - entity_ruler patterns not loaded"
+
+        # Verify structure of extracted technologies
+        for result in results:
+            for tech in result.technologies:
+                assert isinstance(tech, dict), "Technology should be a dict"
+                assert "tech" in tech, "Technology dict must have 'tech' key"
+                assert "confidence" in tech, "Technology dict must have 'confidence' key"
+                assert isinstance(tech["tech"], str), "Tech value should be string"
+                assert isinstance(tech["confidence"], float), "Confidence should be float"
+                assert tech["confidence"] == 1.0, "Technology confidence should always be 1.0"
