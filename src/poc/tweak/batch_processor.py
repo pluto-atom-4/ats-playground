@@ -345,11 +345,16 @@ def run_batch(input_path: str) -> List[JobResult]:
     if "entity_ruler" not in nlp.pipe_names:
         nlp.add_pipe("entity_ruler", before="ner")
 
+    # Load technology patterns into entity_ruler (Issue #321 fix)
+    ruler = nlp.get_pipe("entity_ruler")
+    tech_patterns = TechnologyProcessor.generate_tech_patterns()
+    ruler.add_patterns(tech_patterns)  # type: ignore
+
     # Instantiate components once
     preprocessor = HTMLPreprocessor()
     converter = HTMLMarkdownConverter()
     polisher = MarkdownPolisher()
-    ruler = MarkdownSpanRuler(nlp)
+    markdown_ruler = MarkdownSpanRuler(nlp)
     classifier = SectionClassifier()
 
     # Add pipeline components (all use last=True, D3 decision)
@@ -366,7 +371,7 @@ def run_batch(input_path: str) -> List[JobResult]:
             converter=converter,
             polisher=polisher,
             classifier=classifier,
-            ruler=ruler,
+            ruler=markdown_ruler,
             req_processor=req_processor,
             skill_processor=skill_processor,
             tech_processor=tech_processor,

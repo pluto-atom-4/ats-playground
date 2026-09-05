@@ -38,30 +38,6 @@ from src.poc.tweak.spacy_pipeline.patterns import TECH_TERMS
 logger = logging.getLogger(__name__)
 
 
-def _generate_patterns():
-    """Generate entity ruler patterns for technology terms.
-
-    Converts TECH_TERMS into spaCy entity_ruler patterns with case-insensitive
-    matching.
-
-    Returns:
-        List of pattern dicts with label="TECH" and pattern=token specs
-    """
-    patterns = []
-    for term in TECH_TERMS:
-        # Check if it's a multi-word phrase
-        if " " in term:
-            # Phrase pattern: Case-insensitive by using LOWER
-            # 'computer vision' -> [{'LOWER': 'computer'}, {'LOWER': 'vision'}]
-            tokens = term.lower().split()
-            patterns.append({"label": "TECH", "pattern": [{"LOWER": t} for t in tokens]})
-        else:
-            # Single word pattern: Simple case-insensitive token match
-            # 'PyTorch' -> {'LOWER': 'pytorch'}
-            patterns.append({"label": "TECH", "pattern": [{"LOWER": term.lower()}]})
-    return patterns
-
-
 class TechnologyProcessor:
     """spaCy pipeline component for technology extraction.
 
@@ -173,6 +149,30 @@ class TechnologyProcessor:
         doc._.technologies = technologies
 
         return doc
+
+    @staticmethod
+    def generate_tech_patterns() -> List[Dict[str, Any]]:
+        """Generate technology patterns from TECH_TERMS.
+
+        Converts TECH_TERMS into spaCy entity_ruler patterns with case-insensitive
+        matching. Returns patterns ready for entity_ruler.add_patterns().
+
+        Returns:
+            List of pattern dicts with label="TECH" and pattern=token specs
+        """
+        patterns = []
+        for term in TECH_TERMS:
+            # Check if it's a multi-word phrase
+            if " " in term:
+                # Phrase pattern: Case-insensitive by using LOWER
+                # 'computer vision' -> [{'LOWER': 'computer'}, {'LOWER': 'vision'}]
+                tokens = term.lower().split()
+                patterns.append({"label": "TECH", "pattern": [{"LOWER": t} for t in tokens]})
+            else:
+                # Single word pattern: Simple case-insensitive token match
+                # 'PyTorch' -> {'LOWER': 'pytorch'}
+                patterns.append({"label": "TECH", "pattern": [{"LOWER": term.lower()}]})
+        return patterns
 
     @property
     def name(self) -> str:
