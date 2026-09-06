@@ -32,7 +32,7 @@
       "Bash(npm *)"
     ]
   },
-  "model": "claude-haiku-4-5-20251001",
+  "model": "claude-sonnet-5",
   "hooks": {
     "PreToolUse": [
       {
@@ -103,7 +103,6 @@
   },
   "modelFallback": [
     "claude-haiku-4-5-20251001",
-    "claude-haiku-3-5-20250114"
   ],
   "costControls": {
     "dailyTokenLimit": 2000000,
