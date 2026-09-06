@@ -206,3 +206,7 @@ issue-content*.json
 updates.json
 docs/dev-note/
 tests/poc/fixtures/raw_html_description-*.json
+
+# Graph-based AI Tools Caching (Issue #325)
+.claude/crg_cache*.db
+.claude/crg_cache*.db-journal

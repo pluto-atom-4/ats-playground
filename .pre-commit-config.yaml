@@ -60,3 +60,15 @@ repos:
         types: [python]
 
   # (pytest is run as a separate workflow step, not in pre-commit)
+
+  # Graph index re-build on branch switch (Issue #325)
+  # Non-fatal: no-ops if better-code-review-graph isn't installed/configured.
+  - repo: local
+    hooks:
+      - id: graph-reindex
+        name: Re-index code graph (better-code-review-graph)
+        entry: bash -c 'CRG_DATABASE_PATH=./.claude/crg_cache_better.db uvx --python 3.12 --from "better-code-review-graph[security]==3.24.0" better-code-review-graph graph build --exclude "**/tests/**,**/.venv/**,**/data/**,**/logs/**,**/models/**,**/.spacy_models/**,**/htmlcov/**,**/*.db" || true'
+        language: system
+        stages: [post-checkout]
+        pass_filenames: false
+        always_run: true
