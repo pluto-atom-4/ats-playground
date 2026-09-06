@@ -102,7 +102,7 @@
     "cacheTTL": 3600
   },
   "modelFallback": [
-    "claude-haiku-4-5-20251001",
+    "claude-haiku-4-5-20251001"
   ],
   "costControls": {
     "dailyTokenLimit": 2000000,
