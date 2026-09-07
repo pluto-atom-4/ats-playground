@@ -112,10 +112,10 @@ Skills live in `.claude/skills/<name>/SKILL.md` (YAML metadata, lazy-loaded).
 
 ## Code Graph Tooling (Issue #325)
 
-Architect uses `better-code-review-graph` (MCP) for structural/blast-radius context before wide scans — full detail + decision record: [.claude/README.md](.claude/README.md#code-graph-tooling-issue-325).
+Architect uses `code-review-graph` (MCP) for structural/blast-radius context before wide scans — full detail + decision record: [.claude/README.md](.claude/README.md#code-graph-tooling-issue-325).
 
 ---
 
 **Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [multi-agent.md](.claude/rules/multi-agent.md) • [.claude/README.md](.claude/README.md)
 
-**Last Updated:** 2026-09-06 (Issue #325 trim; precedent: docs/dev-note/ai-config-maintenance.md)
+**Last Updated:** 2026-09-07 (Issue #328: swap better-code-review-graph → code-review-graph)
