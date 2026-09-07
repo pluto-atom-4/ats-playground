@@ -14,18 +14,22 @@ role governance and [CLAUDE.md](../CLAUDE.md) for setup/workflow.
 "mcpServers": {
   "better-code-review-graph": {
     "type": "stdio",
-    "command": "uvx",
-    "args": [
-      "--python", "3.12",
-      "--from", "better-code-review-graph[security]==3.24.0",
-      "better-code-review-graph"
-    ],
+    "command": "better-code-review-graph",
+    "args": [],
     "env": {
       "MCP_TRANSPORT": "stdio",
       "CRG_DATABASE_PATH": "./.claude/crg_cache_better.db"
     }
   }
 }
+```
+
+Uses the tool already on `PATH` (`uv tool install "better-code-review-graph[security]==3.24.0"`,
+resolved at `~/.local/bin/better-code-review-graph`) directly — no `uvx`
+re-resolution per launch. Check/upgrade the pinned version with:
+```bash
+uv tool list | grep better-code-review-graph
+uv tool install --force "better-code-review-graph[security]==3.24.0"
 ```
 
 - **DB isolation:** `CRG_DATABASE_PATH` is a `./`-relative path, resolved
@@ -45,7 +49,6 @@ role governance and [CLAUDE.md](../CLAUDE.md) for setup/workflow.
 - **Manual rebuild:**
   ```bash
   CRG_DATABASE_PATH=./.claude/crg_cache_better.db \
-    uvx --python 3.12 --from "better-code-review-graph[security]==3.24.0" \
     better-code-review-graph graph build \
     --exclude "**/tests/**,**/.venv/**,**/data/**,**/logs/**,**/models/**,**/.spacy_models/**,**/htmlcov/**,**/*.db"
   ```
@@ -61,9 +64,10 @@ role governance and [CLAUDE.md](../CLAUDE.md) for setup/workflow.
 - **Base `code-review-graph`** (upstream of the `better-` fork): same
   unverifiable-install-path concern; the `better-code-review-graph` fork
   alone covers the structural-analysis need. Dropped from scope.
-- **Network allowlist expansion**: no new domains required — `uvx` pulls
-  from PyPI, already allowed in `.claude/settings.json`'s
-  `sandbox.network.allowedDomains`.
+- **Network allowlist expansion**: no new domains required — `uv tool
+  install` pulls from PyPI, already allowed in `.claude/settings.json`'s
+  `sandbox.network.allowedDomains`; the MCP server itself invokes the
+  already-installed binary directly, no network use at launch.
 
 See the [Issue #325 plan comment](https://github.com/pluto-atom-4/ats-showcase/issues/325#issuecomment-5561445016)
 for the full decision record.
