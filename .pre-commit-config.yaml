@@ -72,3 +72,10 @@ repos:
         stages: [post-checkout]
         pass_filenames: false
         always_run: true
+      - id: graphify-reindex
+        name: Re-index code graph (graphify, AST-only)
+        entry: bash -c 'graphify update . || true'
+        language: system
+        stages: [post-checkout]
+        pass_filenames: false
+        always_run: true

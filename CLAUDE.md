@@ -99,3 +99,13 @@ tail -f logs/app.log                             # Watch logs
 **Effort Tuning:** [Local Overrides](docs/dev-note/ai-config-maintenance.md#local-overrides-claudesettingslocaljson) – set `CLAUDE_CODE_EFFORT_LEVEL`, `MAX_THINKING_TOKENS` per session
 
 **Updated**: 2026-08-30 (Issue #305: AI config optimization)
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

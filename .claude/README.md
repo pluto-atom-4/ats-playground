@@ -64,19 +64,66 @@ uv tool install --force "better-code-review-graph[security]==3.24.0"
 - **Verify operational:** run `/status` inside Claude Code and confirm
   `better-code-review-graph` is listed as a connected MCP server.
 
+## Graphify (Issue #325 — revisited)
+
+**Tool:** [`graphify`](https://github.com/Graphify-Labs/graphify) — PyPI
+package `graphifyy` (installed as `graphify` CLI + `graphify-mcp` MCP
+server, `uv tool install graphifyy`). Originally declined for an
+unverifiable install path; that path is now verified (`graphifyy==0.9.55`
+resolves from PyPI, both binaries confirmed on `PATH`).
+
+- **What it's for:** multi-modal macro map (code + docs + PDFs + DB
+  schemas), Leiden-clustered "communities", `GRAPH_REPORT.md` — the
+  high-level counterpart to `better-code-review-graph`'s low-level
+  AST/blast-radius queries. Phase 1 (macro) → Phase 2 (micro) handoff.
+- **Global MCP registration** (`~/.claude/settings.json`, alongside
+  `better-code-review-graph`):
+  ```jsonc
+  "graphify": {
+    "type": "stdio",
+    "command": "graphify-mcp",
+    "args": []
+  }
+  ```
+  `args: []` — the positional `graph_path` defaults to
+  `graphify-out/graph.json`, resolved from Claude Code's cwd (same
+  per-repo isolation pattern as `better-code-review-graph`; no cross-
+  project contamination as long as each session's cwd is this repo).
+- **Project permissions** (`.claude/settings.json`): `Bash(graphify
+  query *)`, `Bash(graphify path *)`, `Bash(graphify explain *)`,
+  `Bash(graphify affected *)`, `Bash(graphify god-nodes*)`,
+  `Bash(graphify update .)` allow-listed.
+- **Build the graph:** `graphify update .` — AST-only, no LLM/API key,
+  incremental by default (`--force` for a clean rebuild). Full
+  multi-modal extraction (docs/PDFs/schemas via LLM) is a separate,
+  explicit opt-in: `graphify extract . --backend claude`.
+- **CLAUDE.md wiring:** `graphify claude install` writes a routing
+  section into [CLAUDE.md](../CLAUDE.md) and registers its own
+  PreToolUse hook (surfaces `graphify-out/GRAPH_REPORT.md` before a
+  broad Grep/Glob) — no hand-written interceptor script for this one;
+  `graphify claude uninstall` removes both cleanly.
+- **Re-indexing:** *not* wired via `graphify hook install` — that
+  command manages `.git/hooks/post-checkout` directly, which would
+  clobber the pre-commit-managed hook already installed for
+  `better-code-review-graph`'s reindex. Instead, `.pre-commit-config.yaml`'s
+  `graph-reindex` local hooks block runs `graphify update .` alongside
+  `better-code-review-graph graph build`, both non-fatal, both
+  `stages: [post-checkout]`.
+- **gitignore:** `graphify-out/`, `.graphify_cache/`, `GRAPH_REPORT.md`
+  added — unlike `.code-review-graph/`, graphify's output isn't
+  self-ignoring.
+
 ## Considered and Declined
 
-- **Graphify** (multi-modal code+PR+docs+schema graph, `GRAPH_REPORT.md`
-  generation, `/graphify` slash commands): install path unverifiable at
-  plan time (no confirmed PyPI/uv package). Dropped from scope. Revisit if
-  a verifiable install path surfaces.
 - **Base `code-review-graph`** (upstream of the `better-` fork): same
-  unverifiable-install-path concern; the `better-code-review-graph` fork
-  alone covers the structural-analysis need. Dropped from scope.
+  unverifiable-install-path concern that originally applied to Graphify;
+  the `better-code-review-graph` fork alone covers the structural-
+  analysis need. Still dropped from scope.
 - **Network allowlist expansion**: no new domains required — `uv tool
   install` pulls from PyPI, already allowed in `.claude/settings.json`'s
-  `sandbox.network.allowedDomains`; the MCP server itself invokes the
-  already-installed binary directly, no network use at launch.
+  `sandbox.network.allowedDomains`; both MCP servers invoke already-
+  installed binaries directly, no network use at launch.
 
 See the [Issue #325 plan comment](https://github.com/pluto-atom-4/ats-showcase/issues/325#issuecomment-5561445016)
-for the full decision record.
+for the original decision record (Graphify's decline is superseded by
+the section above).
