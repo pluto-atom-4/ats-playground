@@ -120,6 +120,18 @@ Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loadi
 
 ---
 
-**Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [.claude/rules/multi-agent.md](.claude/rules/multi-agent.md)
+## Code Graph Tooling (Issue #325)
 
-**Last Updated:** 2026-08-30 (Issue #305: Scoping map + handoff rules)
+Architect uses `better-code-review-graph` (MCP, global registration,
+project-isolated DB) for structural/blast-radius context — see
+[.claude/README.md](.claude/README.md).
+
+**Considered and declined:** Graphify (multi-modal graph + `/graphify`
+commands) and base `code-review-graph` — both had unverifiable install
+paths at plan time. Full decision record: [Issue #325 plan comment](https://github.com/pluto-atom-4/ats-showcase/issues/325#issuecomment-5561445016).
+
+---
+
+**Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [.claude/rules/multi-agent.md](.claude/rules/multi-agent.md) • [.claude/README.md](.claude/README.md)
+
+**Last Updated:** 2026-09-06 (Issue #325: code graph tooling)

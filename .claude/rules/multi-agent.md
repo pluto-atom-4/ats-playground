@@ -69,6 +69,12 @@ Before Human merges:
 
 ---
 
+## Code Graph Tooling (Issue #325)
+
+Architect queries `better-code-review-graph` (MCP, global scope, project-
+isolated DB) for blast-radius/structural context before wide Grep/Glob
+scans in any phase's design step. Advisory only — no phase blocks on it.
+
 ## Cross-Phase Dependencies
 
 ```
@@ -96,5 +102,5 @@ If any phase fails 3+ times: Halt, escalate to human with context.
 
 ---
 
-**Last Updated:** 2026-08-01
+**Last Updated:** 2026-09-06 (Issue #325: code graph tooling note)
 **Status:** Condensed to 105% of budget; Phase 5-7 enhancements documented
