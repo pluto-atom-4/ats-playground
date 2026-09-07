@@ -16,8 +16,9 @@ permissions:
 ## Code Graph Tooling (Issue #325)
 
 Before wide `Grep`/`Glob` scans, query the `better-code-review-graph` MCP
-server (registered globally, DB isolated per-project via
-`CRG_DATABASE_PATH=./.claude/crg_cache_better.db`) for structural
-context — caller/callee chains, module boundaries — instead of grepping
-the whole tree cold. Falls back to normal Grep/Glob if the graph has no
-answer or the server is unavailable (no hard dependency).
+server (registered globally, DB isolated per-project — auto-detected
+`repo_root` → `<repo_root>/.code-review-graph/graph.db`, no env var
+involved) for structural context — caller/callee chains, module
+boundaries — instead of grepping the whole tree cold. Falls back to
+normal Grep/Glob if the graph has no answer or the server is unavailable
+(no hard dependency). Details: [.claude/README.md](../README.md).
