@@ -206,3 +206,13 @@ issue-content*.json
 updates.json
 docs/dev-note/
 tests/poc/fixtures/raw_html_description-*.json
+
+# Graph-based AI Tools Caching (Issue #325)
+# better-code-review-graph auto-detects <repo_root>/.code-review-graph/graph.db
+.code-review-graph/
+# graphify writes graph.json/GRAPH_REPORT.md/GRAPH_TREE.html here, not self-ignored
+graphify-out/
+.graphify_cache/
+GRAPH_REPORT.md
+# graphify claude install leaves a pre-edit settings.json backup, local-only
+.claude/settings.json.graphify-bak

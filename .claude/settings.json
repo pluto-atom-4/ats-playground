@@ -12,7 +12,13 @@
       "Bash(ruff *)",
       "Bash(grep *)",
       "Bash(find *)",
-      "Bash(tail *)"
+      "Bash(tail *)",
+      "Bash(graphify query *)",
+      "Bash(graphify path *)",
+      "Bash(graphify explain *)",
+      "Bash(graphify affected *)",
+      "Bash(graphify god-nodes*)",
+      "Bash(graphify update .)"
     ],
     "deny": [
       "Bash(rm -rf*)",
@@ -42,6 +48,34 @@
             "type": "command",
             "command": "bash .claude/hooks/pre-commit-no-main.sh",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/code-graph-interceptor.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/pluto-atom-4/.local/bin/graphify hook-guard search"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/pluto-atom-4/.local/bin/graphify hook-guard read"
           }
         ]
       }
@@ -119,6 +153,11 @@
       "env": {
         "NODE_ENV": "production"
       }
+    },
+    "graphify": {
+      "type": "stdio",
+      "command": "graphify-mcp",
+      "args": []
     }
   }
 }
