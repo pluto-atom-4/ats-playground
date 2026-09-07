@@ -22,7 +22,7 @@ This project maintains several config files for cross-tool compatibility:
 
 ### Current Thresholds
 - **CLAUDE.md:** Max 250 lines (currently ~110, 44% used)
-- **AGENTS.md:** Max 200 lines (currently ~160, 80% used)
+- **AGENTS.md:** Max 200 lines (currently ~121, 61% used)
 - **SKILLS.md:** Max 50 lines (currently ~30, 60% used)
 - **.github/copilot-instructions.md:** Max 300 lines (currently ~115, 38% used)
 
