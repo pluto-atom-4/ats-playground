@@ -10,18 +10,20 @@ role governance and [CLAUDE.md](../CLAUDE.md) for setup/workflow.
 **globally** at `~/.claude/settings.json`, DB isolated per-project.
 
 ```jsonc
-// ~/.claude/settings.json (excerpt)
+// ~/.claude/settings.json (excerpt, matches actual applied config)
 "mcpServers": {
   "better-code-review-graph": {
     "type": "stdio",
     "command": "better-code-review-graph",
-    "args": [],
-    "env": {
-      "MCP_TRANSPORT": "stdio"
-    }
+    "args": []
   }
 }
 ```
+
+No `env` block needed: `MCP_TRANSPORT` only matters when set to `"http"`
+(verified against installed source — `credential_state.py`/`server.py`
+both check `== "http"`); omitting it defaults to stdio, which is what's
+wanted here.
 
 Uses the tool already on `PATH` (`uv tool install "better-code-review-graph[security]==3.24.0"`,
 resolved at `~/.local/bin/better-code-review-graph`) directly — no `uvx`
@@ -41,7 +43,7 @@ uv tool install --force "better-code-review-graph[security]==3.24.0"
 - **Usage:** Architect queries the graph for caller/callee chains and
   module boundaries before wide `Grep`/`Glob` scans (see
   `.claude/agents/architect.md` and `.claude/rules/multi-agent.md`).
-- **Advisory hook:** `.claude/hooks/graphify-interceptor.sh` fires on
+- **Advisory hook:** `.claude/hooks/code-graph-interceptor.sh` fires on
   `Grep`/`Glob` `PreToolUse` and prints a one-line reminder to check the
   graph first. Never blocks the tool call (fail-open, matches
   `pre-commit-no-main.sh`'s contract).
