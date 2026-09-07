@@ -1,6 +1,6 @@
 # Agent Roles & Governance
 
-Multi-agent coordination framework for ATS Playground. Defines role boundaries and escalation.
+Multi-agent coordination framework for ATS Playground: role boundaries + escalation.
 
 ---
 
@@ -31,7 +31,7 @@ Multi-agent coordination framework for ATS Playground. Defines role boundaries a
 
 ## Claude Model Configuration
 
-**Source of Truth:** `.claude/agents/{role}.md` frontmatter (overrides global default)
+**Source of Truth:** `.claude/agents/{role}.md` frontmatter
 **Global Default:** `.claude/settings.json` → `claude-haiku-4-5-20251001`
 
 | Role | Model | Budget | Source |
@@ -43,7 +43,7 @@ Multi-agent coordination framework for ATS Playground. Defines role boundaries a
 
 **Precedence:** Agent `.md` frontmatter > Global settings.json
 
-Haiku reduces costs ~60% vs Sonnet while maintaining sufficient capability for code review + synthesis.
+Haiku cuts cost ~60% vs Sonnet; sufficient for code review + synthesis.
 
 
 ---
@@ -78,13 +78,7 @@ ARCHITECT → CODER → REVIEWER → HUMAN (merge)
 
 ## Directory Scoping Map
 
-| Path | Owner | Purpose |
-|------|-------|---------|
-| `.claude/rules/*.md` | Claude Code | Phase-specific guidance (crawl, preprocess, assess) |
-| `.claude/skills/<name>/` | Custom skills | Lazy-loaded project workflows |
-| `.claude/agents/*.md` | Agent config | Model + tool overrides per role |
-| `.github/copilot/rules/` | GitHub Copilot | IDE completions, conventions |
-| `.github/instructions/` | Documentation | CLI usage, issue workflows |
+`.claude/rules/*.md` phase guidance • `.claude/skills/<name>/SKILL.md` lazy-loaded Skill Discovery metadata • `.claude/agents/*.md` role overrides • `.github/copilot/rules/` Copilot IDE • `.github/instructions/` CLI docs.
 
 **Rule Priority**: Agent `.md` frontmatter > `.claude/settings.json` > GitHub defaults
 
@@ -92,17 +86,13 @@ ARCHITECT → CODER → REVIEWER → HUMAN (merge)
 
 ## Claude ↔ Copilot Handoff
 
-**Copilot (IDE)**: Single-file edits, quick fixes, real-time suggestions
-
-**Claude Code**: Multi-file refactors (>3 files), cross-module changes, complex planning, verification
-
-**Escalation Rule**: If scope exceeds 3 files OR touches `.claude/`, `AGENTS.md`, `CLAUDE.md`, use Claude Code.
+Copilot: single-file edits, quick fixes. Claude Code: multi-file refactors (>3 files), cross-module changes, complex planning/verification. **Escalation**: >3 files or touches `.claude/`, `AGENTS.md`, `CLAUDE.md`.
 
 ---
 
 ## Skill Discovery
 
-Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loading. See `.claude/skills/<skill>/SKILL.md` for examples.
+Skills live in `.claude/skills/<name>/SKILL.md` (YAML metadata, lazy-loaded).
 
 
 ---
@@ -122,16 +112,10 @@ Custom skills in `.claude/skills/<skill-name>/` use YAML metadata for lazy-loadi
 
 ## Code Graph Tooling (Issue #325)
 
-Architect uses `better-code-review-graph` (MCP, global registration,
-project-isolated DB) for structural/blast-radius context — see
-[.claude/README.md](.claude/README.md).
-
-**Considered and declined:** Graphify (multi-modal graph + `/graphify`
-commands) and base `code-review-graph` — both had unverifiable install
-paths at plan time. Full decision record: [Issue #325 plan comment](https://github.com/pluto-atom-4/ats-showcase/issues/325#issuecomment-5561445016).
+Architect uses `better-code-review-graph` (MCP) for structural/blast-radius context before wide scans — full detail + decision record: [.claude/README.md](.claude/README.md#code-graph-tooling-issue-325).
 
 ---
 
-**Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [.claude/rules/multi-agent.md](.claude/rules/multi-agent.md) • [.claude/README.md](.claude/README.md)
+**Related:** [CLAUDE.md](CLAUDE.md) • [DESIGN.md](DESIGN.md) • [multi-agent.md](.claude/rules/multi-agent.md) • [.claude/README.md](.claude/README.md)
 
-**Last Updated:** 2026-09-06 (Issue #325: code graph tooling)
+**Last Updated:** 2026-09-06 (Issue #325 trim; precedent: docs/dev-note/ai-config-maintenance.md)
