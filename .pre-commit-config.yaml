@@ -61,13 +61,13 @@ repos:
 
   # (pytest is run as a separate workflow step, not in pre-commit)
 
-  # Graph index re-build on branch switch (Issue #325)
-  # Non-fatal: no-ops if better-code-review-graph isn't installed/configured.
+  # Graph index re-build on branch switch (Issue #325, #328)
+  # Non-fatal: no-ops if code-review-graph isn't installed/configured.
   - repo: local
     hooks:
       - id: graph-reindex
-        name: Re-index code graph (better-code-review-graph)
-        entry: bash -c 'better-code-review-graph graph build || true'
+        name: Re-index code graph (code-review-graph)
+        entry: bash -c 'code-review-graph build || true'
         language: system
         stages: [post-checkout]
         pass_filenames: false

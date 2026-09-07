@@ -13,12 +13,13 @@ permissions:
     ask: ["*"] # Prompts human before executing destructive or arbitrary commands
 ---
 
-## Code Graph Tooling (Issue #325)
+## Code Graph Tooling (Issue #325, #328)
 
-Before wide `Grep`/`Glob` scans, query the `better-code-review-graph` MCP
+Before wide `Grep`/`Glob` scans, query the `code-review-graph` MCP
 server (registered globally, DB isolated per-project — auto-detected
 `repo_root` → `<repo_root>/.code-review-graph/graph.db`, no env var
 involved) for structural context — caller/callee chains, module
-boundaries — instead of grepping the whole tree cold. Falls back to
-normal Grep/Glob if the graph has no answer or the server is unavailable
-(no hard dependency). Details: [.claude/README.md](../README.md).
+boundaries, blast-radius (`impact --files ...`) — instead of grepping
+the whole tree cold. Falls back to normal Grep/Glob if the graph has no
+answer or the server is unavailable (no hard dependency). Details:
+[.claude/README.md](../README.md).
