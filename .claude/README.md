@@ -17,8 +17,7 @@ role governance and [CLAUDE.md](../CLAUDE.md) for setup/workflow.
     "command": "better-code-review-graph",
     "args": [],
     "env": {
-      "MCP_TRANSPORT": "stdio",
-      "CRG_DATABASE_PATH": "./.claude/crg_cache_better.db"
+      "MCP_TRANSPORT": "stdio"
     }
   }
 }
@@ -32,9 +31,13 @@ uv tool list | grep better-code-review-graph
 uv tool install --force "better-code-review-graph[security]==3.24.0"
 ```
 
-- **DB isolation:** `CRG_DATABASE_PATH` is a `./`-relative path, resolved
-  against each project's cwd — prevents cross-project SQLite contamination
-  when the same global MCP entry is used from multiple repos.
+- **DB isolation:** no `CRG_DATABASE_PATH` env var exists in v3.24.0 (verified
+  against installed package source — invented in the original issue draft).
+  Isolation instead comes from the tool's own auto-detection: it resolves
+  `repo_root` from cwd and stores the graph at
+  `<repo_root>/.code-review-graph/graph.db` — one directory per repo,
+  no cross-project contamination as long as Claude Code launches the MCP
+  server with this repo as cwd (the default for project-scoped sessions).
 - **Usage:** Architect queries the graph for caller/callee chains and
   module boundaries before wide `Grep`/`Glob` scans (see
   `.claude/agents/architect.md` and `.claude/rules/multi-agent.md`).
@@ -48,10 +51,14 @@ uv tool install --force "better-code-review-graph[security]==3.24.0"
   locally via `uv run pre-commit install --hook-type post-checkout`.
 - **Manual rebuild:**
   ```bash
-  CRG_DATABASE_PATH=./.claude/crg_cache_better.db \
-    better-code-review-graph graph build \
-    --exclude "**/tests/**,**/.venv/**,**/data/**,**/logs/**,**/models/**,**/.spacy_models/**,**/htmlcov/**,**/*.db"
+  better-code-review-graph graph build
   ```
+  No `--exclude` flag exists (verified against installed CLI: `graph build`
+  takes no such option). Excludes come from `.gitignore` (respected
+  automatically, on top of the tool's own defaults — `.venv/`, `node_modules/`,
+  `.git/`, `__pycache__/`, `dist/`, `build/`, etc.) plus its default
+  `.code-review-graph/**` self-exclude. `tests/` is not gitignored in this
+  repo, so it gets parsed too — harmless, just extra nodes in the graph.
 - **Verify operational:** run `/status` inside Claude Code and confirm
   `better-code-review-graph` is listed as a connected MCP server.
 

@@ -67,7 +67,7 @@ repos:
     hooks:
       - id: graph-reindex
         name: Re-index code graph (better-code-review-graph)
-        entry: bash -c 'CRG_DATABASE_PATH=./.claude/crg_cache_better.db better-code-review-graph graph build --exclude "**/tests/**,**/.venv/**,**/data/**,**/logs/**,**/models/**,**/.spacy_models/**,**/htmlcov/**,**/*.db" || true'
+        entry: bash -c 'better-code-review-graph graph build || true'
         language: system
         stages: [post-checkout]
         pass_filenames: false
