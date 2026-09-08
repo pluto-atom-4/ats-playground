@@ -78,6 +78,82 @@ class TestFormatJobRow:
         # Should fit in reasonable width (title 40 + sep + company 20 + sep + ...)
         assert len(result) < 200
 
+    def test_format_job_row_includes_posted_date(self) -> None:
+        """format_job_row should include posted_date as the first column."""
+        job: Job = {
+            "id": "j1",
+            "title": "Engineer",
+            "company": "TechCorp",
+            "location": "Seattle",
+            "status": "pending_review",
+            "posted_date": "2026-09-01",
+        }
+
+        result = format_job_row(job)
+
+        assert result.startswith("2026-09-01")
+        assert result.split("|")[0].strip() == "2026-09-01"
+
+    def test_format_job_row_missing_posted_date_shows_placeholder(self) -> None:
+        """format_job_row should show '-' when posted_date key is absent."""
+        job: Job = {
+            "id": "j1",
+            "title": "Engineer",
+            "company": "TechCorp",
+            "location": "Seattle",
+            "status": "pending_review",
+        }
+
+        result = format_job_row(job)
+
+        assert result.split("|")[0].strip() == "-"
+
+    def test_format_job_row_null_posted_date_shows_placeholder(self) -> None:
+        """format_job_row should show '-' when posted_date is explicitly None."""
+        job: Job = {
+            "id": "j1",
+            "title": "Engineer",
+            "company": "TechCorp",
+            "location": "Seattle",
+            "status": "pending_review",
+            "posted_date": None,
+        }
+
+        result = format_job_row(job)
+
+        assert result.split("|")[0].strip() == "-"
+
+    def test_format_job_row_empty_string_posted_date_shows_placeholder(self) -> None:
+        """format_job_row should show '-' when posted_date is an empty string."""
+        job: Job = {
+            "id": "j1",
+            "title": "Engineer",
+            "company": "TechCorp",
+            "location": "Seattle",
+            "status": "pending_review",
+            "posted_date": "",
+        }
+
+        result = format_job_row(job)
+
+        assert result.split("|")[0].strip() == "-"
+
+    def test_format_job_row_posted_date_column_width(self) -> None:
+        """posted_date column should be fixed at 15 chars."""
+        job: Job = {
+            "id": "j1",
+            "title": "Engineer",
+            "company": "TechCorp",
+            "location": "Seattle",
+            "status": "pending_review",
+            "posted_date": "2026-09-01",
+        }
+
+        result = format_job_row(job)
+        first_column = result.split("|")[0]
+
+        assert len(first_column) == 16  # 15 chars + trailing space before "|"
+
 
 class TestParseArgs:
     """Tests for parse_args function."""
