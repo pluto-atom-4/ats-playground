@@ -16,7 +16,7 @@ DEFAULT_INPUT_DIR = Path("data/extracted_jobs")
 
 
 def format_job_row(job: Job) -> str:
-    """Format a job for display in SelectionList (title | company | location | status).
+    """Format a job for display in SelectionList (posted_date | title | company | location | status).
 
     Args:
         job: Job to format.
@@ -25,12 +25,13 @@ def format_job_row(job: Job) -> str:
         Formatted string with pipe-separated fields, column-aligned.
     """
     # Use fixed column widths for alignment
+    posted_date = (job.get("posted_date") or "-")[:15].ljust(15)
     title = job["title"][:70].ljust(70)
     company = job["company"][:20].ljust(20)
     location = job["location"][:20].ljust(20)
     status = job["status"][:15].ljust(15)
 
-    return f"{title} | {company} | {location} | {status}"
+    return f"{posted_date} | {title} | {company} | {location} | {status}"
 
 
 class WarningBanner(Static):
