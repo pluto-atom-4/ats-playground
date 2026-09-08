@@ -5,7 +5,99 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.poc.tweak.crawl_list import crawl_company_jobs, extract_job_from_container
+from src.poc.tweak.crawl_list import crawl_company_jobs, extract_job_from_container, parse_posted_date
+
+
+class TestParsePostedDate:
+    """Test suite for parse_posted_date function."""
+
+    def test_parse_posted_date_none_input(self):
+        """Test that None input returns None."""
+        result = parse_posted_date(None, datetime(2026, 9, 8, 10, 30))
+        assert result is None
+
+    def test_parse_posted_date_empty_string(self):
+        """Test that empty string returns None."""
+        result = parse_posted_date("", datetime(2026, 9, 8, 10, 30))
+        assert result is None
+
+    def test_parse_posted_date_today(self):
+        """Test 'Posted Today' returns reference date."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("Posted Today", reference)
+        assert result == "2026-09-08"
+
+    def test_parse_posted_date_today_case_insensitive(self):
+        """Test 'Posted Today' is case-insensitive."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("POSTED TODAY", reference)
+        assert result == "2026-09-08"
+
+    def test_parse_posted_date_yesterday(self):
+        """Test 'Posted Yesterday' returns reference - 1 day."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("Posted Yesterday", reference)
+        assert result == "2026-09-07"
+
+    def test_parse_posted_date_yesterday_case_insensitive(self):
+        """Test 'Posted Yesterday' is case-insensitive."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("posted yesterday", reference)
+        assert result == "2026-09-07"
+
+    def test_parse_posted_date_n_days_ago(self):
+        """Test 'Posted N Days Ago' returns reference - N days."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("Posted 8 Days Ago", reference)
+        assert result == "2026-08-31"
+
+    def test_parse_posted_date_n_days_ago_single_day(self):
+        """Test 'Posted 1 Days Ago' (singular 'day' variant)."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("Posted 1 Day Ago", reference)
+        assert result == "2026-09-07"
+
+    def test_parse_posted_date_n_days_ago_case_insensitive(self):
+        """Test 'Posted N Days Ago' is case-insensitive."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("POSTED 5 DAYS AGO", reference)
+        assert result == "2026-09-03"
+
+    def test_parse_posted_date_30_plus_days_ago(self):
+        """Test 'Posted 30+ Days Ago' returns reference - 30 days."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("Posted 30+ Days Ago", reference)
+        assert result == "2026-08-09"
+
+    def test_parse_posted_date_30_plus_days_ago_case_insensitive(self):
+        """Test 'Posted 30+ Days Ago' is case-insensitive."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("posted 30+ days ago", reference)
+        assert result == "2026-08-09"
+
+    def test_parse_posted_date_garbage_text(self):
+        """Test that garbage text returns None."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("Some random text", reference)
+        assert result is None
+
+    def test_parse_posted_date_whitespace_trimmed(self):
+        """Test that leading/trailing whitespace is handled."""
+        reference = datetime(2026, 9, 8, 10, 30)
+        result = parse_posted_date("  Posted 3 Days Ago  ", reference)
+        assert result == "2026-09-05"
+
+    def test_parse_posted_date_month_boundary(self):
+        """Test date calculation across month boundary."""
+        reference = datetime(2026, 9, 5, 10, 30)
+        result = parse_posted_date("Posted 10 Days Ago", reference)
+        assert result == "2026-08-26"
+
+    def test_parse_posted_date_year_boundary(self):
+        """Test date calculation across year boundary."""
+        reference = datetime(2026, 1, 5, 10, 30)
+        result = parse_posted_date("Posted 10 Days Ago", reference)
+        assert result == "2025-12-26"
 
 
 class TestExtractJobFromContainer:
@@ -176,7 +268,7 @@ class TestExtractJobFromContainer:
 
     @pytest.mark.asyncio
     async def test_extract_job_from_container_defaults(self):
-        """Test that description, requirements, salary_*, posted_date default to None."""
+        """Test that description, requirements, salary_* default to None."""
         page = AsyncMock()
         container = AsyncMock()
 
@@ -203,6 +295,100 @@ class TestExtractJobFromContainer:
         assert result["requirements"] is None
         assert result["salary_min"] is None
         assert result["salary_max"] is None
+        assert result["posted_date"] is None
+
+    @pytest.mark.asyncio
+    async def test_extract_job_from_container_posted_date_extraction(self):
+        """Test that posted_date is extracted and parsed from posted_on selector."""
+        page = AsyncMock()
+        container = AsyncMock()
+
+        title_elem = AsyncMock()
+        title_elem.text_content = AsyncMock(return_value="Backend Developer")
+
+        posted_on_elem = AsyncMock()
+        posted_on_elem.text_content = AsyncMock(return_value="Posted 5 Days Ago")
+
+        async def query_selector_side_effect(selector):
+            if selector == "title":
+                return title_elem
+            elif selector == "posted_on":
+                return posted_on_elem
+            return None
+
+        container.query_selector = AsyncMock(side_effect=query_selector_side_effect)
+
+        result = await extract_job_from_container(
+            page=page,
+            container=container,
+            company_name="TechCorp",
+            selectors={"title": "title", "posted_on": "posted_on"},
+            base_url="",
+        )
+
+        assert result is not None
+        assert result["posted_date"] is not None
+        # Verify it's a valid ISO date string
+        assert len(result["posted_date"]) == 10  # YYYY-MM-DD format
+        assert result["posted_date"].count("-") == 2
+
+    @pytest.mark.asyncio
+    async def test_extract_job_from_container_posted_date_none_when_no_selector(self):
+        """Test that posted_date is None when posted_on selector is not provided."""
+        page = AsyncMock()
+        container = AsyncMock()
+
+        title_elem = AsyncMock()
+        title_elem.text_content = AsyncMock(return_value="DevOps Engineer")
+
+        async def query_selector_side_effect(selector):
+            if selector == "title":
+                return title_elem
+            return None
+
+        container.query_selector = AsyncMock(side_effect=query_selector_side_effect)
+
+        result = await extract_job_from_container(
+            page=page,
+            container=container,
+            company_name="CloudCorp",
+            selectors={"title": "title"},  # No posted_on selector
+            base_url="",
+        )
+
+        assert result is not None
+        assert result["posted_date"] is None
+
+    @pytest.mark.asyncio
+    async def test_extract_job_from_container_posted_date_unparseable_text(self):
+        """Test that posted_date is None for unparseable posted_on text."""
+        page = AsyncMock()
+        container = AsyncMock()
+
+        title_elem = AsyncMock()
+        title_elem.text_content = AsyncMock(return_value="QA Engineer")
+
+        posted_on_elem = AsyncMock()
+        posted_on_elem.text_content = AsyncMock(return_value="Some random text")
+
+        async def query_selector_side_effect(selector):
+            if selector == "title":
+                return title_elem
+            elif selector == "posted_on":
+                return posted_on_elem
+            return None
+
+        container.query_selector = AsyncMock(side_effect=query_selector_side_effect)
+
+        result = await extract_job_from_container(
+            page=page,
+            container=container,
+            company_name="TestCorp",
+            selectors={"title": "title", "posted_on": "posted_on"},
+            base_url="",
+        )
+
+        assert result is not None
         assert result["posted_date"] is None
 
     @pytest.mark.asyncio

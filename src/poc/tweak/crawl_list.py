@@ -18,8 +18,9 @@ import argparse
 import asyncio
 import json
 import logging
+import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urljoin
@@ -72,6 +73,49 @@ async def extract_link(element: Any, selector: Optional[str]) -> Optional[str]:
     return None
 
 
+def parse_posted_date(text: Optional[str], reference: datetime) -> Optional[str]:
+    """
+    Parse Workday-style relative dates into ISO YYYY-MM-DD format.
+
+    Args:
+        text: Raw text like "Posted 8 Days Ago", "Posted Today", etc.
+        reference: Reference datetime to calculate relative dates from.
+
+    Returns:
+        ISO YYYY-MM-DD string, or None if unparseable or input is None.
+
+    Examples:
+        parse_posted_date("Posted 8 Days Ago", datetime(2026, 9, 8, 10, 30)) -> "2026-08-31"
+        parse_posted_date("Posted Today", datetime(2026, 9, 8, 10, 30)) -> "2026-09-08"
+        parse_posted_date("Posted Yesterday", datetime(2026, 9, 8, 10, 30)) -> "2026-09-07"
+        parse_posted_date("Posted 30+ Days Ago", datetime(2026, 9, 8, 10, 30)) -> "2026-08-09"
+    """
+    if not text:
+        return None
+
+    try:
+        text_lower = text.strip().lower()
+
+        # Handle "Posted Today"
+        if "posted" in text_lower and "today" in text_lower:
+            return reference.date().isoformat()
+
+        # Handle "Posted Yesterday"
+        if "posted" in text_lower and "yesterday" in text_lower:
+            return (reference.date() - timedelta(days=1)).isoformat()
+
+        # Handle "Posted N Days Ago" and "Posted 30+ Days Ago"
+        match = re.search(r"posted\s+(\d+)\+?\s+days?\s+ago", text_lower)
+        if match:
+            days_ago = int(match.group(1))
+            return (reference.date() - timedelta(days=days_ago)).isoformat()
+
+        return None
+    except Exception as e:
+        logger.debug(f"Error parsing posted date '{text}': {e}")
+        return None
+
+
 async def extract_job_from_container(
     page: Page,
     container: Any,
@@ -91,6 +135,7 @@ async def extract_job_from_container(
         title = await extract_text(container, selectors.get("title"))
         location = await extract_text(container, selectors.get("location"))
         link = await extract_link(container, selectors.get("link"))
+        posted_on_text = await extract_text(container, selectors.get("posted_on"))
 
         if not title:
             logger.debug("Skipping container: no title found")
@@ -109,7 +154,11 @@ async def extract_job_from_container(
         )
 
         # Get current timestamp in UTC (matching production crawler format)
-        crawled_at = datetime.utcnow().isoformat()
+        crawled_at_dt = datetime.utcnow()
+        crawled_at = crawled_at_dt.isoformat()
+
+        # Parse posted date from Workday-style relative dates
+        posted_date = parse_posted_date(posted_on_text, crawled_at_dt)
 
         return {
             "id": job_id,
@@ -121,7 +170,7 @@ async def extract_job_from_container(
             "requirements": None,
             "salary_min": None,
             "salary_max": None,
-            "posted_date": None,
+            "posted_date": posted_date,
             "crawled_at": crawled_at,
             "status": "pending_review",
         }
