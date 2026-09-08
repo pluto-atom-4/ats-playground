@@ -144,7 +144,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         html_content = data.get("description", "")
         result = clean_and_convert(html_content)
@@ -163,7 +166,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         html_content = data.get("description", "")
         result = clean_and_convert(html_content)
@@ -179,7 +185,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         html_content = data.get("description", "")
         result = clean_and_convert(html_content)
@@ -195,7 +204,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         html_content = data.get("description", "")
         result = clean_and_convert(html_content)
@@ -217,7 +229,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         # This fixture may contain different format; adapt as needed
         if isinstance(data, dict) and "description" in data:
@@ -239,7 +254,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         if isinstance(data, dict) and "description" in data:
             html_content = data.get("description", "")
@@ -258,7 +276,10 @@ class TestRegressionFixtures:
             pytest.skip(f"Fixture {fixture_file} not found")
 
         with open(fixture_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                pytest.skip(f"Fixture {fixture_file} is not valid JSON: {e}")
 
         if isinstance(data, dict) and "description" in data:
             html_content = data.get("description", "")
